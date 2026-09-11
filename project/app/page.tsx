@@ -88,6 +88,23 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Metrics and trust bar */}
+      <section className="max-w-7xl mx-auto px-4 -mt-8 relative z-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { value: '24h', label: 'tempo médio de resposta' },
+            { value: '6', label: 'categorias atendidas' },
+            { value: '3 passos', label: 'para abrir o chamado' },
+            { value: '100%', label: 'onboarding digital' },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-center">
+              <p className="text-2xl font-bold text-[#0A3A7A] font-heading">{stat.value}</p>
+              <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* How it works */}
       <section className="max-w-7xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
@@ -106,7 +123,7 @@ export default function HomePage() {
           ].map((item, i) => {
             const Icon = item.icon;
             return (
-              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all">
+              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all hover:-translate-y-1">
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4 relative">
                   <Icon className="w-7 h-7 text-[#1E5BC6]" />
                   <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#1E5BC6] text-white text-xs font-bold flex items-center justify-center">
