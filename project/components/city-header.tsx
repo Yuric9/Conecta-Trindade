@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, MapPin, Phone, ChevronDown, User, LogOut, Home, FileText, LayoutDashboard } from 'lucide-react';
+import { Menu, X, MapPin, Phone, ChevronDown, User, LogOut, Home, FileText, LayoutDashboard, Search, Info } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,46 +32,40 @@ export function CityHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      {/* Top bar - dark blue */}
-      <div className="bg-[#0A3A7A] text-white text-xs py-1.5 px-4 hidden sm:block">
+      <div className="bg-[#006653] text-white px-4 hidden sm:block">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-3 h-3" />
-              Trindade - Goiás
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Phone className="w-3 h-3" />
-              (62) 3506-7000
-            </span>
+          <nav className="flex items-center gap-7 h-12 text-sm font-semibold">
+            {['Início', 'Cidade', 'Governo', 'Serviços', 'Notícias', 'Transparência', 'Fale Conosco'].map((item) => (
+              <a key={item} href={item === 'Início' ? '/' : '#'} className="text-emerald-50 hover:text-[#FFC20E] transition-colors">
+                {item}
+              </a>
+            ))}
+          </nav>
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 rounded-md bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20" aria-label="Buscar no portal">
+              <Search className="w-4 h-4" />
+              Buscar
+            </button>
+            <button className="flex items-center gap-2 rounded-md bg-[#FFC20E] px-3 py-2 text-xs font-bold text-[#173b32] hover:bg-yellow-300">
+              <Info className="w-4 h-4" />
+              Acesso à informação
+            </button>
           </div>
-          <span className="font-medium tracking-wide">Capital da Fé</span>
         </div>
       </div>
 
-      {/* Main header - blue gradient */}
-      <div className="bg-gradient-to-r from-[#0A3A7A] to-[#1E5BC6] shadow-lg">
+      <div className="bg-gradient-to-r from-[#006653] via-[#005847] to-[#004d3e] shadow-[0_8px_25px_rgba(0,55,43,0.25)] border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
+          <div className="flex items-center justify-between h-18 py-3">
             <Link href="/" className="flex items-center gap-3 group">
-              {/* Brasão placeholder */}
-              <div className="w-10 h-10 rounded-full bg-white/95 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-                <div className="w-8 h-8 rounded-full bg-[#0A3A7A] flex items-center justify-center">
-                  <span className="text-white font-bold text-sm font-heading">T</span>
-                </div>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-white font-bold text-sm font-heading tracking-wide leading-tight">
-                  PREFEITURA DE TRINDADE
-                </span>
-                <span className="text-blue-100 text-[10px] font-medium tracking-wider leading-tight">
-                  CONECTA TRINDADE · ZELO URBANO
-                </span>
-              </div>
+              <img
+                src="/images/logo-trindade.png"
+                alt="Prefeitura de Trindade"
+                className="h-14 w-auto max-w-[220px] object-contain transition-transform group-hover:scale-105"
+              />
+              <span className="sr-only">Conecta Trindade - Zelo Urbano</span>
             </Link>
 
-            {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -80,10 +74,10 @@ export function CityHeader() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       active
-                        ? 'bg-white/20 text-white'
-                        : 'text-blue-50 hover:bg-white/10 hover:text-white'
+                        ? 'bg-white/15 text-white shadow-inner ring-1 ring-white/10'
+                        : 'text-emerald-50 hover:bg-white/10 hover:text-white'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -94,10 +88,10 @@ export function CityHeader() {
               {isAdmin && (
                 <Link
                   href="/admin"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     pathname?.startsWith('/admin')
-                      ? 'bg-white/20 text-white'
-                      : 'text-blue-50 hover:bg-white/10 hover:text-white'
+                      ? 'bg-white/15 text-white shadow-inner ring-1 ring-white/10'
+                      : 'text-emerald-50 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <LayoutDashboard className="w-4 h-4" />
@@ -128,7 +122,7 @@ export function CityHeader() {
                 </DropdownMenu>
               ) : (
                 <Link href="/login">
-                  <Button size="sm" variant="secondary" className="bg-white text-[#0A3A7A] hover:bg-blue-50 font-semibold">
+                  <Button size="sm" variant="secondary" className="bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 font-semibold">
                     Entrar
                   </Button>
                 </Link>
@@ -147,7 +141,7 @@ export function CityHeader() {
 
         {/* Mobile nav */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-white/20 bg-[#0A3A7A]">
+          <div className="md:hidden border-t border-white/20 bg-[#005847]">
             <div className="px-4 py-3 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -158,7 +152,7 @@ export function CityHeader() {
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                      active ? 'bg-white/20 text-white' : 'text-blue-50 hover:bg-white/10'
+                      active ? 'bg-white/20 text-white' : 'text-emerald-50 hover:bg-white/10'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -170,7 +164,7 @@ export function CityHeader() {
                 <Link
                   href="/admin"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-blue-50 hover:bg-white/10"
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-emerald-50 hover:bg-white/10"
                 >
                   <LayoutDashboard className="w-5 h-5" />
                   Painel Admin
@@ -207,28 +201,27 @@ export function CityHeader() {
 
 export function CityFooter() {
   return (
-    <footer className="bg-[#0A3A7A] text-white mt-12">
+    <footer className="bg-[#005847] text-white mt-12">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-full bg-white/95 flex items-center justify-center">
-                <div className="w-7 h-7 rounded-full bg-[#0A3A7A] flex items-center justify-center">
-                  <span className="text-white font-bold text-xs font-heading">T</span>
-                </div>
-              </div>
+              <img
+                src="/images/logo-trindade.png"
+                alt="Prefeitura de Trindade"
+                className="h-12 w-auto max-w-[190px] object-contain"
+              />
               <div>
-                <p className="font-bold text-sm font-heading">PREFEITURA DE TRINDADE</p>
-                <p className="text-blue-200 text-xs">Capital da Fé</p>
+                <p className="text-emerald-100 text-xs">Capital da Fé</p>
               </div>
             </div>
-            <p className="text-blue-100 text-xs leading-relaxed">
+            <p className="text-emerald-50 text-xs leading-relaxed">
               Plataforma municipal de zelo urbano. Registre e acompanhe solicitações de serviços públicos.
             </p>
           </div>
           <div>
             <h4 className="font-semibold text-sm mb-3 font-heading">Serviços</h4>
-            <ul className="space-y-2 text-xs text-blue-100">
+            <ul className="space-y-2 text-xs text-emerald-50">
               <li>Iluminação Pública</li>
               <li>Reparo de Buracos</li>
               <li>Limpeza Urbana</li>
@@ -238,7 +231,7 @@ export function CityFooter() {
           </div>
           <div>
             <h4 className="font-semibold text-sm mb-3 font-heading">Contato</h4>
-            <ul className="space-y-2 text-xs text-blue-100">
+            <ul className="space-y-2 text-xs text-emerald-50">
               <li>(62) 3506-7000</li>
               <li>ouvidoria@trindade.go.gov.br</li>
               <li>Av. Goiás, Centro - Trindade/GO</li>
@@ -246,7 +239,7 @@ export function CityFooter() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-white/20 mt-6 pt-4 text-center text-xs text-blue-200">
+        <div className="border-t border-white/20 mt-6 pt-4 text-center text-xs text-emerald-100">
           © 2026 Prefeitura Municipal de Trindade - Goiás. Todos os direitos reservados.
         </div>
       </div>

@@ -4,51 +4,46 @@
 
 @layer base {
   :root {
-    /* Trindade GO - Identidade Visual Oficial */
-    --background: 244 246 248;
-    --foreground: 15 23 42;
+    /* Paleta inspirada na interface oficial de Trindade */
+    --background: 210 14% 96%;
+    --foreground: 220 20% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 15 23 42;
+    --card-foreground: 214 31% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 15 23 42;
+    --popover-foreground: 214 31% 15%;
 
-    /* Azul primário da Prefeitura de Trindade */
-    --primary: 217 89% 45%;
+    --primary: 165 93% 20%;
     --primary-foreground: 0 0% 100%;
-    --primary-dark: 217 83% 26%;
+    --primary-dark: 165 100% 15%;
 
-    /* Azul secundário mais claro */
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 217 83% 26%;
+    --secondary: 46 96% 52%;
+    --secondary-foreground: 220 20% 14%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 217 83% 26%;
+    --accent: 46 96% 52%;
+    --accent-foreground: 165 93% 20%;
 
-    /* Verde de sucesso */
-    --success: 142 72% 36%;
+    --success: 150 60% 35%;
     --success-foreground: 0 0% 100%;
 
-    /* Amarelo de aviso */
-    --warning: 38 92% 50%;
+    --warning: 42 90% 52%;
     --warning-foreground: 0 0% 100%;
 
-    /* Vermelho de erro */
-    --destructive: 0 84% 60%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 217 89% 45%;
+    --ring: 165 93% 20%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --chart-1: 217 89% 45%;
-    --chart-2: 142 72% 36%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 280 65% 60%;
+    --chart-1: 165 93% 20%;
+    --chart-2: 46 96% 52%;
+    --chart-3: 150 60% 35%;
+    --chart-4: 0 70% 50%;
+    --chart-5: 165 55% 42%;
   }
 }
 
@@ -84,6 +79,18 @@
 
 .marker-pulse {
   animation: marker-pulse 2s infinite;
+}
+
+/* Decorative wave used by the municipal-style hero */
+.municipal-wave {
+  position: absolute;
+  left: -5%;
+  right: -5%;
+  bottom: -1px;
+  height: 34%;
+  background: rgba(255, 255, 255, 0.14);
+  clip-path: ellipse(62% 75% at 46% 100%);
+  pointer-events: none;
 }
 
 /* Smooth transitions */
