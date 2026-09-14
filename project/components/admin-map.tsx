@@ -66,6 +66,14 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
         REJEITADO: '#ef4444',
         AVALIADO: '#14b8a6',
       };
+      const labels: Record<string, string> = {
+        ABERTO: 'Aberto',
+        TRIADO: 'Triado',
+        EM_ANDAMENTO: 'Em andamento',
+        RESOLVIDO: 'Resolvido',
+        REJEITADO: 'Rejeitado',
+        AVALIADO: 'Avaliado',
+      };
 
       chamados.forEach((c) => {
         const color = colors[c.status] || '#6b7280';
@@ -82,6 +90,7 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
           <div style="font-family: sans-serif; min-width: 180px;">
             <strong>${c.protocolo}</strong><br/>
             <span style="font-size: 12px;">${c.categoria}</span><br/>
+            <span style="font-size: 12px; color: ${color}; font-weight: 700;">${labels[c.status] || c.status}</span><br/>
             <span style="font-size: 11px; color: #666;">${c.descricao.substring(0, 80)}...</span>
           </div>
         `);
@@ -92,6 +101,11 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
 
         markersRef.current.push(marker);
       });
+
+      if (chamados.length > 0) {
+        const bounds = L.latLngBounds(chamados.map((c) => [c.latitude, c.longitude] as [number, number]));
+        map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
+      }
     })();
   }, [chamados, onSelect]);
 
