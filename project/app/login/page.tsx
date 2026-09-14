@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,12 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!isSupabaseConfigured) {
+      setError('O sistema está em modo demonstração. Configure o Supabase antes de criar contas ou fazer login.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -37,7 +43,9 @@ export default function LoginPage() {
           email,
           password,
           options: {
-            data: { nome, cpf, telefone, role: 'cidadao' },
+            // Role is deliberately NOT sent from the client.
+            // The database trigger always creates public signups as cidadao.
+            data: { nome, cpf, telefone },
           },
         });
         if (error) throw error;
@@ -170,7 +178,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="••••••••"
                     minLength={6}
                     required
                   />
@@ -179,7 +187,7 @@ export default function LoginPage() {
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertCircle className="w-4 h-4" />
+                  <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
@@ -187,33 +195,20 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 bg-[#1E5BC6] hover:bg-[#0A3A7A] text-white font-semibold"
+                className="w-full bg-[#1E5BC6] hover:bg-[#0A3A7A] text-white font-semibold h-11"
               >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Aguarde...
-                  </span>
-                ) : (
-                  <>
-                    {mode === 'login' ? 'Entrar' : 'Criar conta'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </>
-                )}
+                {loading ? 'Aguarde...' : mode === 'login' ? 'Entrar' : 'Criar conta'}
+                {!loading && <ArrowRight className="w-4 h-4 ml-2" />}
               </Button>
             </form>
-
-            <p className="text-center text-xs text-gray-400 mt-4">
-              Ao continuar, você concorda com os termos de uso da plataforma municipal.
-            </p>
           </CardContent>
         </Card>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
-          <Link href="/" className="text-[#1E5BC6] hover:underline">
-            Voltar para o início
+        <div className="text-center mt-6">
+          <Link href="/" className="text-sm text-[#1E5BC6] hover:underline">
+            ← Voltar para o início
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   );
