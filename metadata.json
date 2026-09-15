@@ -1,0 +1,10 @@
+{
+  "name": "Conecta Trindade",
+  "description": "Plataforma municipal de zelo urbano de Trindade-GO para registro e acompanhamento de serviços públicos.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

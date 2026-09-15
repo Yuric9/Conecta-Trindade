@@ -1,0 +1,208 @@
+@import "leaflet/dist/leaflet.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Paleta inspirada na interface oficial de Trindade */
+    --background: 210 14% 96%;
+    --foreground: 220 20% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 214 31% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 214 31% 15%;
+
+    --primary: 165 93% 20%;
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 165 100% 15%;
+
+    --secondary: 46 96% 52%;
+    --secondary-foreground: 220 20% 14%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 46 96% 52%;
+    --accent-foreground: 165 93% 20%;
+
+    --success: 150 60% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 42 90% 52%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 165 93% 20%;
+
+    --radius: 0.75rem;
+
+    --chart-1: 165 93% 20%;
+    --chart-2: 46 96% 52%;
+    --chart-3: 150 60% 35%;
+    --chart-4: 0 70% 50%;
+    --chart-5: 165 55% 42%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Leaflet container needs explicit height */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* Custom marker pulse animation */
+@keyframes marker-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 102, 83, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(0, 102, 83, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 102, 83, 0);
+  }
+}
+
+.marker-pulse {
+  animation: marker-pulse 2s infinite;
+}
+
+/* Tooltip e estilo dos limites municipais de Trindade */
+.trindade-boundary-tooltip {
+  background-color: #006653 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  padding: 4px 8px !important;
+}
+.trindade-boundary-tooltip::before {
+  border-top-color: #006653 !important;
+}
+
+/* Tooltip para órgãos públicos */
+.orgao-tooltip {
+  background-color: #173b32 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  padding: 3px 8px !important;
+}
+.orgao-tooltip::before {
+  border-top-color: #173b32 !important;
+}
+
+/* Customização moderna dos popups do Leaflet */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+.leaflet-popup-close-button {
+  top: 8px !important;
+  right: 8px !important;
+  color: #64748b !important;
+  font-size: 18px !important;
+  z-index: 10 !important;
+}
+
+/* Marcadores de chamados animados e pins */
+.chamado-marker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease-in-out;
+  cursor: pointer;
+}
+.chamado-marker-pin:hover {
+  transform: scale(1.18);
+  z-index: 1000 !important;
+}
+
+.orgao-marker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease-in-out;
+  cursor: pointer;
+}
+.orgao-marker-pin:hover {
+  transform: scale(1.2);
+  z-index: 1000 !important;
+}
+
+/* Decorative wave used by the municipal-style hero */
+.municipal-wave {
+  position: absolute;
+  left: -5%;
+  right: -5%;
+  bottom: -1px;
+  height: 34%;
+  background: rgba(255, 255, 255, 0.14);
+  clip-path: ellipse(62% 75% at 46% 100%);
+  pointer-events: none;
+}
+
+/* Smooth transitions */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
