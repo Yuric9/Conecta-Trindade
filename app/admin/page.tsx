@@ -69,7 +69,15 @@ import {
   Search,
   Building2,
   RotateCcw,
+  MessageCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
+import {
+  formatChamadoWhatsAppText,
+  shareViaWhatsApp,
+  copyToClipboard,
+} from '@/lib/whatsapp-share';
 
 const KANBAN_COLUMNS: { status: ChamadoStatus; label: string; color: string }[] = [
   { status: 'ABERTO', label: 'Aberto', color: 'amber' },
@@ -80,7 +88,7 @@ const KANBAN_COLUMNS: { status: ChamadoStatus; label: string; color: string }[] 
 
 export default function AdminPage() {
   const router = useRouter();
-  const { session, profile, loading: authLoading } = useAuth();
+  const { session, profile, isAdmin, loading: authLoading } = useAuth();
   const [chamados, setChamados] = useState<Chamado[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'kanban' | 'mapa'>('kanban');
@@ -92,16 +100,17 @@ export default function AdminPage() {
   const [newStatus, setNewStatus] = useState<ChamadoStatus>('ABERTO');
   const [newSecretaria, setNewSecretaria] = useState<ChamadoSecretaria | 'NONE'>('NONE');
   const [saving, setSaving] = useState(false);
+  const [adminCopied, setAdminCopied] = useState(false);
   const [adminTab, setAdminTab] = useState<'dashboard' | 'chamados' | 'mapa' | 'relatorios' | 'cidadaos'>('dashboard');
 
   useEffect(() => {
-    if (!authLoading && (!session || profile?.role !== 'admin')) {
-      router.push('/');
+    if (!authLoading && (!session || !isAdmin)) {
+      router.push('/login?unauthorized=admin');
     }
-  }, [authLoading, session, profile, router]);
+  }, [authLoading, session, isAdmin, router]);
 
   useEffect(() => {
-    if (!session || profile?.role !== 'admin') return;
+    if (!session || !isAdmin) return;
 
     (async () => {
       const { data, error } = await supabase
@@ -188,7 +197,7 @@ export default function AdminPage() {
   }, [chamados]);
 
   const exportCsv = () => {
-    const header = ['Protocolo', 'Categoria', 'Status', 'Secretaria', 'Endereço', 'Criado em'];
+    const header = ['O.S. (Ordem de Serviço)', 'Categoria', 'Status', 'Secretaria', 'Endereço', 'Criado em'];
     const rows = chamados.map((c) => [
       c.protocolo,
       getCategoriaInfo(c.categoria)?.label || c.categoria,
@@ -674,7 +683,7 @@ export default function AdminPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-[#173b32] font-heading text-lg">
                   <span className="text-2xl">{getCategoriaInfo(selectedChamado.categoria)?.emoji}</span>
-                  <span>Protocolo {selectedChamado.protocolo}</span>
+                  <span>O.S. {selectedChamado.protocolo}</span>
                 </DialogTitle>
               </DialogHeader>
 
@@ -747,18 +756,74 @@ export default function AdminPage() {
                         <SelectValue placeholder="Selecionar secretaria" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="NONE">Nenhuma</SelectItem>
-                        <SelectItem value="OBRAS">Secretaria de Obras</SelectItem>
-                        <SelectItem value="LIMPEZA_URBANA">Limpeza Urbana</SelectItem>
-                        <SelectItem value="SANEAMENTO">Saneamento</SelectItem>
+                        <SelectItem value="NONE">Nenhuma (Não atribuída)</SelectItem>
+                        {(Object.entries(SECRETARIAS) as [ChamadoSecretaria, string][]).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* WhatsApp and Copy Comprovante Actions */}
+                  <div className="pt-2 border-t border-gray-200">
+                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">
+                      Compartilhar com Cidadão ou Equipe
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const text = formatChamadoWhatsAppText({
+                            protocolo: selectedChamado.protocolo,
+                            categoria: selectedChamado.categoria,
+                            status: newStatus,
+                            secretariaNome: newSecretaria !== 'NONE' ? SECRETARIAS[newSecretaria] : (selectedChamado.secretaria ? SECRETARIAS[selectedChamado.secretaria] : undefined),
+                            endereco: selectedChamado.endereco_texto,
+                            descricao: selectedChamado.descricao,
+                            created_at: selectedChamado.created_at,
+                            resposta_cidadao: selectedChamado.resposta_cidadao,
+                          });
+                          shareViaWhatsApp(text);
+                        }}
+                        className="bg-[#25D366] hover:bg-[#1ebe5b] text-white font-medium text-xs h-10 flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        <MessageCircle className="w-4 h-4 fill-current" />
+                        <span>Enviar WhatsApp</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={async () => {
+                          const text = formatChamadoWhatsAppText({
+                            protocolo: selectedChamado.protocolo,
+                            categoria: selectedChamado.categoria,
+                            status: newStatus,
+                            secretariaNome: newSecretaria !== 'NONE' ? SECRETARIAS[newSecretaria] : (selectedChamado.secretaria ? SECRETARIAS[selectedChamado.secretaria] : undefined),
+                            endereco: selectedChamado.endereco_texto,
+                            descricao: selectedChamado.descricao,
+                            created_at: selectedChamado.created_at,
+                            resposta_cidadao: selectedChamado.resposta_cidadao,
+                          });
+                          const ok = await copyToClipboard(text);
+                          if (ok) {
+                            setAdminCopied(true);
+                            setTimeout(() => setAdminCopied(false), 2500);
+                          }
+                        }}
+                        className="border-gray-300 hover:bg-gray-50 text-gray-700 text-xs h-10 flex items-center justify-center gap-1.5"
+                      >
+                        {adminCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-500" />}
+                        <span>{adminCopied ? 'Copiado!' : 'Copiar Comprovante'}</span>
+                      </Button>
+                    </div>
                   </div>
 
                   <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full bg-[#006653] hover:bg-[#004d3e] text-white font-semibold h-11"
+                    className="w-full bg-[#006653] hover:bg-[#004d3e] text-white font-semibold h-11 shadow-sm mt-2"
                   >
                     {saving ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />

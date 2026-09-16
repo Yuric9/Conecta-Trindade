@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, MapPin, Phone, ChevronDown, User, LogOut, Home, FileText, LayoutDashboard, Search, Info } from 'lucide-react';
+import { Menu, X, ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,8 +21,7 @@ export function CityHeader() {
 
   const navItems = [
     { href: '/', label: 'Início', icon: Home },
-    { href: '/nova-solicitacao', label: 'Nova Solicitação', icon: FileText },
-    { href: '/meus-chamados', label: 'Meus Chamados', icon: LayoutDashboard },
+    { href: '/meus-chamados', label: 'Meus Chamados', icon: ClipboardList },
   ];
 
   const handleSignOut = async () => {
@@ -31,86 +30,87 @@ export function CityHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full">
-      <div className="bg-[#006653] text-white px-4 hidden sm:block">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <nav className="flex items-center gap-7 h-12 text-sm font-semibold">
-            {['Início', 'Cidade', 'Governo', 'Serviços', 'Notícias', 'Transparência', 'Fale Conosco'].map((item) => (
-              <a key={item} href={item === 'Início' ? '/' : '#'} className="text-emerald-50 hover:text-[#FFC20E] transition-colors">
-                {item}
-              </a>
-            ))}
-          </nav>
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 rounded-md bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20" aria-label="Buscar no portal">
-              <Search className="w-4 h-4" />
-              Buscar
-            </button>
-            <button className="flex items-center gap-2 rounded-md bg-[#FFC20E] px-3 py-2 text-xs font-bold text-[#173b32] hover:bg-yellow-300">
-              <Info className="w-4 h-4" />
-              Acesso à informação
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-gradient-to-r from-[#006653] via-[#005847] to-[#004d3e] shadow-[0_8px_25px_rgba(0,55,43,0.25)] border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-18 py-3">
-            <Link href="/" className="flex items-center gap-3 group">
+    <header className="sticky top-0 z-50 w-full shadow-md">
+      <div className="bg-gradient-to-r from-[#006653] via-[#005847] to-[#004d3e] border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-20">
+            {/* Logo oficial da prefeitura */}
+            <Link href="/" className="flex items-center gap-3.5 group">
               <img
                 src="/images/logo-trindade.png"
-                alt="Prefeitura de Trindade"
-                className="h-14 w-auto max-w-[220px] object-contain transition-transform group-hover:scale-105"
+                alt="Prefeitura de Trindade - Onde o Futuro acontece Hoje"
+                className="h-12 sm:h-14 w-auto max-w-[240px] sm:max-w-[270px] object-contain drop-shadow-sm transition-transform group-hover:scale-[1.02]"
               />
-              <span className="sr-only">Conecta Trindade - Zelo Urbano</span>
+              <div className="hidden sm:flex flex-col border-l border-white/20 pl-3 py-0.5">
+                <span className="text-xs font-bold text-white tracking-wide uppercase font-heading">
+                  Zelo Urbano
+                </span>
+                <span className="text-[10px] text-emerald-200 font-medium">
+                  Atendimento ao Cidadão
+                </span>
+              </div>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      active
-                        ? 'bg-white/15 text-white shadow-inner ring-1 ring-white/10'
-                        : 'text-emerald-50 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
+            {/* Navegação principal do aplicativo com alto contraste e clareza */}
+            <nav className="hidden md:flex items-center gap-2.5">
+              <Link
+                href="/"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  pathname === '/'
+                    ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
+                    : 'bg-white/10 text-white hover:bg-white/20 hover:text-white border border-white/10'
+                }`}
+              >
+                <Home className="w-4 h-4 text-emerald-200" />
+                Início
+              </Link>
+
+              <Link
+                href="/meus-chamados"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  pathname === '/meus-chamados'
+                    ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
+                    : 'bg-white/10 text-white hover:bg-white/20 hover:text-white border border-white/10'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4 text-emerald-200" />
+                Meus Chamados
+              </Link>
+
+              <Link
+                href="/nova-solicitacao"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Nova Solicitação
+              </Link>
+
               {isAdmin && (
                 <Link
                   href="/admin"
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
                     pathname?.startsWith('/admin')
-                      ? 'bg-white/15 text-white shadow-inner ring-1 ring-white/10'
-                      : 'text-emerald-50 hover:bg-white/10 hover:text-white'
+                      ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
+                      : 'bg-emerald-900/60 text-emerald-100 hover:bg-emerald-900/90 hover:text-white border border-emerald-400/30'
                   }`}
                 >
-                  <LayoutDashboard className="w-4 h-4" />
+                  <LayoutDashboard className="w-4 h-4 text-emerald-300" />
                   Painel Admin
                 </Link>
               )}
             </nav>
 
-            {/* User menu */}
-            <div className="hidden md:block">
+            {/* Menu do usuário / Login */}
+            <div className="hidden md:flex items-center gap-2">
               {profile ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all">
+                    <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all border border-white/15">
                       <div className="w-7 h-7 rounded-full bg-white/30 flex items-center justify-center">
                         <User className="w-4 h-4" />
                       </div>
                       <span className="max-w-[120px] truncate">{profile.nome || 'Cidadão'}</span>
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className="w-4 h-4 text-emerald-200" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
@@ -121,10 +121,12 @@ export function CityHeader() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Link href="/login">
-                  <Button size="sm" variant="secondary" className="bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 font-semibold">
-                    Entrar
-                  </Button>
+                <Link
+                  href="/login"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium text-white bg-white/10 hover:bg-white/20 border border-white/25 transition-all shadow-sm"
+                >
+                  <LogIn className="w-4 h-4 text-emerald-200" />
+                  Entrar
                 </Link>
               )}
             </div>
@@ -142,7 +144,15 @@ export function CityHeader() {
         {/* Mobile nav */}
         {mobileOpen && (
           <div className="md:hidden border-t border-white/20 bg-[#005847]">
-            <div className="px-4 py-3 space-y-1">
+            <div className="px-4 py-3 space-y-2">
+              <Link
+                href="/nova-solicitacao"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold bg-[#FFC20E] text-[#173b32] shadow-sm mb-2"
+              >
+                <PlusCircle className="w-5 h-5" />
+                Nova Solicitação
+              </Link>
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = pathname === item.href;
@@ -151,11 +161,11 @@ export function CityHeader() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                      active ? 'bg-white/20 text-white' : 'text-emerald-50 hover:bg-white/10'
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
+                      active ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30' : 'text-white bg-white/10 hover:bg-white/20'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-5 h-5 text-emerald-200" />
                     {item.label}
                   </Link>
                 );
@@ -164,9 +174,9 @@ export function CityHeader() {
                 <Link
                   href="/admin"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-emerald-50 hover:bg-white/10"
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-emerald-100 bg-emerald-900/60 hover:bg-emerald-900/90 border border-emerald-400/30"
                 >
-                  <LayoutDashboard className="w-5 h-5" />
+                  <LayoutDashboard className="w-5 h-5 text-emerald-300" />
                   Painel Admin
                 </Link>
               )}
@@ -208,12 +218,9 @@ export function CityFooter() {
             <div className="flex items-center gap-3 mb-3">
               <img
                 src="/images/logo-trindade.png"
-                alt="Prefeitura de Trindade"
-                className="h-12 w-auto max-w-[190px] object-contain"
+                alt="Prefeitura de Trindade - Onde o Futuro acontece Hoje"
+                className="h-12 w-auto max-w-[220px] object-contain"
               />
-              <div>
-                <p className="text-emerald-100 text-xs">Capital da Fé</p>
-              </div>
             </div>
             <p className="text-emerald-50 text-xs leading-relaxed">
               Plataforma municipal de zelo urbano. Registre e acompanhe solicitações de serviços públicos.

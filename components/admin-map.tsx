@@ -86,31 +86,42 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
         maxZoom: TRINDADE_MAP_ZOOM.max,
       }).addTo(map);
 
-      // 1. Linha branca de contraste para o limite municipal
+      // 1. Preenchimento sutil do território (100% não-interativo para não capturar mouse nem exibir tooltip)
       L.geoJSON(TRINDADE_GEOJSON as any, {
         style: {
-          color: '#ffffff',
-          weight: 7,
-          opacity: 0.95,
-          fill: false,
+          color: 'transparent',
+          weight: 0,
+          fillColor: '#006653',
+          fillOpacity: 0.03,
         },
         interactive: false,
       }).addTo(map);
 
-      // 2. Linha perimetral oficial do município de Trindade - GO
-      const boundaryLayer = L.geoJSON(TRINDADE_GEOJSON as any, {
-        style: {
-          color: '#006653',
-          weight: 3.5,
-          opacity: 1,
-          dashArray: '9, 6',
-          fillColor: '#006653',
-          fillOpacity: 0.04,
-        },
+      // Coordenadas da linha perimetral da divisa de Trindade [lat, lng]
+      const borderCoords = (TRINDADE_GEOJSON.coordinates[0] as [number, number][]).map(
+        ([lng, lat]) => [lat, lng] as [number, number]
+      );
+
+      // 2. Linha branca de contraste para o limite municipal (não-interativa)
+      L.polyline(borderCoords, {
+        color: '#ffffff',
+        weight: 7,
+        opacity: 0.95,
+        interactive: false,
       }).addTo(map);
 
-      boundaryLayer.bindTooltip('🏛️ Limite Oficial do Município de Trindade - GO', {
-        sticky: true,
+      // 3. Linha perimetral oficial (interativa SOMENTE ao passar o mouse diretamente sobre a linha da divisa)
+      const borderLine = L.polyline(borderCoords, {
+        color: '#006653',
+        weight: 3.5,
+        opacity: 1,
+        dashArray: '9, 6',
+        interactive: true,
+      }).addTo(map);
+
+      borderLine.bindTooltip('🏛️ Limite Oficial do Município de Trindade - GO', {
+        sticky: false,
+        direction: 'top',
         className: 'trindade-boundary-tooltip',
       });
 
@@ -497,7 +508,7 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
       .map((c) => ({
         tipo: 'chamado' as const,
         id: c.id,
-        titulo: `Chamado ${c.protocolo}`,
+        titulo: `O.S. ${c.protocolo}`,
         subtitulo: `${c.categoria} - ${c.endereco_texto || 'Sem endereço'}`,
         emoji: getCategoriaInfo(c.categoria)?.emoji || '📋',
         lat: c.latitude,
@@ -521,7 +532,7 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
             <Search className="w-4 h-4 text-gray-400 absolute left-3 pointer-events-none" />
             <input
               type="text"
-              placeholder="Buscar órgão, CMEI, UBS, protocolo..."
+              placeholder="Buscar órgão, CMEI, UBS, O.S...."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full h-9 pl-9 pr-8 text-xs bg-white/95 backdrop-blur-md rounded-lg border border-gray-200 shadow-md text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006653] focus:bg-white"

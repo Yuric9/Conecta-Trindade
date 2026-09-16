@@ -41,7 +41,15 @@ import {
   AlertTriangle,
   Loader2,
   Locate,
+  MessageCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
+import {
+  formatChamadoWhatsAppText,
+  shareViaWhatsApp,
+  copyToClipboard,
+} from '@/lib/whatsapp-share';
 
 const ICONS: Record<string, any> = {
   Lightbulb,
@@ -70,7 +78,14 @@ export default function NovaSolicitacaoPage() {
   const [descricao, setDescricao] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState<{ protocolo: string } | null>(null);
+  const [success, setSuccess] = useState<{
+    protocolo: string;
+    categoria: ChamadoCategoria | null;
+    endereco: string;
+    descricao: string;
+    dataHora: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,7 +226,13 @@ export default function NovaSolicitacaoPage() {
       if (insertError) throw insertError;
 
       setUploadProgress(100);
-      setSuccess({ protocolo: data.protocolo });
+      setSuccess({
+        protocolo: data.protocolo,
+        categoria,
+        endereco,
+        descricao,
+        dataHora: new Date().toISOString(),
+      });
     } catch (err: any) {
       setError(err.message || 'Erro ao enviar solicitação. Tente novamente.');
     } finally {
@@ -219,31 +240,134 @@ export default function NovaSolicitacaoPage() {
     }
   };
 
+  const handleShareWhatsApp = () => {
+    if (!success) return;
+    const text = formatChamadoWhatsAppText({
+      protocolo: success.protocolo,
+      categoria: success.categoria || 'OUTROS',
+      status: 'ABERTO',
+      endereco: success.endereco,
+      descricao: success.descricao,
+      created_at: success.dataHora,
+    });
+    shareViaWhatsApp(text);
+  };
+
+  const handleCopyComprovante = async () => {
+    if (!success) return;
+    const text = formatChamadoWhatsAppText({
+      protocolo: success.protocolo,
+      categoria: success.categoria || 'OUTROS',
+      status: 'ABERTO',
+      endereco: success.endereco,
+      descricao: success.descricao,
+      created_at: success.dataHora,
+    });
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    }
+  };
+
   // Success screen
   if (success) {
+    const catInfo = success.categoria ? CATEGORIAS.find((c) => c.id === success.categoria) : null;
+
     return (
       <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12 bg-gradient-to-br from-[#F4F6F8] to-green-50">
         <div className="max-w-lg w-full text-center">
-          <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6 animate-fade-in">
-            <CheckCircle2 className="w-14 h-14 text-green-600" />
+          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5 shadow-sm">
+            <CheckCircle2 className="w-12 h-12 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold font-heading text-[#0A3A7A] mb-3">
-            Solicitação Enviada!
+          <h1 className="text-2xl sm:text-3xl font-bold font-heading text-[#0A3A7A] mb-2">
+            Solicitação Registrada!
           </h1>
-          <p className="text-gray-600 mb-6">
-            Sua solicitação foi registrada com sucesso e encaminhada à prefeitura.
-            Use o número de protocolo abaixo para acompanhar.
+          <p className="text-gray-600 text-sm mb-6 max-w-md mx-auto">
+            Sua solicitação foi encaminhada para a equipe municipal. Guarde o número da O.S. para acompanhar as atualizações.
           </p>
-          <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-blue-200 mb-8">
-            <p className="text-sm text-gray-500 mb-2">Número de Protocolo</p>
-            <p className="text-3xl font-bold font-heading text-[#1E5BC6] tracking-wider">
-              {success.protocolo}
-            </p>
+
+          {/* Protocol Card */}
+          <div className="bg-white rounded-xl p-5 sm:p-6 shadow-md border-2 border-blue-200 mb-5 text-left">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+              <div>
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Número da O.S. (Ordem de Serviço)</span>
+                <p className="text-2xl sm:text-3xl font-extrabold font-mono text-[#1E5BC6] tracking-wider">
+                  {success.protocolo}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  copyToClipboard(success.protocolo);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 flex items-center gap-1.5"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? 'Copiado!' : 'Copiar'}
+              </Button>
+            </div>
+
+            {/* Summary Details */}
+            <div className="space-y-2 text-xs sm:text-sm text-gray-600">
+              {catInfo && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-gray-400">Categoria:</span>
+                  <span className="font-semibold text-gray-800 flex items-center gap-1">
+                    <span>{catInfo.emoji}</span>
+                    <span>{catInfo.label}</span>
+                  </span>
+                </div>
+              )}
+              {success.endereco && (
+                <div className="flex items-start justify-between py-1 gap-2">
+                  <span className="text-gray-400 shrink-0">Local:</span>
+                  <span className="font-medium text-gray-800 text-right truncate max-w-[280px]">
+                    {success.endereco}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-gray-400">Status Inicial:</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  Aberto
+                </span>
+              </div>
+            </div>
           </div>
+
+          {/* WhatsApp Share & Receipt Actions */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-6 space-y-2.5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Compartilhar Comprovante
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Button
+                onClick={handleShareWhatsApp}
+                className="w-full bg-[#25D366] hover:bg-[#1ebe5b] text-white font-semibold flex items-center justify-center gap-2 h-11 shadow-sm transition-transform active:scale-[0.98]"
+              >
+                <MessageCircle className="w-5 h-5 fill-current" />
+                <span>Enviar no WhatsApp</span>
+              </Button>
+              <Button
+                onClick={handleCopyComprovante}
+                variant="outline"
+                className="w-full border-gray-300 hover:bg-gray-50 text-gray-700 font-medium flex items-center justify-center gap-2 h-11"
+              >
+                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-500" />}
+                <span>{copied ? 'Comprovante Copiado!' : 'Copiar Comprovante'}</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Navigation Actions */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button
               onClick={() => router.push('/meus-chamados')}
-              className="bg-[#1E5BC6] hover:bg-[#0A3A7A] text-white font-semibold h-11 px-6"
+              className="bg-[#1E5BC6] hover:bg-[#0A3A7A] text-white font-semibold h-11 px-6 shadow-sm"
             >
               Ver Meus Chamados
             </Button>

@@ -65,7 +65,7 @@ const SEED_PROFILES = [
 const SEED_CHAMADOS = [
   {
     id: 'ch-001',
-    protocolo: 'TRN-2026-0001',
+    protocolo: 'OS-2026-0001',
     cidadao_id: DEMO_CITIZEN_ID,
     categoria: 'ILUMINACAO',
     descricao: 'Poste com lâmpada queimada piscando há 3 noites na esquina da avenida.',
@@ -81,7 +81,7 @@ const SEED_CHAMADOS = [
   },
   {
     id: 'ch-002',
-    protocolo: 'TRN-2026-0002',
+    protocolo: 'OS-2026-0002',
     cidadao_id: DEMO_CITIZEN_ID,
     categoria: 'BURACO',
     descricao: 'Buraco profundo na pista próximo à faixa de pedestres, risco de acidentes.',
@@ -97,7 +97,7 @@ const SEED_CHAMADOS = [
   },
   {
     id: 'ch-003',
-    protocolo: 'TRN-2026-0003',
+    protocolo: 'OS-2026-0003',
     cidadao_id: 'cidadao-outro-003',
     categoria: 'LIMPEZA',
     descricao: 'Entulho e restos de podas acumulados na calçada pública impedindo passagem.',
@@ -113,7 +113,7 @@ const SEED_CHAMADOS = [
   },
   {
     id: 'ch-004',
-    protocolo: 'TRN-2026-0004',
+    protocolo: 'OS-2026-0004',
     cidadao_id: 'cidadao-outro-004',
     categoria: 'VAZAMENTO',
     descricao: 'Vazamento contínuo de água na rede pública em frente ao comércio local.',
@@ -129,7 +129,7 @@ const SEED_CHAMADOS = [
   },
   {
     id: 'ch-005',
-    protocolo: 'TRN-2026-0005',
+    protocolo: 'OS-2026-0005',
     cidadao_id: DEMO_CITIZEN_ID,
     categoria: 'PODAS',
     descricao: 'Galho de grande porte ameaçando rede elétrica na praça.',
@@ -153,7 +153,22 @@ function getStoredItems<T>(key: string, fallback: T[]): T[] {
       localStorage.setItem(key, JSON.stringify(fallback));
       return fallback;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (key === 'conecta_trindade_chamados' && Array.isArray(parsed)) {
+      let changed = false;
+      const migrated = parsed.map((item: any) => {
+        if (item && typeof item.protocolo === 'string' && item.protocolo.startsWith('TRN-')) {
+          changed = true;
+          return { ...item, protocolo: item.protocolo.replace(/^TRN-/, 'OS-') };
+        }
+        return item;
+      });
+      if (changed) {
+        localStorage.setItem(key, JSON.stringify(migrated));
+        return migrated;
+      }
+    }
+    return parsed;
   } catch {
     return fallback;
   }
@@ -226,7 +241,7 @@ const createMockSupabaseClient = () => {
         const stored = getStoredItems<any>('conecta_trindade_' + table, table === 'chamados' ? SEED_CHAMADOS : SEED_PROFILES);
         const insertedList = newRecords.map((r, i) => ({
           id: r.id || `mock-${Date.now()}-${i}`,
-          protocolo: r.protocolo || `TRN-2026-${String(stored.length + i + 1).padStart(4, '0')}`,
+          protocolo: r.protocolo || `OS-2026-${String(stored.length + i + 1).padStart(4, '0')}`,
           created_at: r.created_at || new Date().toISOString(),
           updated_at: r.updated_at || new Date().toISOString(),
           ...r,
