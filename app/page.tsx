@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Lightbulb, Construction, Trash2, Droplet, MapPin, FileText, CheckCircle2, Clock, ArrowRight, Shield, Zap } from 'lucide-react';
+import { Lightbulb, Construction, Trash2, Droplet, MapPin, FileText, CheckCircle2, Clock, ArrowRight, Shield, Zap, Truck, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 
@@ -109,6 +109,44 @@ export default function HomePage() {
               <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* RSU Waste Collection Schedule Section */}
+      <section className="max-w-7xl mx-auto px-4 mt-8">
+        <div className="bg-gradient-to-r from-white via-emerald-50/40 to-white rounded-2xl border border-emerald-200/80 shadow-sm p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-[#006653] text-white flex items-center justify-center flex-shrink-0 shadow-md">
+              <Truck className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] font-bold text-[#006653] uppercase tracking-wider bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
+                  Serviço Municipal
+                </span>
+                <span className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                  Atualizado 2026
+                </span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-bold font-heading text-gray-900">
+                Cronograma de Coleta de Lixo RSU
+              </h2>
+              <p className="text-sm text-gray-600 mt-1 max-w-xl leading-relaxed">
+                Descubra em segundos os dias e turnos (diurno ou noturno) em que a coleta domiciliar e seletiva passa na sua rua em Trindade.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-shrink-0">
+            <Link href="/cronograma-rsu" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto bg-[#006653] hover:bg-[#005242] text-white font-semibold text-sm h-11 px-6 shadow-sm gap-2">
+                <Clock className="w-4 h-4" />
+                <span>Consultar Meu Bairro</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 

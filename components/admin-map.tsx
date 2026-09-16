@@ -32,10 +32,21 @@ import {
 
 interface AdminMapProps {
   chamados: Chamado[];
+  orgaos?: OrgaoPublico[];
   onSelect?: (chamado: Chamado) => void;
+  onEditOrgao?: (orgao: OrgaoPublico) => void;
+  onDeleteOrgao?: (orgaoId: string) => void;
+  onNewOrgaoAtCoord?: (lat: number, lng: number) => void;
 }
 
-export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
+export default function AdminMap({
+  chamados,
+  orgaos,
+  onSelect,
+  onEditOrgao,
+  onDeleteOrgao,
+  onNewOrgaoAtCoord,
+}: AdminMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const chamadosLayerRef = useRef<any>(null);
@@ -45,9 +56,7 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
   // Controles de visualização de camadas
   const [showChamados, setShowChamados] = useState(true);
   const [showOrgaos, setShowOrgaos] = useState(true);
-  const [selectedTipoOrgao, setSelectedTipoOrgao] = useState<
-    'TODOS' | 'PREFEITURA_SEC' | 'SAUDE' | 'EDUCACAO' | 'PARQUES'
-  >('TODOS');
+  const [selectedTipoOrgao, setSelectedTipoOrgao] = useState<string>('TODOS');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilterPopover, setActiveFilterPopover] = useState(false);
   const [selectedOrgaoInfo, setSelectedOrgaoInfo] = useState<OrgaoPublico | null>(null);
@@ -141,9 +150,12 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
     };
   }, []);
 
+  // Lista dinâmica ou padrão de órgãos públicos
+  const allOrgaos = useMemo(() => orgaos || ORGAOS_PUBLICOS_TRINDADE, [orgaos]);
+
   // Filtro de órgãos públicos conforme seleção
   const orgaosFiltrados = useMemo(() => {
-    return ORGAOS_PUBLICOS_TRINDADE.filter((o) => {
+    return allOrgaos.filter((o) => {
       if (selectedTipoOrgao === 'TODOS') return true;
       if (selectedTipoOrgao === 'PREFEITURA_SEC') {
         return o.tipo === 'PREFEITURA' || o.tipo === 'SECRETARIA' || o.tipo === 'SERVICO';
@@ -157,9 +169,15 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
       if (selectedTipoOrgao === 'PARQUES') {
         return o.tipo === 'PARQUE';
       }
+      if (selectedTipoOrgao === 'ECOPONTO') {
+        return o.tipo === 'ECOPONTO';
+      }
+      if (selectedTipoOrgao === 'SERVICO') {
+        return o.tipo === 'SERVICO';
+      }
       return true;
     });
-  }, [selectedTipoOrgao]);
+  }, [allOrgaos, selectedTipoOrgao]);
 
   // Atualização dos marcadores de Chamados e Prédios Públicos
   useEffect(() => {
@@ -292,10 +310,42 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
                 </span>
                 <span style="font-size: 10px; color: #94a3b8;">Trindade - GO</span>
               </div>
+
+              ${
+                onEditOrgao || onDeleteOrgao
+                  ? `
+                <div style="display: flex; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+                  ${
+                    onEditOrgao
+                      ? `<button id="btn-edit-orgao-${orgao.id}" style="flex: 1; background: #006653; color: white; border: none; padding: 5px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                          ✏️ Editar Órgão
+                        </button>`
+                      : ''
+                  }
+                  ${
+                    onDeleteOrgao
+                      ? `<button id="btn-del-orgao-${orgao.id}" title="Remover órgão do mapa" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                          🗑️
+                        </button>`
+                      : ''
+                  }
+                </div>`
+                  : ''
+              }
             </div>
           `;
 
           marker.bindPopup(popupContent, { maxWidth: 300 });
+          marker.on('popupopen', () => {
+            if (onEditOrgao) {
+              const btnEdit = document.getElementById(`btn-edit-orgao-${orgao.id}`);
+              if (btnEdit) btnEdit.onclick = () => onEditOrgao(orgao);
+            }
+            if (onDeleteOrgao) {
+              const btnDel = document.getElementById(`btn-del-orgao-${orgao.id}`);
+              if (btnDel) btnDel.onclick = () => onDeleteOrgao(orgao.id);
+            }
+          });
           marker.on('click', () => setSelectedOrgaoInfo(orgao));
 
           orgaosLayer.addLayer(marker);
@@ -461,7 +511,7 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
         });
       }
     })();
-  }, [chamados, orgaosFiltrados, showChamados, showOrgaos, onSelect]);
+  }, [chamados, orgaosFiltrados, showChamados, showOrgaos, onSelect, onEditOrgao, onDeleteOrgao]);
 
   // Função para voar até um local pesquisado
   const handleSelectSearchResult = (lat: number, lng: number, key?: string) => {

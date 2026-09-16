@@ -24,10 +24,14 @@ export type ChamadoSecretaria =
   | 'EDUCACAO'
   | 'SEGURANCA';
 
+export type UserRole = 'admin' | 'gestor' | 'fiscal' | 'atendente' | 'cidadao';
+
 export interface Chamado {
   id: string;
   protocolo: string;
   cidadao_id?: string;
+  cidadao_nome?: string;
+  cidadao_telefone?: string;
   categoria: ChamadoCategoria;
   descricao: string;
   latitude: number;
@@ -36,6 +40,7 @@ export interface Chamado {
   fotos: string[];
   status: ChamadoStatus;
   secretaria?: ChamadoSecretaria | null;
+  prioridade?: 'BAIXA' | 'MEDIA' | 'ALTA' | 'URGENTE';
   created_at: string;
   updated_at?: string;
   sla_limite?: string;
@@ -49,8 +54,12 @@ export interface Profile {
   nome: string;
   cpf?: string;
   telefone?: string;
-  role: 'cidadao' | 'admin';
+  role: UserRole;
+  secretaria?: ChamadoSecretaria | 'TODAS' | null;
+  cargo?: string;
+  status?: 'ativo' | 'inativo' | 'bloqueado';
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CategoriaItem {
@@ -128,6 +137,15 @@ export const SECRETARIAS: Record<ChamadoSecretaria, string> = {
   SAUDE: 'Secretaria Municipal de Saúde',
   EDUCACAO: 'Secretaria Municipal de Educação',
   SEGURANCA: 'Secretaria de Segurança Pública e Defesa Civil',
+};
+
+export const SLA_PADRAO_HORAS: Record<ChamadoCategoria, number> = {
+  ILUMINACAO: 48,
+  BURACO: 120,
+  LIXO: 72,
+  VAZAMENTO: 24,
+  PODA: 168,
+  OUTROS: 120,
 };
 
 export interface StatusInfo {

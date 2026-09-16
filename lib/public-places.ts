@@ -6,7 +6,8 @@ export type TipoOrgaoPublico =
   | 'ESCOLA'
   | 'CMEI'
   | 'PARQUE'
-  | 'SERVICO';
+  | 'SERVICO'
+  | 'ECOPONTO';
 
 export interface OrgaoPublico {
   id: string;
@@ -502,4 +503,141 @@ export const CATEGORIAS_ORGAOS = [
   { id: 'SAUDE', label: 'UBS & Hospitais / UPA', icon: '🏥' },
   { id: 'EDUCACAO', label: 'Escolas & CMEIs', icon: '🏫' },
   { id: 'PARQUES', label: 'Parques & Praças', icon: '🌳' },
+  { id: 'ECOPONTO', label: 'Ecopontos & Limpeza', icon: '♻️' },
+  { id: 'SERVICO', label: 'Serviços & Atendimento', icon: '🏢' },
 ] as const;
+
+export function getOrgaoVisualProps(tipo: TipoOrgaoPublico): {
+  tipoLabel: string;
+  emoji: string;
+  cor: string;
+  bgBadge: string;
+} {
+  switch (tipo) {
+    case 'PREFEITURA':
+      return {
+        tipoLabel: 'Sede Administrativa',
+        emoji: '🏛️',
+        cor: '#006653',
+        bgBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      };
+    case 'SECRETARIA':
+      return {
+        tipoLabel: 'Secretaria Municipal',
+        emoji: '🏢',
+        cor: '#0f766e',
+        bgBadge: 'bg-teal-100 text-teal-800 border-teal-300',
+      };
+    case 'UBS':
+      return {
+        tipoLabel: 'Unidade Básica de Saúde',
+        emoji: '🩺',
+        cor: '#0284c7',
+        bgBadge: 'bg-sky-100 text-sky-800 border-sky-300',
+      };
+    case 'HOSPITAL_UPA':
+      return {
+        tipoLabel: 'Urgência & Emergência / UPA',
+        emoji: '🏥',
+        cor: '#dc2626',
+        bgBadge: 'bg-red-100 text-red-800 border-red-300',
+      };
+    case 'ESCOLA':
+      return {
+        tipoLabel: 'Escola Municipal',
+        emoji: '🏫',
+        cor: '#2563eb',
+        bgBadge: 'bg-blue-100 text-blue-800 border-blue-300',
+      };
+    case 'CMEI':
+      return {
+        tipoLabel: 'Centro Municipal de Educ. Infantil',
+        emoji: '🎒',
+        cor: '#7c3aed',
+        bgBadge: 'bg-purple-100 text-purple-800 border-purple-300',
+      };
+    case 'PARQUE':
+      return {
+        tipoLabel: 'Parque & Área Verde',
+        emoji: '🌳',
+        cor: '#16a34a',
+        bgBadge: 'bg-green-100 text-green-800 border-green-300',
+      };
+    case 'ECOPONTO':
+      return {
+        tipoLabel: 'Ecoponto & Coleta Seletiva',
+        emoji: '♻️',
+        cor: '#059669',
+        bgBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      };
+    case 'SERVICO':
+    default:
+      return {
+        tipoLabel: 'Atendimento e Apoio ao Cidadão',
+        emoji: '🏢',
+        cor: '#475569',
+        bgBadge: 'bg-slate-100 text-slate-800 border-slate-300',
+      };
+  }
+}
+
+const STORAGE_KEY_ORGAOS = 'conecta_trindade_orgaos';
+
+export function getStoredOrgaos(): OrgaoPublico[] {
+  if (typeof window === 'undefined') return ORGAOS_PUBLICOS_TRINDADE;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_ORGAOS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY_ORGAOS, JSON.stringify(ORGAOS_PUBLICOS_TRINDADE));
+      return ORGAOS_PUBLICOS_TRINDADE;
+    }
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+    return ORGAOS_PUBLICOS_TRINDADE;
+  } catch {
+    return ORGAOS_PUBLICOS_TRINDADE;
+  }
+}
+
+export function saveOrgao(orgao: OrgaoPublico): OrgaoPublico[] {
+  if (typeof window === 'undefined') return ORGAOS_PUBLICOS_TRINDADE;
+  try {
+    const current = getStoredOrgaos();
+    const index = current.findIndex((o) => o.id === orgao.id);
+    let updated: OrgaoPublico[];
+    if (index >= 0) {
+      updated = [...current];
+      updated[index] = { ...updated[index], ...orgao };
+    } else {
+      updated = [orgao, ...current];
+    }
+    localStorage.setItem(STORAGE_KEY_ORGAOS, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return ORGAOS_PUBLICOS_TRINDADE;
+  }
+}
+
+export function deleteOrgao(id: string): OrgaoPublico[] {
+  if (typeof window === 'undefined') return ORGAOS_PUBLICOS_TRINDADE;
+  try {
+    const current = getStoredOrgaos();
+    const updated = current.filter((o) => o.id !== id);
+    localStorage.setItem(STORAGE_KEY_ORGAOS, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return ORGAOS_PUBLICOS_TRINDADE;
+  }
+}
+
+export function resetOrgaosToDefault(): OrgaoPublico[] {
+  if (typeof window === 'undefined') return ORGAOS_PUBLICOS_TRINDADE;
+  try {
+    localStorage.setItem(STORAGE_KEY_ORGAOS, JSON.stringify(ORGAOS_PUBLICOS_TRINDADE));
+    return ORGAOS_PUBLICOS_TRINDADE;
+  } catch {
+    return ORGAOS_PUBLICOS_TRINDADE;
+  }
+}

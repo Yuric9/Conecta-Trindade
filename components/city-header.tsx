@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn } from 'lucide-react';
+import { Menu, X, ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn, Truck } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +21,7 @@ export function CityHeader() {
 
   const navItems = [
     { href: '/', label: 'Início', icon: Home },
+    { href: '/cronograma-rsu', label: 'Coleta RSU', icon: Truck },
     { href: '/meus-chamados', label: 'Meus Chamados', icon: ClipboardList },
   ];
 
@@ -63,6 +64,18 @@ export function CityHeader() {
               >
                 <Home className="w-4 h-4 text-emerald-200" />
                 Início
+              </Link>
+
+              <Link
+                href="/cronograma-rsu"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  pathname === '/cronograma-rsu'
+                    ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
+                    : 'bg-white/10 text-white hover:bg-white/20 hover:text-white border border-white/10'
+                }`}
+              >
+                <Truck className="w-4 h-4 text-emerald-200" />
+                Coleta RSU
               </Link>
 
               <Link
@@ -229,6 +242,11 @@ export function CityFooter() {
           <div>
             <h4 className="font-semibold text-sm mb-3 font-heading">Serviços</h4>
             <ul className="space-y-2 text-xs text-emerald-50">
+              <li>
+                <Link href="/cronograma-rsu" className="hover:text-yellow-300 font-medium transition-colors">
+                  🚛 Cronograma de Coleta RSU
+                </Link>
+              </li>
               <li>Iluminação Pública</li>
               <li>Reparo de Buracos</li>
               <li>Limpeza Urbana</li>

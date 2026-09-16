@@ -1,4 +1,3 @@
 {
-  "/page": "app/page.js",
-  "/admin/page": "app/admin/page.js"
+  "/cronograma-rsu/page": "app/cronograma-rsu/page.js"
 }

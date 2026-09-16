@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { ORGAOS_PUBLICOS_TRINDADE } from '@/lib/public-places';
 
 const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -32,33 +33,103 @@ export const ADMIN_CREDENTIALS = {
   password: 'YUre1990',
 };
 
-const SEED_PROFILES = [
+export interface ConectaProfile {
+  id: string;
+  email: string;
+  nome: string;
+  cpf: string;
+  telefone: string;
+  role: string;
+  secretaria?: string;
+  cargo?: string;
+  status?: string;
+  created_at: string;
+}
+
+const SEED_PROFILES: ConectaProfile[] = [
   {
     id: DEMO_ADMIN_ID,
     email: 'yure-c@hotmail.com',
-    nome: 'Gestor Municipal (Admin)',
+    nome: 'Gestor Municipal (Admin Geral)',
     cpf: '000.000.000-01',
     telefone: '(62) 3506-7000',
     role: 'admin',
-    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+    secretaria: 'TODAS',
+    cargo: 'Secretário / Administrador Geral',
+    status: 'ativo',
+    created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
   },
   {
     id: 'demo-admin-legacy',
     email: 'admin@trindade.go.gov.br',
-    nome: 'Administrador Trindade',
+    nome: 'Supervisão de TI Trindade',
     cpf: '000.000.000-02',
-    telefone: '(62) 3506-7000',
+    telefone: '(62) 3506-7010',
     role: 'admin',
-    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+    secretaria: 'TODAS',
+    cargo: 'Gerência de Sistemas e Tecnologia',
+    status: 'ativo',
+    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
+  },
+  {
+    id: 'demo-fiscal-001',
+    email: 'marcos.fiscal@trindade.go.gov.br',
+    nome: 'Marcos Vinícius Silva',
+    cpf: '234.567.890-12',
+    telefone: '(62) 99123-4567',
+    role: 'fiscal',
+    secretaria: 'SERVICOS_PUBLICOS',
+    cargo: 'Fiscal de Posturas e Vias',
+    status: 'ativo',
+    created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+  },
+  {
+    id: 'demo-atendente-001',
+    email: 'camila.protocolo@trindade.go.gov.br',
+    nome: 'Camila Fernandes Lopes',
+    cpf: '345.678.901-23',
+    telefone: '(62) 98877-6655',
+    role: 'atendente',
+    secretaria: 'OBRAS',
+    cargo: 'Atendente de Triagem e Protocolo',
+    status: 'ativo',
+    created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
+  },
+  {
+    id: 'demo-gestor-obras',
+    email: 'roberto.obras@trindade.go.gov.br',
+    nome: 'Eng. Roberto Albuquerque',
+    cpf: '456.789.012-34',
+    telefone: '(62) 99234-5678',
+    role: 'gestor',
+    secretaria: 'OBRAS',
+    cargo: 'Diretor de Pavimentação e Drenagem',
+    status: 'ativo',
+    created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
   },
   {
     id: DEMO_CITIZEN_ID,
     email: 'cidadao@trindade.go.gov.br',
-    nome: 'Cidadão Exemplar',
+    nome: 'Cidadão Exemplar de Trindade',
     cpf: '111.222.333-44',
     telefone: '(62) 98765-4321',
     role: 'cidadao',
+    secretaria: null,
+    cargo: 'Munícipe',
+    status: 'ativo',
     created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
+  },
+  {
+    id: 'cidadao-maysa',
+    email: 'lucas.trindade@gmail.com',
+    nome: 'Lucas Gabriel Moreira',
+    cpf: '555.666.777-88',
+    telefone: '(62) 98111-2233',
+    role: 'cidadao',
+    secretaria: null,
+    cargo: 'Munícipe (Setor Maysa)',
+    status: 'ativo',
+    created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
   },
 ];
 
@@ -210,10 +281,13 @@ const createMockSupabaseClient = () => {
   };
 
   const createQueryBuilder = (table: string) => {
-    let items: any[] = table === 'chamados'
-      ? getStoredItems<any>('conecta_trindade_chamados', SEED_CHAMADOS)
-      : getStoredItems<any>('conecta_trindade_profiles', SEED_PROFILES);
+    const getFallback = () => {
+      if (table === 'chamados') return SEED_CHAMADOS;
+      if (table === 'orgaos') return ORGAOS_PUBLICOS_TRINDADE;
+      return SEED_PROFILES;
+    };
 
+    let items: any[] = getStoredItems<any>('conecta_trindade_' + table, getFallback());
     let filtered = [...items];
 
     const builder: any = {
@@ -238,10 +312,14 @@ const createMockSupabaseClient = () => {
         return builder;
       },
       insert: (newRecords: any[]) => {
-        const stored = getStoredItems<any>('conecta_trindade_' + table, table === 'chamados' ? SEED_CHAMADOS : SEED_PROFILES);
+        const stored = getStoredItems<any>('conecta_trindade_' + table, getFallback());
         const insertedList = newRecords.map((r, i) => ({
           id: r.id || `mock-${Date.now()}-${i}`,
-          protocolo: r.protocolo || `OS-2026-${String(stored.length + i + 1).padStart(4, '0')}`,
+          ...(table === 'chamados'
+            ? {
+                protocolo: r.protocolo || `OS-2026-${String(stored.length + i + 1).padStart(4, '0')}`,
+              }
+            : {}),
           created_at: r.created_at || new Date().toISOString(),
           updated_at: r.updated_at || new Date().toISOString(),
           ...r,
@@ -254,7 +332,7 @@ const createMockSupabaseClient = () => {
       update: (patch: any) => {
         const updateBuilder: any = {
           eq: async (col: string, val: any) => {
-            const stored = getStoredItems<any>('conecta_trindade_' + table, table === 'chamados' ? SEED_CHAMADOS : SEED_PROFILES);
+            const stored = getStoredItems<any>('conecta_trindade_' + table, getFallback());
             const next = stored.map((item: any) => {
               if (item[col] === val) {
                 return { ...item, ...patch, updated_at: new Date().toISOString() };
@@ -270,7 +348,7 @@ const createMockSupabaseClient = () => {
       delete: () => {
         const deleteBuilder: any = {
           eq: async (col: string, val: any) => {
-            const stored = getStoredItems<any>('conecta_trindade_' + table, table === 'chamados' ? SEED_CHAMADOS : SEED_PROFILES);
+            const stored = getStoredItems<any>('conecta_trindade_' + table, getFallback());
             const next = stored.filter((item: any) => item[col] !== val);
             saveStoredItems('conecta_trindade_' + table, next);
             return { error: null };
@@ -423,4 +501,68 @@ export const supabase = isSupabaseConfigured
       },
     })
   : createMockSupabaseClient() as any;
+
+export function getStoredProfiles(): any[] {
+  return getStoredItems('conecta_trindade_profiles', SEED_PROFILES);
+}
+
+export function saveStoredProfile(profile: any): any[] {
+  const current = getStoredProfiles();
+  const index = current.findIndex(
+    (p: any) =>
+      p.id === profile.id ||
+      (profile.email && p.email?.toLowerCase() === profile.email.toLowerCase())
+  );
+  let next: any[];
+  if (index >= 0) {
+    next = [...current];
+    next[index] = { ...next[index], ...profile, updated_at: new Date().toISOString() };
+  } else {
+    next = [
+      { ...profile, created_at: profile.created_at || new Date().toISOString() },
+      ...current,
+    ];
+  }
+  saveStoredItems('conecta_trindade_profiles', next);
+  return next;
+}
+
+export function deleteStoredProfile(id: string): any[] {
+  const current = getStoredProfiles();
+  const next = current.filter((p: any) => p.id !== id);
+  saveStoredItems('conecta_trindade_profiles', next);
+  return next;
+}
+
+export function getStoredChamadosList(): any[] {
+  return getStoredItems('conecta_trindade_chamados', SEED_CHAMADOS);
+}
+
+export function saveStoredChamadoItem(chamado: any): any[] {
+  const current = getStoredChamadosList();
+  const index = current.findIndex((c: any) => c.id === chamado.id);
+  let next: any[];
+  if (index >= 0) {
+    next = [...current];
+    next[index] = { ...next[index], ...chamado, updated_at: new Date().toISOString() };
+  } else {
+    next = [
+      {
+        ...chamado,
+        protocolo: chamado.protocolo || `OS-2026-${String(current.length + 1).padStart(4, '0')}`,
+        created_at: chamado.created_at || new Date().toISOString(),
+      },
+      ...current,
+    ];
+  }
+  saveStoredItems('conecta_trindade_chamados', next);
+  return next;
+}
+
+export function deleteStoredChamadoItem(id: string): any[] {
+  const current = getStoredChamadosList();
+  const next = current.filter((c: any) => c.id !== id);
+  saveStoredItems('conecta_trindade_chamados', next);
+  return next;
+}
 
