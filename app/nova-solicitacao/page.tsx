@@ -38,6 +38,7 @@ import {
   Trash2,
   Droplet,
   TreePine,
+  Scissors,
   AlertTriangle,
   Loader2,
   Locate,
@@ -57,6 +58,7 @@ const ICONS: Record<string, any> = {
   Trash2,
   Droplet,
   TreePine,
+  Scissors,
   AlertCircle: AlertTriangle,
 };
 

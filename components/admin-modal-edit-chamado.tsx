@@ -8,6 +8,7 @@ import {
   getCategoriaInfo,
   getStatusInfo,
   formatData,
+  normalizeCategoria,
 } from '@/lib/types';
 import {
   Dialog,
@@ -80,7 +81,7 @@ export default function AdminModalEditChamado({
 
   useEffect(() => {
     if (chamado) {
-      setCategoria(chamado.categoria);
+      setCategoria(normalizeCategoria(chamado.categoria));
       setSecretaria(chamado.secretaria || 'NONE');
       setStatus(chamado.status);
       setPrioridade(chamado.prioridade || 'MEDIA');
@@ -154,12 +155,16 @@ export default function AdminModalEditChamado({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ABERTO">🟡 Aberto (Novo)</SelectItem>
+                  <SelectItem value="Pendente">🟡 Pendente</SelectItem>
+                  <SelectItem value="Em Andamento">🔵 Em Andamento</SelectItem>
+                  <SelectItem value="Concluído">🟢 Concluído</SelectItem>
+                  <SelectItem value="Cancelado">⚪ Cancelado</SelectItem>
+                  <SelectItem value="ABERTO">🟡 Aberto (Pendente)</SelectItem>
                   <SelectItem value="TRIADO">🟣 Triado (Encaminhado)</SelectItem>
                   <SelectItem value="EM_ANDAMENTO">🔵 Em Andamento (Equipe em Campo)</SelectItem>
                   <SelectItem value="RESOLVIDO">🟢 Resolvido (Concluído)</SelectItem>
                   <SelectItem value="AVALIADO">⭐ Avaliado pelo Cidadão</SelectItem>
-                  <SelectItem value="REJEITADO">🔴 Rejeitado / Inviável</SelectItem>
+                  <SelectItem value="REJEITADO">🔴 Cancelado / Rejeitado</SelectItem>
                 </SelectContent>
               </Select>
             </div>

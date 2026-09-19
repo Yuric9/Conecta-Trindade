@@ -5,7 +5,10 @@ export type ChamadoStatus =
   | 'RESOLVIDO'
   | 'CANCELADO'
   | 'REJEITADO'
-  | 'AVALIADO';
+  | 'AVALIADO'
+  | 'Pendente'
+  | 'Em Andamento'
+  | 'Concluído';
 
 export type ChamadoCategoria =
   | 'ILUMINACAO'
@@ -13,6 +16,7 @@ export type ChamadoCategoria =
   | 'LIXO'
   | 'VAZAMENTO'
   | 'PODA'
+  | 'ROCAGEM'
   | 'OUTROS';
 
 export type ChamadoSecretaria =
@@ -119,6 +123,15 @@ export const CATEGORIAS: CategoriaItem[] = [
     secretaria: 'MEIO_AMBIENTE',
   },
   {
+    id: 'ROCAGEM',
+    label: 'Roçagem e Capina',
+    icon: 'Scissors',
+    emoji: '🌾',
+    cor: '#84cc16',
+    slaHoras: 120,
+    secretaria: 'SERVICOS_PUBLICOS',
+  },
+  {
     id: 'OUTROS',
     label: 'Outras Demandas',
     icon: 'AlertCircle',
@@ -145,6 +158,7 @@ export const SLA_PADRAO_HORAS: Record<ChamadoCategoria, number> = {
   LIXO: 72,
   VAZAMENTO: 24,
   PODA: 168,
+  ROCAGEM: 120,
   OUTROS: 120,
 };
 
@@ -243,15 +257,87 @@ export function getStatusInfo(status: ChamadoStatus): StatusInfo {
   }
 }
 
+export function normalizeCategoria(cat?: string | null): ChamadoCategoria {
+  if (!cat) return 'OUTROS';
+  const clean = cat.trim();
+  const upper = clean.toUpperCase();
+
+  if (
+    upper === 'ROCAGEM' ||
+    upper.includes('ROÇAGEM') ||
+    upper.includes('ROCAGEM') ||
+    upper.includes('CAPINA') ||
+    upper.includes('MATO')
+  ) {
+    return 'ROCAGEM';
+  }
+  if (
+    upper === 'ILUMINACAO' ||
+    upper.includes('ILUMINA') ||
+    upper.includes('LÂMPADA') ||
+    upper.includes('LAMPADA') ||
+    upper.includes('POSTE')
+  ) {
+    return 'ILUMINACAO';
+  }
+  if (
+    upper === 'BURACO' ||
+    upper.includes('BURACO') ||
+    upper.includes('PAVIMENTA') ||
+    upper.includes('ASFALT') ||
+    upper.includes('TAPA-BURACO')
+  ) {
+    return 'BURACO';
+  }
+  if (
+    upper === 'LIXO' ||
+    upper.includes('LIXO') ||
+    upper.includes('ENTULHO') ||
+    upper.includes('LIMPEZA') ||
+    upper.includes('DESCARTE')
+  ) {
+    return 'LIXO';
+  }
+  if (
+    upper === 'VAZAMENTO' ||
+    upper.includes('VAZAMENTO') ||
+    upper.includes('ÁGUA') ||
+    upper.includes('AGUA') ||
+    upper.includes('ESGOTO') ||
+    upper.includes('BUEIRO')
+  ) {
+    return 'VAZAMENTO';
+  }
+  if (
+    upper === 'PODA' ||
+    upper.includes('PODA') ||
+    upper.includes('ÁRVORE') ||
+    upper.includes('ARVORE') ||
+    upper.includes('GALHO')
+  ) {
+    return 'PODA';
+  }
+
+  // Se já for exatamente uma chave de categoria
+  const directMatch = CATEGORIAS.find(
+    (c) => c.id === clean || c.label.toLowerCase() === clean.toLowerCase()
+  );
+  if (directMatch) return directMatch.id;
+
+  return 'OUTROS';
+}
+
 export function getCategoriaInfo(categoria: ChamadoCategoria | string): CategoriaItem {
-  const found = CATEGORIAS.find((c) => c.id === categoria);
+  const normId = normalizeCategoria(categoria);
+  const found = CATEGORIAS.find((c) => c.id === normId);
   if (found) return found;
+
   return {
     id: 'OUTROS',
-    label: categoria || 'Outros',
+    label: typeof categoria === 'string' && categoria.trim() ? categoria : 'Outras Demandas',
     icon: 'AlertCircle',
-    emoji: '📋',
-    cor: '#6b7280',
+    emoji: '⚠️',
+    cor: '#8b5cf6',
     slaHoras: 120,
     secretaria: 'OBRAS',
   };

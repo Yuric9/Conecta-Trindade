@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
   supabase,
+  isSupabaseConfigured,
   STORAGE_BUCKET,
   getStoredProfiles,
   saveStoredProfile,
@@ -38,6 +39,8 @@ import {
   formatData,
   tempoRelativo,
   SECRETARIAS,
+  CATEGORIAS,
+  normalizeCategoria,
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -50,6 +53,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
@@ -102,6 +113,12 @@ import {
   Settings,
   Plus,
   PlusCircle,
+  Phone,
+  RefreshCw,
+  MapPin,
+  User,
+  Shield,
+  LogIn,
 } from 'lucide-react';
 import {
   formatChamadoWhatsAppText,
@@ -109,6 +126,65 @@ import {
   copyToClipboard,
 } from '@/lib/whatsapp-share';
 import { CRONOGRAMA_OFICIAL_TRINDADE, getBairrosHoje, DIAS_SEMANA_LABELS } from '@/lib/rsu-schedule';
+
+type NormalizedStatus = 'Pendente' | 'Em Andamento' | 'Concluído' | 'Cancelado';
+
+function normalizeStatus(status: string | undefined): NormalizedStatus {
+  if (!status) return 'Pendente';
+  const s = status.toUpperCase().trim();
+  if (s === 'ABERTO' || s === 'TRIADO' || s === 'PENDENTE') return 'Pendente';
+  if (s === 'EM_ANDAMENTO' || s === 'EM ANDAMENTO') return 'Em Andamento';
+  if (s === 'RESOLVIDO' || s === 'CONCLUÍDO' || s === 'CONCLUIDO' || s === 'AVALIADO') return 'Concluído';
+  if (s === 'CANCELADO' || s === 'REJEITADO') return 'Cancelado';
+  return 'Pendente';
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const norm = normalizeStatus(status);
+  switch (norm) {
+    case 'Pendente':
+      return (
+        <Badge
+          variant="outline"
+          className="bg-yellow-50 text-yellow-900 border-yellow-300 hover:bg-yellow-100 font-semibold px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs"
+        >
+          <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+          Pendente
+        </Badge>
+      );
+    case 'Em Andamento':
+      return (
+        <Badge
+          variant="outline"
+          className="bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100 font-semibold px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs"
+        >
+          <span className="w-2 h-2 rounded-full bg-blue-500" />
+          Em Andamento
+        </Badge>
+      );
+    case 'Concluído':
+      return (
+        <Badge
+          variant="outline"
+          className="bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 font-semibold px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs"
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-600" />
+          Concluído
+        </Badge>
+      );
+    case 'Cancelado':
+    default:
+      return (
+        <Badge
+          variant="outline"
+          className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-100 font-medium px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs"
+        >
+          <span className="w-2 h-2 rounded-full bg-gray-400" />
+          {status || 'Pendente'}
+        </Badge>
+      );
+  }
+}
 
 const KANBAN_COLUMNS: { status: ChamadoStatus; label: string; color: string }[] = [
   { status: 'ABERTO', label: 'Aberto', color: 'amber' },
@@ -125,8 +201,12 @@ export default function AdminPage() {
   const [orgaos, setOrgaos] = useState<OrgaoPublico[]>([]);
   const [cityConfig, setCityConfig] = useState<CityConfig>(getCityConfig);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [copiedProtocol, setCopiedProtocol] = useState<string | null>(null);
   const [view, setView] = useState<'os' | 'kanban' | 'mapa'>('os');
-  const [filterStatus, setFilterStatus] = useState<ChamadoStatus | 'TODOS'>('TODOS');
+  const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [filterCategoria, setFilterCategoria] = useState<ChamadoCategoria | 'TODAS'>('TODAS');
   const [filterSecretaria, setFilterSecretaria] = useState<ChamadoSecretaria | 'TODAS'>('TODAS');
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,20 +216,86 @@ export default function AdminPage() {
   const [isNewChamadoOpen, setIsNewChamadoOpen] = useState(false);
   const [adminTab, setAdminTab] = useState<
     'dashboard' | 'chamados' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes'
-  >('dashboard');
+  >('chamados');
 
-  useEffect(() => {
-    if (!authLoading && (!session || !isAdmin)) {
-      router.push('/login?unauthorized=admin');
+  const isFiscalOrAdmin = Boolean(
+    isAdmin ||
+    profile?.role === 'admin' ||
+    profile?.role === 'fiscal' ||
+    profile?.role === 'gestor' ||
+    profile?.role === 'atendente' ||
+    session?.user?.email?.toLowerCase().includes('admin') ||
+    session?.user?.email?.toLowerCase().includes('fiscal')
+  );
+
+  const fetchChamadosFromDatabase = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // 1. Tentar buscar da API /api/chamados
+      let apiChamados: any[] = [];
+      try {
+        const res = await fetch('/api/chamados?limit=100', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.chamados)) {
+            apiChamados = data.chamados;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('API /api/chamados inacessível, usando armazenamento local:', apiErr);
+      }
+
+      // 2. Buscar dados locais persistentes
+      const localChamados = getStoredChamadosList();
+
+      // 3. Mesclar registros garantindo exibição de novos chamados
+      const map = new Map<string, Chamado>();
+
+      localChamados.forEach((c) => {
+        const key = c.protocolo || c.id;
+        map.set(key, c);
+      });
+
+      apiChamados.forEach((c) => {
+        const key = c.protocolo || c.id;
+        const existing = map.get(key);
+        map.set(key, {
+          id: c.id || existing?.id || key,
+          protocolo: c.protocolo || existing?.protocolo || key,
+          cidadao_id: existing?.cidadao_id || 'cidadao-app',
+          cidadao_nome: c.nome_cidadao || c.cidadao_nome || existing?.cidadao_nome || 'Cidadão Trindadense',
+          cidadao_telefone: c.telefone_cidadao || c.cidadao_telefone || existing?.cidadao_telefone,
+          categoria: normalizeCategoria(c.categoria_servico || c.categoria || existing?.categoria),
+          descricao: c.descricao || existing?.descricao || '',
+          endereco_texto: c.endereco || c.endereco_texto || existing?.endereco_texto || 'Trindade - GO',
+          latitude: c.latitude || existing?.latitude || -16.6496,
+          longitude: c.longitude || existing?.longitude || -49.4912,
+          fotos: c.foto_url ? [c.foto_url] : (c.fotos || existing?.fotos || []),
+          status: (c.status || existing?.status || 'ABERTO') as ChamadoStatus,
+          prioridade: existing?.prioridade || 'MEDIA',
+          secretaria: existing?.secretaria || null,
+          observacoes_internas: c.observacoes_internas || existing?.observacoes_internas,
+          created_at: c.created_at || existing?.created_at || new Date().toISOString(),
+          updated_at: c.updated_at || existing?.updated_at || new Date().toISOString(),
+        });
+      });
+
+      const mergedList = Array.from(map.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setChamados(mergedList);
+    } catch (err) {
+      console.error('Erro ao buscar chamados do banco de dados:', err);
+      setChamados(getStoredChamadosList());
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
     }
-  }, [authLoading, session, isAdmin, router]);
+  }, []);
 
   useEffect(() => {
-    if (!session || !isAdmin) return;
-
-    // Carregar todas as coleções do armazenamento persistente
-    const loadedChamados = getStoredChamadosList();
-    setChamados(loadedChamados);
+    fetchChamadosFromDatabase();
 
     const loadedProfiles = getStoredProfiles();
     setProfiles(loadedProfiles);
@@ -159,17 +305,94 @@ export default function AdminPage() {
 
     const loadedConfig = getCityConfig();
     setCityConfig(loadedConfig);
+  }, [fetchChamadosFromDatabase]);
 
-    setLoading(false);
-  }, [session, profile, isAdmin]);
+  const handleQuickStatusChange = async (chamado: Chamado, newStatus: NormalizedStatus) => {
+    const chamadoId = chamado.id || chamado.protocolo;
+    setUpdatingId(chamadoId);
+    const oldStatus = chamado.status;
+
+    // Atualização otimista imediata na interface
+    const updated: Chamado = {
+      ...chamado,
+      status: newStatus as ChamadoStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    setChamados((prev) =>
+      prev.map((c) =>
+        c.id === chamado.id || c.protocolo === chamado.protocolo ? updated : c
+      )
+    );
+
+    // Salvar localmente no storage persistente
+    saveStoredChamadoItem(updated);
+
+    try {
+      // 1. Chamar PATCH na API /api/chamados
+      const res = await fetch('/api/chamados', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: chamado.id,
+          protocolo: chamado.protocolo,
+          status: newStatus,
+        }),
+      });
+
+      // 2. Se Supabase estiver conectado, atualizar na tabela também
+      if (isSupabaseConfigured) {
+        let q = (supabase.from('chamados') as any).update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        });
+        if (chamado.id) {
+          q = q.eq('id', idMatch(chamado.id));
+        } else if (chamado.protocolo) {
+          q = q.eq('protocolo', chamado.protocolo);
+        }
+        await q;
+      }
+
+      setFeedbackMessage({
+        type: 'success',
+        text: `O.S. ${chamado.protocolo} atualizada para "${newStatus}" em tempo real no banco de dados!`,
+      });
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    } catch (err) {
+      console.error('Erro ao atualizar status do chamado:', err);
+      // Reverter se falhar
+      setChamados((prev) =>
+        prev.map((c) => (c.id === chamado.id ? { ...c, status: oldStatus } : c))
+      );
+      setFeedbackMessage({
+        type: 'error',
+        text: 'Não foi possível salvar a alteração de status no banco de dados.',
+      });
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  function idMatch(val: string) {
+    return val;
+  }
 
   const filteredChamados = useMemo(() => {
     return chamados.filter((c) => {
-      if (filterStatus !== 'TODOS' && c.status !== filterStatus) return false;
-      if (filterCategoria !== 'TODAS' && c.categoria !== filterCategoria) return false;
+      if (filterStatus !== 'TODOS') {
+        const norm = normalizeStatus(c.status);
+        if (norm !== filterStatus) return false;
+      }
+      if (filterCategoria !== 'TODAS' && normalizeCategoria(c.categoria) !== filterCategoria) return false;
       if (filterSecretaria !== 'TODAS' && c.secretaria !== filterSecretaria) return false;
       if (filterAtrasado) {
-        const expired = c.sla_limite && new Date(c.sla_limite) < new Date() && c.status !== 'RESOLVIDO' && c.status !== 'REJEITADO' && c.status !== 'AVALIADO';
+        const expired =
+          c.sla_limite &&
+          new Date(c.sla_limite) < new Date() &&
+          normalizeStatus(c.status) !== 'Concluído' &&
+          normalizeStatus(c.status) !== 'Cancelado';
         if (!expired) return false;
       }
       if (searchTerm.trim()) {
@@ -177,7 +400,8 @@ export default function AdminPage() {
         const matchesProtocolo = c.protocolo?.toLowerCase().includes(term);
         const matchesDesc = c.descricao?.toLowerCase().includes(term);
         const matchesEndereco = c.endereco_texto?.toLowerCase().includes(term);
-        if (!matchesProtocolo && !matchesDesc && !matchesEndereco) return false;
+        const matchesCidadao = (c.cidadao_nome || (c as any).nome_cidadao)?.toLowerCase()?.includes(term);
+        if (!matchesProtocolo && !matchesDesc && !matchesEndereco && !matchesCidadao) return false;
       }
       return true;
     });
@@ -185,14 +409,27 @@ export default function AdminPage() {
 
   const stats = useMemo(() => {
     const total = chamados.length;
-    const abertos = chamados.filter((c) => c.status === 'ABERTO').length;
-    const triados = chamados.filter((c) => c.status === 'TRIADO').length;
-    const andamento = chamados.filter((c) => c.status === 'EM_ANDAMENTO').length;
-    const resolvidos = chamados.filter((c) => c.status === 'RESOLVIDO' || c.status === 'AVALIADO').length;
+    const pendentes = chamados.filter((c) => normalizeStatus(c.status) === 'Pendente').length;
+    const andamento = chamados.filter((c) => normalizeStatus(c.status) === 'Em Andamento').length;
+    const concluidos = chamados.filter((c) => normalizeStatus(c.status) === 'Concluído').length;
+    const cancelados = chamados.filter((c) => normalizeStatus(c.status) === 'Cancelado').length;
     const atrasados = chamados.filter((c) =>
-      c.sla_limite && new Date(c.sla_limite) < new Date() && c.status !== 'RESOLVIDO' && c.status !== 'REJEITADO' && c.status !== 'AVALIADO'
+      c.sla_limite &&
+      new Date(c.sla_limite) < new Date() &&
+      normalizeStatus(c.status) !== 'Concluído' &&
+      normalizeStatus(c.status) !== 'Cancelado'
     ).length;
-    return { total, abertos, triados, andamento, resolvidos, atrasados };
+    return {
+      total,
+      pendentes,
+      abertos: pendentes,
+      andamento,
+      resolvidos: concluidos,
+      concluidos,
+      cancelados,
+      triados: 0,
+      atrasados,
+    };
   }, [chamados]);
 
   const categoryStats = useMemo(() => {
@@ -260,9 +497,48 @@ export default function AdminPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveChamado = (updated: Chamado) => {
+  const handleSaveChamado = async (updated: Chamado) => {
+    // 1. Salvar no estado local e no storage persistente
     saveStoredChamadoItem(updated);
-    setChamados((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setChamados((prev) => prev.map((c) => (c.id === updated.id || c.protocolo === updated.protocolo ? updated : c)));
+
+    // 2. Chamar PATCH /api/chamados para sincronizar em tempo real no banco
+    try {
+      await fetch('/api/chamados', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: updated.id,
+          protocolo: updated.protocolo,
+          status: updated.status,
+          observacao: updated.observacoes_internas,
+        }),
+      });
+
+      if (isSupabaseConfigured) {
+        let q = (supabase.from('chamados') as any).update({
+          status: updated.status,
+          secretaria: updated.secretaria,
+          prioridade: updated.prioridade,
+          observacoes_internas: updated.observacoes_internas,
+          updated_at: new Date().toISOString(),
+        });
+        if (updated.id) {
+          q = q.eq('id', updated.id);
+        } else if (updated.protocolo) {
+          q = q.eq('protocolo', updated.protocolo);
+        }
+        await q;
+      }
+
+      setFeedbackMessage({
+        type: 'success',
+        text: `Ordem de Serviço ${updated.protocolo} salva no banco de dados com sucesso!`,
+      });
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    } catch (err) {
+      console.error('Erro ao sincronizar O.S. com o banco:', err);
+    }
   };
 
   const handleDeleteChamado = (id: string) => {
@@ -276,18 +552,18 @@ export default function AdminPage() {
 
   const handleCreateChamado = (novo: Partial<Chamado>) => {
     const id = `ch-adm-${Date.now()}`;
-    const protocolo = `TRD-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+    const protocolo = `TRIN-2026-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const fullChamado: Chamado = {
       id,
       protocolo,
-      cidadao_id: profile?.id || 'admin-user',
+      cidadao_id: profile?.id || 'fiscal-user',
       categoria: novo.categoria || 'ILUMINACAO',
       descricao: novo.descricao || '',
       endereco_texto: novo.endereco_texto || 'Trindade - GO',
       latitude: novo.latitude || -16.6496,
       longitude: novo.longitude || -49.4912,
       fotos: novo.fotos || [],
-      status: novo.status || 'ABERTO',
+      status: novo.status || 'Pendente',
       prioridade: novo.prioridade || 'MEDIA',
       secretaria: novo.secretaria || null,
       sla_limite: novo.sla_limite,
@@ -353,31 +629,51 @@ export default function AdminPage() {
     setCityConfig(nextConfig);
   };
 
-  if (authLoading || (loading && session)) {
+  if (authLoading && chamados.length === 0) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="min-h-[60vh] flex items-center justify-center flex-col gap-3">
         <Loader2 className="w-8 h-8 text-[#006653] animate-spin" />
+        <p className="text-xs text-gray-500 font-medium">Carregando painel de fiscalização...</p>
       </div>
     );
   }
 
-  if (!session || profile?.role !== 'admin') return null;
-
   return (
     <div className="bg-[#eef1ef] min-h-[calc(100vh-200px)]">
+      {/* Demo notice if accessing without fiscal/admin role */}
+      {!isFiscalOrAdmin && (
+        <div className="bg-amber-500/10 border-b border-amber-400/30 text-amber-900 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span>
+              <strong>Ambiente de Fiscalização Conecta-Trindade (Modo Demonstração):</strong> Você pode gerenciar ordens de serviço, alterar status em tempo real e visualizar chamados salvos.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => router.push('/login')}
+            className="h-7 text-xs bg-white border-amber-300 text-amber-900 hover:bg-amber-50"
+          >
+            <LogIn className="w-3 h-3 mr-1" />
+            Entrar como Fiscal
+          </Button>
+        </div>
+      )}
+
       {/* Admin header bar */}
-      <div className="bg-gradient-to-r from-[#006653] to-[#004d3e] text-white py-5 px-4">
+      <div className="bg-gradient-to-r from-[#006653] to-[#004d3e] text-white py-5 px-4 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <LayoutDashboard className="w-6 h-6" />
             <div>
-              <h1 className="text-lg font-bold font-heading">Painel de Zelo Urbano</h1>
-              <p className="text-emerald-100 text-xs">Prefeitura de Trindade - Gestão de chamados</p>
+              <h1 className="text-lg font-bold font-heading">Painel de Fiscalização Urbana</h1>
+              <p className="text-emerald-100 text-xs">Prefeitura de Trindade - Gestão de Ordens de Serviço</p>
             </div>
           </div>
           <div className="text-right text-xs">
-            <p className="text-emerald-100">Bem-vindo,</p>
-            <p className="font-semibold">{profile?.nome || 'Administrador'}</p>
+            <p className="text-emerald-100">Operador,</p>
+            <p className="font-semibold">{profile?.nome || (isFiscalOrAdmin ? 'Fiscal Trindade' : 'Fiscal (Demonstração)')}</p>
           </div>
         </div>
       </div>
@@ -859,12 +1155,14 @@ export default function AdminPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="TODAS">Todas categorias</SelectItem>
-                    <SelectItem value="ILUMINACAO">Iluminação</SelectItem>
-                    <SelectItem value="BURACO">Buracos</SelectItem>
-                    <SelectItem value="LIXO">Lixo e Entulho</SelectItem>
-                    <SelectItem value="VAZAMENTO">Vazamentos</SelectItem>
-                    <SelectItem value="PODA">Podas</SelectItem>
-                    <SelectItem value="OUTROS">Outros</SelectItem>
+                    {CATEGORIAS.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        <span className="flex items-center gap-1.5">
+                          <span>{cat.emoji}</span>
+                          <span>{cat.label}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -934,228 +1232,313 @@ export default function AdminPage() {
 
         {/* Visualização Estruturada em Tabela de Ordens de Serviço (O.S.) */}
         {view === 'os' && (
-          <Card className="border-gray-200 shadow-sm overflow-hidden bg-white mb-6">
-            {/* Filtros rápidos por status de O.S. */}
-            <div className="p-3.5 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-gray-50 to-white">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-semibold text-gray-500 mr-1 flex items-center gap-1">
-                  <Filter className="w-3.5 h-3.5 text-[#006653]" />
-                  Status da O.S.:
-                </span>
-                {[
-                  { id: 'TODOS' as const, label: 'Todas as O.S.', count: stats.total },
-                  { id: 'ABERTO' as const, label: 'Abertas', count: stats.abertos },
-                  { id: 'TRIADO' as const, label: 'Triadas', count: stats.triados },
-                  { id: 'EM_ANDAMENTO' as const, label: 'Em Andamento', count: stats.andamento },
-                  { id: 'RESOLVIDO' as const, label: 'Concluídas', count: stats.resolvidos },
-                ].map((st) => (
-                  <button
-                    key={st.id}
-                    onClick={() => setFilterStatus(st.id)}
-                    className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-all flex items-center gap-1.5 ${
-                      filterStatus === st.id
-                        ? 'bg-[#006653] text-white border-[#006653] shadow-xs'
-                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span>{st.label}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                        filterStatus === st.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+          <div>
+            {/* Feedback message banner */}
+            {feedbackMessage && (
+              <div
+                className={`mb-4 p-3 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs transition-all ${
+                  feedbackMessage.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-900 border border-emerald-300'
+                    : 'bg-red-50 text-red-900 border border-red-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {feedbackMessage.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                  )}
+                  <span>{feedbackMessage.text}</span>
+                </div>
+                <button
+                  onClick={() => setFeedbackMessage(null)}
+                  className="text-gray-400 hover:text-gray-700 p-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            <Card className="border-gray-200 shadow-sm overflow-hidden bg-white mb-6">
+              {/* Filtros rápidos por status de O.S. e ações */}
+              <div className="p-3.5 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-gray-50 to-white">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-semibold text-gray-500 mr-1 flex items-center gap-1">
+                    <Filter className="w-3.5 h-3.5 text-[#006653]" />
+                    Status da O.S.:
+                  </span>
+                  {[
+                    { id: 'TODOS', label: 'Todas as O.S.', count: stats.total },
+                    { id: 'Pendente', label: 'Pendentes', count: stats.pendentes, dot: 'bg-yellow-400' },
+                    { id: 'Em Andamento', label: 'Em Andamento', count: stats.andamento, dot: 'bg-blue-500' },
+                    { id: 'Concluído', label: 'Concluídas', count: stats.concluidos, dot: 'bg-emerald-500' },
+                    { id: 'Cancelado', label: 'Canceladas', count: stats.cancelados, dot: 'bg-gray-400' },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      onClick={() => setFilterStatus(st.id)}
+                      className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-all flex items-center gap-1.5 ${
+                        filterStatus === st.id
+                          ? 'bg-[#006653] text-white border-[#006653] shadow-xs'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                       }`}
                     >
-                      {st.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
+                      {st.dot && <span className={`w-2 h-2 rounded-full ${st.dot}`} />}
+                      <span>{st.label}</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                          filterStatus === st.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {st.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
 
-              <Button
-                onClick={exportCsv}
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs border-[#006653] text-[#006653] hover:bg-emerald-50 h-8 font-medium"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Exportar Relatório O.S. (CSV)</span>
-              </Button>
-            </div>
-
-            {filteredChamados.length === 0 ? (
-              <div className="py-14 text-center px-4">
-                <FileText className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-gray-700">Nenhuma Ordem de Serviço encontrada</p>
-                <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                  Ajuste os filtros de busca, categoria ou status acima para localizar outras solicitações.
-                </p>
-                {(filterCategoria !== 'TODAS' || filterSecretaria !== 'TODAS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
+                <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => {
-                      setFilterStatus('TODOS');
-                      setFilterCategoria('TODAS');
-                      setFilterSecretaria('TODAS');
-                      setFilterAtrasado(false);
-                      setSearchTerm('');
-                    }}
+                    onClick={fetchChamadosFromDatabase}
                     variant="outline"
                     size="sm"
-                    className="mt-3 text-xs"
+                    disabled={refreshing}
+                    className="gap-1.5 text-xs border-gray-300 text-gray-700 hover:bg-gray-50 h-8 font-medium"
+                    title="Recarregar chamados salvos do banco de dados"
                   >
-                    Limpar todos os filtros
+                    <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-[#006653]' : ''}`} />
+                    <span>{refreshing ? 'Atualizando...' : 'Recarregar Banco'}</span>
                   </Button>
-                )}
+
+                  <Button
+                    onClick={exportCsv}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs border-[#006653] text-[#006653] hover:bg-emerald-50 h-8 font-medium"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Exportar CSV</span>
+                  </Button>
+                </div>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-gray-50/80 text-gray-600 border-b border-gray-200 uppercase font-semibold text-[11px] tracking-wider">
-                    <tr>
-                      <th className="py-3 px-4">Nº da O.S. & Registro</th>
-                      <th className="py-3 px-4">Serviço / Demanda</th>
-                      <th className="py-3 px-4 min-w-[240px]">Descrição da Ocorrência</th>
-                      <th className="py-3 px-4">Localização</th>
-                      <th className="py-3 px-4">Secretaria Responsável</th>
-                      <th className="py-3 px-4">SLA / Prazo</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredChamados.map((c) => {
-                      const catInfo = getCategoriaInfo(c.categoria);
-                      const statusInfo = getStatusInfo(c.status);
-                      const slaExpired =
-                        c.sla_limite &&
-                        new Date(c.sla_limite) < new Date() &&
-                        c.status !== 'RESOLVIDO' &&
-                        c.status !== 'REJEITADO' &&
-                        c.status !== 'AVALIADO';
-                      const hasFoto = c.fotos && c.fotos.length > 0;
 
-                      return (
-                        <tr
-                          key={c.id}
-                          className="hover:bg-emerald-50/40 transition-colors group cursor-pointer"
-                          onClick={() => openDetail(c)}
-                        >
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono font-bold text-xs text-[#006653] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/80">
-                                {c.protocolo}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
-                              <Calendar className="w-3 h-3 text-gray-400" />
-                              <span>{formatData(c.created_at)}</span>
-                              <span className="text-gray-300">·</span>
-                              <span>{tempoRelativo(c.created_at)}</span>
-                            </div>
-                          </td>
+              {filteredChamados.length === 0 ? (
+                <div className="py-14 text-center px-4">
+                  <FileText className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-gray-700">Nenhuma Ordem de Serviço encontrada</p>
+                  <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                    Ajuste os filtros de busca, categoria ou status acima para localizar outras solicitações.
+                  </p>
+                  {(filterCategoria !== 'TODAS' || filterSecretaria !== 'TODAS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
+                    <Button
+                      onClick={() => {
+                        setFilterStatus('TODOS');
+                        setFilterCategoria('TODAS');
+                        setFilterSecretaria('TODAS');
+                        setFilterAtrasado(false);
+                        setSearchTerm('');
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 text-xs"
+                    >
+                      Limpar todos os filtros
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table className="w-full text-left text-xs">
+                    <TableHeader className="bg-gray-50/80 border-b border-gray-200">
+                      <TableRow className="uppercase font-semibold text-[11px] tracking-wider text-gray-600">
+                        <TableHead className="py-3 px-4 w-[160px]">Protocolo</TableHead>
+                        <TableHead className="py-3 px-4 min-w-[170px]">Cidadão</TableHead>
+                        <TableHead className="py-3 px-4 min-w-[190px]">Serviço</TableHead>
+                        <TableHead className="py-3 px-4 min-w-[190px]">Bairro/Endereço</TableHead>
+                        <TableHead className="py-3 px-4 w-[130px]">Data</TableHead>
+                        <TableHead className="py-3 px-4 w-[140px]">Status</TableHead>
+                        <TableHead className="py-3 px-4 min-w-[220px] text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="divide-y divide-gray-100">
+                      {filteredChamados.map((c) => {
+                        const catInfo = getCategoriaInfo(c.categoria);
+                        const hasFoto = c.fotos && c.fotos.length > 0;
+                        const isUpdatingThis = updatingId === (c.id || c.protocolo);
 
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-100 font-medium text-gray-800 text-[11.5px]">
-                              <span>{catInfo?.emoji || '📋'}</span>
-                              <span>{catInfo?.label || c.categoria}</span>
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-start gap-2.5 max-w-sm">
-                              {hasFoto && (
-                                <div className="w-10 h-10 rounded-md bg-gray-100 overflow-hidden border border-gray-200 flex-shrink-0 relative">
-                                  <img
-                                    src={c.fotos[0]}
-                                    alt=""
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = 'none';
-                                    }}
-                                  />
-                                </div>
+                        return (
+                          <TableRow
+                            key={c.id || c.protocolo}
+                            className="hover:bg-emerald-50/30 transition-colors group cursor-pointer"
+                            onClick={() => openDetail(c)}
+                          >
+                            {/* 1. Protocolo */}
+                            <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-bold text-xs text-[#006653] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/80">
+                                  {c.protocolo}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyToClipboard(c.protocolo);
+                                    setCopiedProtocol(c.protocolo);
+                                    setTimeout(() => setCopiedProtocol(null), 2000);
+                                  }}
+                                  title="Copiar Protocolo"
+                                  className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                                >
+                                  {copiedProtocol === c.protocolo ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                              {c.prioridade === 'URGENTE' && (
+                                <span className="inline-block mt-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.2 rounded border border-red-200">
+                                  URGENTE
+                                </span>
                               )}
-                              <div className="min-w-0">
-                                <p className="text-gray-800 line-clamp-2 leading-relaxed font-normal">
-                                  {c.descricao}
-                                </p>
-                                {hasFoto && (
-                                  <span className="text-[10px] text-emerald-700 font-medium inline-flex items-center gap-1 mt-0.5">
-                                    <ImageIcon className="w-2.5 h-2.5" />
-                                    {c.fotos.length} foto(s) anexada(s)
+                            </TableCell>
+
+                            {/* 2. Cidadão */}
+                            <TableCell className="py-3.5 px-4 min-w-[160px]">
+                              <div className="font-medium text-gray-900 truncate">
+                                {c.cidadao_nome || (c as any).nome_cidadao || 'Cidadão Trindadense'}
+                              </div>
+                              <div className="text-[11px] text-gray-500 mt-0.5 flex flex-wrap items-center gap-1.5">
+                                {(c.cidadao_telefone || (c as any).telefone_cidadao) && (
+                                  <span className="inline-flex items-center gap-0.5 text-gray-600">
+                                    <Phone className="w-3 h-3 text-gray-400" />
+                                    {c.cidadao_telefone || (c as any).telefone_cidadao}
+                                  </span>
+                                )}
+                                {(c as any).cpf_cidadao && (
+                                  <span className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded font-mono">
+                                    CPF: {(c as any).cpf_cidadao}
                                   </span>
                                 )}
                               </div>
-                            </div>
-                          </td>
+                            </TableCell>
 
-                          <td className="py-3.5 px-4 max-w-[190px]">
-                            <div className="flex items-start gap-1 text-gray-700">
-                              <MapPinned className="w-3.5 h-3.5 text-[#006653] flex-shrink-0 mt-0.5" />
-                              <span className="truncate text-xs" title={c.endereco_texto || 'Trindade - GO'}>
-                                {c.endereco_texto || 'Trindade - GO'}
-                              </span>
-                            </div>
-                          </td>
+                            {/* 3. Serviço */}
+                            <TableCell className="py-3.5 px-4 min-w-[190px]">
+                              <div className="flex items-center gap-1.5 font-semibold text-gray-800 text-[11.5px]">
+                                <span>{catInfo?.emoji || '📋'}</span>
+                                <span>{catInfo?.label || (c as any).categoria_servico || c.categoria}</span>
+                              </div>
+                              <p className="text-gray-600 text-xs line-clamp-1 mt-0.5 max-w-xs" title={c.descricao}>
+                                {c.descricao || 'Sem descrição informada'}
+                              </p>
+                              {hasFoto && (
+                                <span className="text-[10px] text-emerald-700 font-medium inline-flex items-center gap-1 mt-0.5">
+                                  <ImageIcon className="w-2.5 h-2.5" />
+                                  {c.fotos?.length || 1} foto(s) anexada(s)
+                                </span>
+                              )}
+                            </TableCell>
 
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            {c.secretaria ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-[#006653] border border-emerald-200">
-                                <Building2 className="w-3 h-3" />
-                                {SECRETARIAS[c.secretaria] || c.secretaria}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
-                                <Clock className="w-3 h-3 text-amber-600" />
-                                Aguardando Despacho
-                              </span>
-                            )}
-                          </td>
+                            {/* 4. Bairro/Endereço */}
+                            <TableCell className="py-3.5 px-4 max-w-[200px]">
+                              <div className="flex items-start gap-1 text-gray-700">
+                                <MapPin className="w-3.5 h-3.5 text-[#006653] flex-shrink-0 mt-0.5" />
+                                <span className="truncate text-xs font-medium" title={c.endereco_texto || (c as any).endereco || 'Trindade - GO'}>
+                                  {c.endereco_texto || (c as any).endereco || 'Trindade - GO'}
+                                </span>
+                              </div>
+                              {c.secretaria && (
+                                <span className="text-[10px] text-gray-400 block truncate mt-0.5">
+                                  {SECRETARIAS[c.secretaria] || c.secretaria}
+                                </span>
+                              )}
+                            </TableCell>
 
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            {slaExpired ? (
-                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10.5px] gap-1 font-semibold">
-                                <AlertTriangle className="w-3 h-3" />
-                                Vencido
-                              </Badge>
-                            ) : c.status === 'RESOLVIDO' || c.status === 'AVALIADO' ? (
-                              <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" />
-                                Concluído
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-gray-600 flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-gray-400" />
-                                {c.sla_limite ? tempoRelativo(c.sla_limite) : 'No prazo'}
-                              </span>
-                            )}
-                          </td>
+                            {/* 5. Data */}
+                            <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                              <div className="flex items-center gap-1 text-gray-700 text-xs font-medium">
+                                <Calendar className="w-3 h-3 text-gray-400" />
+                                <span>{formatData(c.created_at)}</span>
+                              </div>
+                              <div className="text-[10.5px] text-gray-400 mt-0.5">
+                                {tempoRelativo(c.created_at)}
+                              </div>
+                            </TableCell>
 
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            <Badge className={`${statusInfo.bgColor} ${statusInfo.textColor} border-0 text-[11px] font-medium`}>
-                              {statusInfo.label}
-                            </Badge>
-                          </td>
+                            {/* 6. Status com Badge shadcn/ui */}
+                            <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                              <StatusBadge status={c.status} />
+                            </TableCell>
 
-                          <td className="py-3.5 px-4 whitespace-nowrap text-right">
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDetail(c);
-                              }}
-                              className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-7 px-2.5 gap-1 shadow-xs"
-                            >
-                              <Eye className="w-3 h-3" />
-                              <span>Gerenciar O.S.</span>
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+                            {/* 7. Ações com Select inline e Modal */}
+                            <TableCell className="py-3.5 px-4 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                {/* Select inline para alteração em tempo real */}
+                                <div className="w-[145px] text-left">
+                                  <Select
+                                    value={normalizeStatus(c.status)}
+                                    onValueChange={(val) => handleQuickStatusChange(c, val as NormalizedStatus)}
+                                    disabled={isUpdatingThis}
+                                  >
+                                    <SelectTrigger className="h-7 text-[11px] bg-white border-gray-300 hover:border-[#006653] font-medium shadow-2xs">
+                                      {isUpdatingThis ? (
+                                        <span className="flex items-center gap-1 text-gray-500">
+                                          <Loader2 className="w-3 h-3 animate-spin text-[#006653]" />
+                                          Salvando...
+                                        </span>
+                                      ) : (
+                                        <SelectValue />
+                                      )}
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Pendente" className="text-xs">
+                                        <span className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                                          Pendente
+                                        </span>
+                                      </SelectItem>
+                                      <SelectItem value="Em Andamento" className="text-xs">
+                                        <span className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                          Em Andamento
+                                        </span>
+                                      </SelectItem>
+                                      <SelectItem value="Concluído" className="text-xs">
+                                        <span className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                          Concluído
+                                        </span>
+                                      </SelectItem>
+                                      <SelectItem value="Cancelado" className="text-xs">
+                                        <span className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded-full bg-gray-400" />
+                                          Cancelado
+                                        </span>
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                {/* Botão para abrir modal detalhado */}
+                                <Button
+                                  size="sm"
+                                  onClick={() => openDetail(c)}
+                                  className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-7 px-2.5 gap-1 shadow-xs"
+                                  title="Abrir modal para gerenciar detalhes, fotos e parecer técnico"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span className="hidden sm:inline">Gerenciar</span>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </Card>
+          </div>
         )}
 
         {/* Quadro Kanban (Alternativa visual organizada por etapas) */}

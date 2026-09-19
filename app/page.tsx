@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Lightbulb, Construction, Trash2, Droplet, MapPin, FileText, CheckCircle2, Clock, ArrowRight, Shield, Zap, Truck, Calendar } from 'lucide-react';
+import { Lightbulb, Construction, Trash2, Droplet, MapPin, FileText, CheckCircle2, Clock, ArrowRight, Shield, Zap, Truck, Calendar, Search, Scissors, TreePine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 
@@ -34,24 +34,21 @@ export default function HomePage() {
                 buracos, limpeza, vazamentos e muito mais em um só lugar.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                {profile ? (
-                  <Link href="/nova-solicitacao">
-                    <Button size="lg" className="bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 font-semibold text-base h-12 px-8 shadow-lg shadow-emerald-950/20">
-                      <FileText className="w-5 h-5 mr-2" />
-                      Nova Solicitação
-                    </Button>
-                  </Link>
-                ) : (
-                  <Link href="/login">
-                    <Button size="lg" className="bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 font-semibold text-base h-12 px-8 shadow-lg shadow-emerald-950/20">
-                      Entrar / Cadastrar
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </Button>
-                  </Link>
-                )}
+                <Link href="/solicitar">
+                  <Button size="lg" className="bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 font-semibold text-base h-12 px-7 shadow-lg shadow-emerald-950/20">
+                    <FileText className="w-5 h-5 mr-2" />
+                    Nova Solicitação
+                  </Button>
+                </Link>
+                <Link href="/acompanhar">
+                  <Button size="lg" variant="outline" className="border-white/35 text-white hover:bg-white/10 h-12 px-6 text-base backdrop-blur-sm gap-2">
+                    <Search className="w-4 h-4 text-emerald-200" />
+                    Acompanhar Demanda
+                  </Button>
+                </Link>
                 {profile && (
                   <Link href="/meus-chamados">
-                    <Button size="lg" variant="outline" className="border-white/35 text-white hover:bg-white/10 h-12 px-8 text-base backdrop-blur-sm">
+                    <Button size="lg" variant="outline" className="border-white/35 text-white hover:bg-white/10 h-12 px-6 text-base backdrop-blur-sm">
                       Meus Chamados
                     </Button>
                   </Link>
@@ -63,18 +60,20 @@ export default function HomePage() {
                 <div className="rounded-[28px] bg-[#004d3e]/95 border border-white/30 shadow-2xl p-5">
                   <div className="bg-[#003f33] rounded-2xl p-5 border border-[#FFC20E]/70 shadow-lg">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-[#FFC20E] font-bold mb-4">Áreas de atendimento</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                       {[
                         { icon: Lightbulb, label: 'Iluminação', color: 'text-[#FFC20E]' },
                         { icon: Construction, label: 'Buracos', color: 'text-orange-300' },
                         { icon: Trash2, label: 'Limpeza', color: 'text-emerald-300' },
+                        { icon: Scissors, label: 'Roçagem', color: 'text-lime-300' },
+                        { icon: TreePine, label: 'Podas', color: 'text-emerald-400' },
                         { icon: Droplet, label: 'Vazamento', color: 'text-sky-300' },
                       ].map((item, i) => {
                         const Icon = item.icon;
                         return (
-                          <div key={i} className="rounded-2xl bg-[#005847] p-4 border border-white/20 text-center shadow-sm">
-                            <Icon className={`w-8 h-8 mx-auto ${item.color}`} strokeWidth={2.5} />
-                            <span className="block mt-2 text-sm font-bold text-white">{item.label}</span>
+                          <div key={i} className="rounded-xl bg-[#005847] p-3 border border-white/20 text-center shadow-sm">
+                            <Icon className={`w-6 h-6 mx-auto ${item.color}`} strokeWidth={2.5} />
+                            <span className="block mt-1.5 text-xs font-bold text-white">{item.label}</span>
                           </div>
                         );
                       })}
@@ -100,7 +99,7 @@ export default function HomePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { value: '24h', label: 'tempo médio de resposta' },
-            { value: '6', label: 'categorias atendidas' },
+            { value: '7', label: 'categorias atendidas' },
             { value: '3 passos', label: 'para abrir o chamado' },
             { value: '100%', label: 'onboarding digital' },
           ].map((stat) => (
@@ -162,22 +161,27 @@ export default function HomePage() {
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { icon: FileText, step: '1', title: 'Registre o Problema', desc: 'Tire uma foto, escolha a categoria e marque a localização no mapa' },
-            { icon: Zap, step: '2', title: 'Prefeitura Recebe', desc: 'Sua solicitação é encaminhada automaticamente à secretaria responsável' },
-            { icon: CheckCircle2, step: '3', title: 'Acompanhe', desc: 'Receba um número de protocolo e acompanhe o andamento em tempo real' },
+            { icon: FileText, step: '1', title: 'Registre o Problema', desc: 'Tire uma foto, escolha a categoria e marque a localização no mapa', href: '/solicitar' },
+            { icon: Zap, step: '2', title: 'Prefeitura Recebe', desc: 'Sua solicitação é encaminhada automaticamente à secretaria responsável', href: '/cronograma-rsu' },
+            { icon: CheckCircle2, step: '3', title: 'Acompanhe', desc: 'Receba um número de protocolo e acompanhe o andamento em tempo real', href: '/acompanhar' },
           ].map((item, i) => {
             const Icon = item.icon;
             return (
-              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all hover:-translate-y-1">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mb-4 relative">
-                <Icon className="w-7 h-7 text-[#006653]" />
-                <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#FFC20E] text-[#173b32] text-xs font-bold flex items-center justify-center">
-                    {item.step}
-                  </span>
+              <Link key={i} href={item.href} className="group block">
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 group-hover:border-emerald-300 group-hover:shadow-md transition-all group-hover:-translate-y-1 h-full">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mb-4 relative group-hover:bg-emerald-100 transition-colors">
+                    <Icon className="w-7 h-7 text-[#006653]" />
+                    <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#FFC20E] text-[#173b32] text-xs font-bold flex items-center justify-center">
+                      {item.step}
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-lg text-[#006653] mb-2 font-heading group-hover:text-[#004d3e] flex items-center justify-between">
+                    <span>{item.title}</span>
+                    <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-600" />
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
                 </div>
-                <h3 className="font-semibold text-lg text-[#006653] mb-2 font-heading">{item.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -192,25 +196,30 @@ export default function HomePage() {
             </h2>
             <p className="text-gray-600">Selecione o tipo de serviço que você precisa</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3.5">
             {[
-              { icon: Lightbulb, label: 'Iluminação', emoji: '💡', color: 'bg-amber-50 text-amber-600', border: 'border-amber-200' },
-              { icon: Construction, label: 'Buraco', emoji: '🕳️', color: 'bg-orange-50 text-orange-600', border: 'border-orange-200' },
-              { icon: Trash2, label: 'Limpeza', emoji: '🗑️', color: 'bg-green-50 text-green-600', border: 'border-green-200' },
-              { icon: Droplet, label: 'Vazamento', emoji: '💧', color: 'bg-emerald-50 text-emerald-700', border: 'border-emerald-200' },
-              { icon: MapPin, label: 'Podas', emoji: '🌳', color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-200' },
-              { icon: Clock, label: 'Outros', emoji: '⚠️', color: 'bg-gray-50 text-gray-600', border: 'border-gray-200' },
+              { icon: Lightbulb, label: 'Iluminação', emoji: '💡', cat: 'Iluminação Pública', color: 'bg-amber-50 text-amber-700 hover:border-amber-400', border: 'border-amber-200' },
+              { icon: Construction, label: 'Tapa-Buraco', emoji: '🕳️', cat: 'Buracos e Pavimentação', color: 'bg-orange-50 text-orange-700 hover:border-orange-400', border: 'border-orange-200' },
+              { icon: Trash2, label: 'Limpeza Urbana', emoji: '🗑️', cat: 'Limpeza e Entulho', color: 'bg-emerald-50 text-emerald-700 hover:border-emerald-400', border: 'border-emerald-200' },
+              { icon: Scissors, label: 'Roçagem e Capina', emoji: '🌾', cat: 'Roçagem e Capina', color: 'bg-lime-50 text-lime-800 hover:border-lime-400', border: 'border-lime-300' },
+              { icon: TreePine, label: 'Poda de Árvores', emoji: '🌳', cat: 'Poda e Arborização', color: 'bg-green-50 text-green-700 hover:border-green-400', border: 'border-green-200' },
+              { icon: Droplet, label: 'Vazamento de Água', emoji: '💧', cat: 'Vazamento de Água', color: 'bg-sky-50 text-sky-700 hover:border-sky-400', border: 'border-sky-200' },
+              { icon: Clock, label: 'Outros Serviços', emoji: '⚠️', cat: 'Outros Serviços', color: 'bg-purple-50 text-purple-700 hover:border-purple-400', border: 'border-purple-200' },
             ].map((cat, i) => {
               const Icon = cat.icon;
               return (
-                <div
+                <Link
                   key={i}
-                  className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 ${cat.border} ${cat.color} hover:scale-105 transition-transform cursor-pointer`}
+                  href={`/solicitar?categoria=${encodeURIComponent(cat.cat)}`}
+                  className={`flex flex-col items-center justify-center gap-2.5 p-4 rounded-xl border-2 ${cat.border} ${cat.color} hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer text-center bg-white group`}
                 >
-                  <div className="text-3xl">{cat.emoji}</div>
-                  <Icon className="w-6 h-6" />
-                  <span className="text-sm font-semibold">{cat.label}</span>
-                </div>
+                  <div className="text-3xl group-hover:scale-110 transition-transform">{cat.emoji}</div>
+                  <Icon className="w-5 h-5" />
+                  <span className="text-xs font-bold leading-tight line-clamp-2">{cat.label}</span>
+                  <span className="text-[10px] text-gray-400 group-hover:text-emerald-700 font-semibold transition-colors">
+                    Solicitar →
+                  </span>
+                </Link>
               );
             })}
           </div>

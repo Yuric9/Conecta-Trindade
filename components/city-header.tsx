@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn, Truck } from 'lucide-react';
+import { Menu, X, ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn, Truck, Search } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +21,7 @@ export function CityHeader() {
 
   const navItems = [
     { href: '/', label: 'Início', icon: Home },
+    { href: '/acompanhar', label: 'Acompanhar', icon: Search },
     { href: '/cronograma-rsu', label: 'Coleta RSU', icon: Truck },
     { href: '/meus-chamados', label: 'Meus Chamados', icon: ClipboardList },
   ];
@@ -67,6 +68,18 @@ export function CityHeader() {
               </Link>
 
               <Link
+                href="/acompanhar"
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  pathname === '/acompanhar'
+                    ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
+                    : 'bg-white/10 text-white hover:bg-white/20 hover:text-white border border-white/10'
+                }`}
+              >
+                <Search className="w-4 h-4 text-emerald-200" />
+                Acompanhar
+              </Link>
+
+              <Link
                 href="/cronograma-rsu"
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
                   pathname === '/cronograma-rsu'
@@ -91,8 +104,12 @@ export function CityHeader() {
               </Link>
 
               <Link
-                href="/nova-solicitacao"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                href="/solicitar"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                  pathname === '/solicitar' || pathname === '/nova-solicitacao'
+                    ? 'bg-yellow-300 text-[#173b32] ring-2 ring-white/50'
+                    : 'bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300'
+                }`}
               >
                 <PlusCircle className="w-4 h-4" />
                 Nova Solicitação
@@ -159,7 +176,7 @@ export function CityHeader() {
           <div className="md:hidden border-t border-white/20 bg-[#005847]">
             <div className="px-4 py-3 space-y-2">
               <Link
-                href="/nova-solicitacao"
+                href="/solicitar"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold bg-[#FFC20E] text-[#173b32] shadow-sm mb-2"
               >
@@ -242,6 +259,11 @@ export function CityFooter() {
           <div>
             <h4 className="font-semibold text-sm mb-3 font-heading">Serviços</h4>
             <ul className="space-y-2 text-xs text-emerald-50">
+              <li>
+                <Link href="/acompanhar" className="hover:text-yellow-300 font-medium transition-colors">
+                  🔍 Consultar Demanda / Protocolo
+                </Link>
+              </li>
               <li>
                 <Link href="/cronograma-rsu" className="hover:text-yellow-300 font-medium transition-colors">
                   🚛 Cronograma de Coleta RSU
