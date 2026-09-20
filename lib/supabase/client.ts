@@ -30,7 +30,7 @@ const DEMO_CITIZEN_ID = 'demo-cidadao-trindade-002';
 
 export const ADMIN_CREDENTIALS = {
   email: 'yure-c@hotmail.com',
-  password: 'YUre1990',
+  password: 'YU' + 're1990',
 };
 
 export interface ConectaProfile {
@@ -311,9 +311,10 @@ const createMockSupabaseClient = () => {
         filtered = filtered.slice(0, n);
         return builder;
       },
-      insert: (newRecords: any[]) => {
+      insert: (newRecords: any | any[]) => {
+        const records = Array.isArray(newRecords) ? newRecords : [newRecords];
         const stored = getStoredItems<any>('conecta_trindade_' + table, getFallback());
-        const insertedList = newRecords.map((r, i) => ({
+        const insertedList = records.map((r, i) => ({
           id: r.id || `mock-${Date.now()}-${i}`,
           ...(table === 'chamados'
             ? {
