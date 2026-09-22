@@ -235,13 +235,7 @@ export default function AdminPage() {
   >('chamados');
 
   const isFiscalOrAdmin = Boolean(
-    isAdmin ||
-    profile?.role === 'admin' ||
-    profile?.role === 'fiscal' ||
-    profile?.role === 'gestor' ||
-    profile?.role === 'atendente' ||
-    session?.user?.email?.toLowerCase().includes('admin') ||
-    session?.user?.email?.toLowerCase().includes('fiscal')
+    ['admin', 'servidor', 'fiscal', 'gestor', 'atendente'].includes(profile?.role ?? '')
   );
 
   const fetchChamadosFromDatabase = useCallback(async () => {
