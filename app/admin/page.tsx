@@ -250,7 +250,7 @@ export default function AdminPage() {
       // 1. Tentar buscar da API /api/chamados
       let apiChamados: any[] = [];
       try {
-        const res = await fetch('/api/chamados?limit=100', { cache: 'no-store' });
+        const res = await fetch('/api/chamados?limit=100', { cache: 'no-store', headers: { Authorization: `Bearer ${session?.access_token ?? ''}` } });
         if (res.ok) {
           const data = await res.json();
           if (data.success && Array.isArray(data.chamados)) {
@@ -349,7 +349,7 @@ export default function AdminPage() {
       // 1. Chamar PATCH na API /api/chamados
       const res = await fetch('/api/chamados', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
         body: JSON.stringify({
           id: chamado.id,
           protocolo: chamado.protocolo,
@@ -523,7 +523,7 @@ export default function AdminPage() {
     try {
       await fetch('/api/chamados', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
         body: JSON.stringify({
           id: updated.id,
           protocolo: updated.protocolo,
