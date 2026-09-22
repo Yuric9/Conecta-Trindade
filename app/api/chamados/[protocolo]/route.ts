@@ -33,7 +33,7 @@ export async function GET(
     if (hasStaffAccess(auth.role)) {
       const { data, error } = await supabase
         .from('chamados')
-        .select('id, protocolo, nome_cidadao, cpf_cidadao, telefone_cidadao, categoria_servico, descricao, endereco, foto_url, status, observacoes_internas, cidadao_id, created_at, updated_at')
+        .select('id, protocolo, nome_cidadao, cpf_cidadao, telefone_cidadao, categoria_servico, descricao, endereco, foto_url, latitude, longitude, fotos, secretaria, prioridade, sla_limite, resposta_cidadao, status, observacoes_internas, cidadao_id, created_at, updated_at')
         .or(`protocolo.ilike.${termo},id.eq.${termo}`)
         .order('created_at', { ascending: false });
 
