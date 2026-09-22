@@ -64,7 +64,7 @@ BEGIN
     NEW.id,
     COALESCE(NEW.email, ''),
     COALESCE(NEW.raw_user_meta_data->>'nome', ''),
-    NULLIF(regexp_replace(COALESCE(NEW.raw_user_meta_data->>'cpf', ''), '\\D', '', 'g'), ''),
+    NULLIF(regexp_replace(COALESCE(NEW.raw_user_meta_data->>'cpf', ''), '\D', '', 'g'), ''),
     NULLIF(NEW.raw_user_meta_data->>'telefone', ''),
     'cidadao'
   )
@@ -123,11 +123,11 @@ CREATE INDEX IF NOT EXISTS idx_chamados_cidadao_id ON public.chamados(cidadao_id
 CREATE INDEX IF NOT EXISTS idx_chamados_observacoes ON public.chamados USING gin (to_tsvector('simple', COALESCE(observacoes_internas,'')));
 
 -- 3) Normalização de CPF existente.
-UPDATE public.chamados SET cpf_cidadao = regexp_replace(cpf_cidadao, '\\D', '', 'g')
-WHERE cpf_cidadao IS NOT NULL AND cpf_cidadao <> regexp_replace(cpf_cidadao, '\\D', '', 'g');
+UPDATE public.chamados SET cpf_cidadao = regexp_replace(cpf_cidadao, '\D', '', 'g')
+WHERE cpf_cidadao IS NOT NULL AND cpf_cidadao <> regexp_replace(cpf_cidadao, '\D', '', 'g');
 
-UPDATE public.profiles SET cpf = regexp_replace(cpf, '\\D', '', 'g')
-WHERE cpf IS NOT NULL AND cpf <> regexp_replace(cpf, '\\D', '', 'g');
+UPDATE public.profiles SET cpf = regexp_replace(cpf, '\D', '', 'g')
+WHERE cpf IS NOT NULL AND cpf <> regexp_replace(cpf, '\D', '', 'g');
 
 -- 4) Protocolo passa a ser gerado exclusivamente pelo PostgreSQL.
 CREATE OR REPLACE FUNCTION public.gerar_protocolo_chamado()
