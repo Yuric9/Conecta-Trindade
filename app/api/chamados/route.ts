@@ -43,6 +43,10 @@ export async function POST(req: NextRequest) {
 
     const auth = await getRequestAuth(req).catch(() => null);
     const id = randomUUID();
+    const staff = Boolean(auth && hasStaffAccess(auth.role));
+    const latitude = typeof body.latitude === 'number' ? body.latitude : null;
+    const longitude = typeof body.longitude === 'number' ? body.longitude : null;
+    const fotos = Array.isArray(body.fotos) && staff ? body.fotos.filter((value: unknown): value is string => typeof value === 'string').slice(0, 10) : [];
 
     const { error } = await supabase.from('chamados').insert({
       id,
@@ -54,6 +58,15 @@ export async function POST(req: NextRequest) {
       descricao,
       endereco,
       foto_url,
+      latitude,
+      longitude,
+      fotos,
+      ...(staff ? {
+        secretaria: typeof body.secretaria === 'string' ? body.secretaria.trim() || null : null,
+        prioridade: ['BAIXA','MEDIA','ALTA','URGENTE'].includes(body.prioridade) ? body.prioridade : null,
+        sla_limite: typeof body.sla_limite === 'string' ? body.sla_limite : null,
+        resposta_cidadao: typeof body.resposta_cidadao === 'string' ? body.resposta_cidadao : null,
+      } : {}),
     });
 
     if (error) {
@@ -134,7 +147,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase
       .from('chamados')
-      .select('id, protocolo, nome_cidadao, cpf_cidadao, telefone_cidadao, categoria_servico, descricao, endereco, foto_url, status, observacoes_internas, cidadao_id, created_at, updated_at')
+      .select('id, protocolo, nome_cidadao, cpf_cidadao, telefone_cidadao, categoria_servico, descricao, endereco, foto_url, latitude, longitude, fotos, secretaria, prioridade, sla_limite, resposta_cidadao, status, observacoes_internas, cidadao_id, created_at, updated_at')
       .order('created_at', { ascending: false })
       .limit(limit);
 
