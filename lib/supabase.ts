@@ -129,3 +129,19 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(clientU
     autoRefreshToken: false,
   },
 });
+
+export function createAuthenticatedSupabaseClient(accessToken: string): SupabaseClient<Database> {
+  if (!isSupabaseConfigured) throw new Error('SUPABASE_NOT_CONFIGURED');
+
+  return createClient<Database>(clientUrl, clientKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  });
+}
