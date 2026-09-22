@@ -102,7 +102,6 @@ export default function LoginPage() {
         }
 
         const userId = authData?.user?.id;
-        const userEmail = authData?.user?.email || '';
 
         // Buscar perfil e role no banco de dados com segurança
         const { data: profileData } = await supabase
