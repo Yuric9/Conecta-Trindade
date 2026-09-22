@@ -1,14 +1,16 @@
-export type ChamadoStatus =
+export type ChamadoStatus = 'Pendente' | 'Em Análise' | 'Em Andamento' | 'Concluído' | 'Cancelado';
+
+export type LegacyChamadoStatus =
   | 'ABERTO'
   | 'TRIADO'
+  | 'EM_ANALISE'
   | 'EM_ANDAMENTO'
   | 'RESOLVIDO'
   | 'CANCELADO'
   | 'REJEITADO'
-  | 'AVALIADO'
-  | 'Pendente'
-  | 'Em Andamento'
-  | 'Concluído';
+  | 'AVALIADO';
+
+export type StatusChamado = ChamadoStatus;
 
 export type ChamadoCategoria =
   | 'ILUMINACAO'
@@ -174,86 +176,17 @@ export interface StatusInfo {
 
 export function getStatusInfo(status: ChamadoStatus): StatusInfo {
   switch (status) {
-    case 'ABERTO':
-      return {
-        label: 'Aberto',
-        cor: '#f59e0b',
-        bgColor: 'bg-amber-100',
-        borderColor: 'border-amber-300',
-        textColor: 'text-amber-800',
-        badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
-        progress: 20,
-      };
-    case 'TRIADO':
-      return {
-        label: 'Triado',
-        cor: '#a855f7',
-        bgColor: 'bg-purple-100',
-        borderColor: 'border-purple-300',
-        textColor: 'text-purple-800',
-        badgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
-        progress: 45,
-      };
-    case 'EM_ANDAMENTO':
-      return {
-        label: 'Em Andamento',
-        cor: '#3b82f6',
-        bgColor: 'bg-blue-100',
-        borderColor: 'border-blue-300',
-        textColor: 'text-blue-800',
-        badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
-        progress: 70,
-      };
-    case 'RESOLVIDO':
-      return {
-        label: 'Resolvido',
-        cor: '#10b981',
-        bgColor: 'bg-emerald-100',
-        borderColor: 'border-emerald-300',
-        textColor: 'text-emerald-800',
-        badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-        progress: 100,
-      };
-    case 'AVALIADO':
-      return {
-        label: 'Avaliado',
-        cor: '#059669',
-        bgColor: 'bg-emerald-100',
-        borderColor: 'border-emerald-300',
-        textColor: 'text-emerald-800',
-        badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-        progress: 100,
-      };
-    case 'REJEITADO':
-      return {
-        label: 'Rejeitado',
-        cor: '#ef4444',
-        bgColor: 'bg-red-100',
-        borderColor: 'border-red-300',
-        textColor: 'text-red-800',
-        badgeClass: 'bg-red-100 text-red-800 border-red-300',
-        progress: 100,
-      };
-    case 'CANCELADO':
-      return {
-        label: 'Cancelado',
-        cor: '#6b7280',
-        bgColor: 'bg-gray-100',
-        borderColor: 'border-gray-300',
-        textColor: 'text-gray-800',
-        badgeClass: 'bg-gray-100 text-gray-800 border-gray-300',
-        progress: 100,
-      };
+    case 'Pendente':
+      return { label: 'Pendente', cor: '#f59e0b', bgColor: 'bg-amber-100', borderColor: 'border-amber-300', textColor: 'text-amber-800', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', progress: 20 };
+    case 'Em Análise':
+      return { label: 'Em Análise', cor: '#f97316', bgColor: 'bg-orange-100', borderColor: 'border-orange-300', textColor: 'text-orange-800', badgeClass: 'bg-orange-100 text-orange-800 border-orange-300', progress: 40 };
+    case 'Em Andamento':
+      return { label: 'Em Andamento', cor: '#3b82f6', bgColor: 'bg-blue-100', borderColor: 'border-blue-300', textColor: 'text-blue-800', badgeClass: 'bg-blue-100 text-blue-800 border-blue-300', progress: 70 };
+    case 'Concluído':
+      return { label: 'Concluído', cor: '#10b981', bgColor: 'bg-emerald-100', borderColor: 'border-emerald-300', textColor: 'text-emerald-800', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', progress: 100 };
+    case 'Cancelado':
     default:
-      return {
-        label: status || 'Desconhecido',
-        cor: '#9ca3af',
-        bgColor: 'bg-gray-100',
-        borderColor: 'border-gray-200',
-        textColor: 'text-gray-700',
-        badgeClass: 'bg-gray-100 text-gray-700',
-        progress: 10,
-      };
+      return { label: 'Cancelado', cor: '#6b7280', bgColor: 'bg-gray-100', borderColor: 'border-gray-300', textColor: 'text-gray-800', badgeClass: 'bg-gray-100 text-gray-800 border-gray-300', progress: 100 };
   }
 }
 
