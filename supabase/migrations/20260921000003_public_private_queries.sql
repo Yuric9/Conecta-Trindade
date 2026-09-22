@@ -20,7 +20,7 @@ AS $$
   JOIN public.profiles p ON p.id = auth.uid()
   WHERE auth.uid() IS NOT NULL
     AND p.id = c.cidadao_id
-    AND p.cpf = regexp_replace(COALESCE(p_cpf,''), '\\D', '', 'g')
+    AND p.cpf = regexp_replace(COALESCE(p_cpf,''), '\D', '', 'g')
     AND p.id = auth.uid()
   ORDER BY c.created_at DESC;
 $$;
