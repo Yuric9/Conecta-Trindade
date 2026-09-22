@@ -106,6 +106,8 @@ import {
   Check,
   FileText,
   Kanban,
+  LayoutGrid,
+  MoreHorizontal,
   Eye,
   Truck,
   Recycle,
@@ -126,13 +128,15 @@ import {
   copyToClipboard,
 } from '@/lib/whatsapp-share';
 import { CRONOGRAMA_OFICIAL_TRINDADE, getBairrosHoje, DIAS_SEMANA_LABELS } from '@/lib/rsu-schedule';
+import { getPortalConfig, savePortalConfig } from '@/lib/config-portal';
 
-type NormalizedStatus = 'Pendente' | 'Em Andamento' | 'Concluído' | 'Cancelado';
+type NormalizedStatus = 'Pendente' | 'Em Análise' | 'Em Andamento' | 'Concluído' | 'Cancelado';
 
 function normalizeStatus(status: string | undefined): NormalizedStatus {
   if (!status) return 'Pendente';
   const s = status.toUpperCase().trim();
   if (s === 'ABERTO' || s === 'TRIADO' || s === 'PENDENTE') return 'Pendente';
+  if (s === 'EM_ANALISE' || s === 'EM ANÁLISE' || s === 'TRIADO') return 'Em Análise';
   if (s === 'EM_ANDAMENTO' || s === 'EM ANDAMENTO') return 'Em Andamento';
   if (s === 'RESOLVIDO' || s === 'CONCLUÍDO' || s === 'CONCLUIDO' || s === 'AVALIADO') return 'Concluído';
   if (s === 'CANCELADO' || s === 'REJEITADO') return 'Cancelado';
@@ -193,6 +197,11 @@ const KANBAN_COLUMNS: { status: ChamadoStatus; label: string; color: string }[] 
   { status: 'RESOLVIDO', label: 'Resolvido', color: 'green' },
 ];
 
+function OSContextMenu({ chamado, enabled, onStatus, onCopyAddress, onEdit }: { chamado: Chamado; enabled: boolean; onStatus: (status: NormalizedStatus) => void; onCopyAddress: () => void; onEdit: () => void }) {
+  if (!enabled) return <Button size="sm" onClick={onEdit} className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-8 px-2.5 gap-1 shadow-xs"><Eye className="w-3 h-3"/><span className="hidden sm:inline">Editar</span></Button>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 border-gray-300 bg-white" onClick={(e)=>e.stopPropagation()} title="Ações rápidas"><MoreHorizontal className="w-4 h-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-52"><DropdownMenuItem onSelect={()=>onStatus('Em Análise')}><AlertCircle className="w-4 h-4 mr-2 text-orange-500"/>Mover para Triagem</DropdownMenuItem><DropdownMenuItem onSelect={()=>onStatus('Em Andamento')}><Truck className="w-4 h-4 mr-2 text-blue-600"/>Atribuir a Mim</DropdownMenuItem><DropdownMenuItem onSelect={onCopyAddress}><Copy className="w-4 h-4 mr-2"/>Copiar Endereço</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem onSelect={onEdit}><Eye className="w-4 h-4 mr-2 text-[#006653]"/>Editar Completo</DropdownMenuItem></DropdownMenuContent></DropdownMenu>;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const { session, profile, isAdmin, loading: authLoading } = useAuth();
@@ -206,6 +215,8 @@ export default function AdminPage() {
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedProtocol, setCopiedProtocol] = useState<string | null>(null);
   const [view, setView] = useState<'os' | 'kanban' | 'mapa'>('os');
+  const [osViewMode, setOsViewMode] = useState<'table' | 'cards'>('table');
+  const [menuContextoAtivo, setMenuContextoAtivo] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [filterCategoria, setFilterCategoria] = useState<ChamadoCategoria | 'TODAS'>('TODAS');
   const [filterSecretaria, setFilterSecretaria] = useState<ChamadoSecretaria | 'TODAS'>('TODAS');
@@ -305,6 +316,7 @@ export default function AdminPage() {
 
     const loadedConfig = getCityConfig();
     setCityConfig(loadedConfig);
+    getPortalConfig().then((config) => setMenuContextoAtivo(config.menu_contexto_cards_ativo));
   }, [fetchChamadosFromDatabase]);
 
   const handleQuickStatusChange = async (chamado: Chamado, newStatus: NormalizedStatus) => {
@@ -629,6 +641,16 @@ export default function AdminPage() {
     setCityConfig(nextConfig);
   };
 
+  const handleToggleContextMenu = async () => {
+    const next = !menuContextoAtivo;
+    setMenuContextoAtivo(next);
+    try { await savePortalConfig({ menu_contexto_cards_ativo: next }); setFeedbackMessage({ type: 'success', text: `Menu de ações contextuais ${next ? 'ativado' : 'desativado'}.` }); }
+    catch { setMenuContextoAtivo(!next); setFeedbackMessage({ type: 'error', text: 'Não foi possível salvar a preferência do menu de contexto.' }); }
+    setTimeout(() => setFeedbackMessage(null), 3000);
+  };
+  const handleContextStatus = async (chamado: Chamado, status: NormalizedStatus) => { await handleQuickStatusChange(chamado, status); if (status === 'Em Andamento') { setFeedbackMessage({ type: 'success', text: `O.S. ${chamado.protocolo} atribuída a você e movida para Em Andamento.` }); setTimeout(() => setFeedbackMessage(null), 3000); } };
+  const handleCopyAddress = async (chamado: Chamado) => { const ok = await copyToClipboard(chamado.endereco_texto || (chamado as any).endereco || 'Trindade - GO'); setFeedbackMessage({ type: ok ? 'success' : 'error', text: ok ? 'Endereço copiado para a área de transferência.' : 'Não foi possível copiar o endereço.' }); setTimeout(() => setFeedbackMessage(null), 2500); };
+
   if (authLoading && chamados.length === 0) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center flex-col gap-3">
@@ -663,7 +685,7 @@ export default function AdminPage() {
 
       {/* Admin header bar */}
       <div className="bg-gradient-to-r from-[#006653] to-[#004d3e] text-white py-5 px-4 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <LayoutDashboard className="w-6 h-6" />
             <div>
@@ -678,7 +700,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Main Navigation Tabs */}
         <div className="flex flex-wrap gap-2 mb-6 rounded-xl bg-white border border-gray-200 p-2 shadow-sm">
           {[
@@ -1105,7 +1127,7 @@ export default function AdminPage() {
             <div className="flex flex-wrap items-center gap-3 mb-6 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={() => setView('os')}
+                  onClick={() => { setView('os'); setOsViewMode('table'); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                     view === 'os' ? 'bg-[#006653] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
                   }`}
@@ -1114,6 +1136,7 @@ export default function AdminPage() {
                   <ClipboardList className="w-3.5 h-3.5" />
                   <span>Ordens de Serviço</span>
                 </button>
+                <button onClick={() => { setView('os'); setOsViewMode('cards'); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${view === 'os' && osViewMode === 'cards' ? 'bg-[#006653] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`} title="Visualização em Cards Grid"><LayoutGrid className="w-3.5 h-3.5"/><span>Cards Grid</span></button>
                 <button
                   onClick={() => setView('kanban')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
@@ -1197,6 +1220,8 @@ export default function AdminPage() {
                 <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
                 SLA Atrasado
               </button>
+
+              <button type="button" onClick={handleToggleContextMenu} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700"><span className={`relative h-4 w-7 rounded-full ${menuContextoAtivo ? 'bg-[#006653]' : 'bg-gray-300'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${menuContextoAtivo ? 'translate-x-3.5' : 'translate-x-0.5'}`}/></span>Menu rápido {menuContextoAtivo ? 'ON' : 'OFF'}</button>
 
               {(filterCategoria !== 'TODAS' || filterSecretaria !== 'TODAS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
                 <button
@@ -1346,197 +1371,13 @@ export default function AdminPage() {
                   )}
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table className="w-full text-left text-xs">
-                    <TableHeader className="bg-gray-50/80 border-b border-gray-200">
-                      <TableRow className="uppercase font-semibold text-[11px] tracking-wider text-gray-600">
-                        <TableHead className="py-3 px-4 w-[160px]">Protocolo</TableHead>
-                        <TableHead className="py-3 px-4 min-w-[170px]">Cidadão</TableHead>
-                        <TableHead className="py-3 px-4 min-w-[190px]">Serviço</TableHead>
-                        <TableHead className="py-3 px-4 min-w-[190px]">Bairro/Endereço</TableHead>
-                        <TableHead className="py-3 px-4 w-[130px]">Data</TableHead>
-                        <TableHead className="py-3 px-4 w-[140px]">Status</TableHead>
-                        <TableHead className="py-3 px-4 min-w-[220px] text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody className="divide-y divide-gray-100">
-                      {filteredChamados.map((c) => {
-                        const catInfo = getCategoriaInfo(c.categoria);
-                        const hasFoto = c.fotos && c.fotos.length > 0;
-                        const isUpdatingThis = updatingId === (c.id || c.protocolo);
-
-                        return (
-                          <TableRow
-                            key={c.id || c.protocolo}
-                            className="hover:bg-emerald-50/30 transition-colors group cursor-pointer"
-                            onClick={() => openDetail(c)}
-                          >
-                            {/* 1. Protocolo */}
-                            <TableCell className="py-3.5 px-4 whitespace-nowrap">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono font-bold text-xs text-[#006653] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/80">
-                                  {c.protocolo}
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    copyToClipboard(c.protocolo);
-                                    setCopiedProtocol(c.protocolo);
-                                    setTimeout(() => setCopiedProtocol(null), 2000);
-                                  }}
-                                  title="Copiar Protocolo"
-                                  className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors"
-                                >
-                                  {copiedProtocol === c.protocolo ? (
-                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                              </div>
-                              {c.prioridade === 'URGENTE' && (
-                                <span className="inline-block mt-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.2 rounded border border-red-200">
-                                  URGENTE
-                                </span>
-                              )}
-                            </TableCell>
-
-                            {/* 2. Cidadão */}
-                            <TableCell className="py-3.5 px-4 min-w-[160px]">
-                              <div className="font-medium text-gray-900 truncate">
-                                {c.cidadao_nome || (c as any).nome_cidadao || 'Cidadão Trindadense'}
-                              </div>
-                              <div className="text-[11px] text-gray-500 mt-0.5 flex flex-wrap items-center gap-1.5">
-                                {(c.cidadao_telefone || (c as any).telefone_cidadao) && (
-                                  <span className="inline-flex items-center gap-0.5 text-gray-600">
-                                    <Phone className="w-3 h-3 text-gray-400" />
-                                    {c.cidadao_telefone || (c as any).telefone_cidadao}
-                                  </span>
-                                )}
-                                {(c as any).cpf_cidadao && (
-                                  <span className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded font-mono">
-                                    CPF: {(c as any).cpf_cidadao}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-
-                            {/* 3. Serviço */}
-                            <TableCell className="py-3.5 px-4 min-w-[190px]">
-                              <div className="flex items-center gap-1.5 font-semibold text-gray-800 text-[11.5px]">
-                                <span>{catInfo?.emoji || '📋'}</span>
-                                <span>{catInfo?.label || (c as any).categoria_servico || c.categoria}</span>
-                              </div>
-                              <p className="text-gray-600 text-xs line-clamp-1 mt-0.5 max-w-xs" title={c.descricao}>
-                                {c.descricao || 'Sem descrição informada'}
-                              </p>
-                              {hasFoto && (
-                                <span className="text-[10px] text-emerald-700 font-medium inline-flex items-center gap-1 mt-0.5">
-                                  <ImageIcon className="w-2.5 h-2.5" />
-                                  {c.fotos?.length || 1} foto(s) anexada(s)
-                                </span>
-                              )}
-                            </TableCell>
-
-                            {/* 4. Bairro/Endereço */}
-                            <TableCell className="py-3.5 px-4 max-w-[200px]">
-                              <div className="flex items-start gap-1 text-gray-700">
-                                <MapPin className="w-3.5 h-3.5 text-[#006653] flex-shrink-0 mt-0.5" />
-                                <span className="truncate text-xs font-medium" title={c.endereco_texto || (c as any).endereco || 'Trindade - GO'}>
-                                  {c.endereco_texto || (c as any).endereco || 'Trindade - GO'}
-                                </span>
-                              </div>
-                              {c.secretaria && (
-                                <span className="text-[10px] text-gray-400 block truncate mt-0.5">
-                                  {SECRETARIAS[c.secretaria] || c.secretaria}
-                                </span>
-                              )}
-                            </TableCell>
-
-                            {/* 5. Data */}
-                            <TableCell className="py-3.5 px-4 whitespace-nowrap">
-                              <div className="flex items-center gap-1 text-gray-700 text-xs font-medium">
-                                <Calendar className="w-3 h-3 text-gray-400" />
-                                <span>{formatData(c.created_at)}</span>
-                              </div>
-                              <div className="text-[10.5px] text-gray-400 mt-0.5">
-                                {tempoRelativo(c.created_at)}
-                              </div>
-                            </TableCell>
-
-                            {/* 6. Status com Badge shadcn/ui */}
-                            <TableCell className="py-3.5 px-4 whitespace-nowrap">
-                              <StatusBadge status={c.status} />
-                            </TableCell>
-
-                            {/* 7. Ações com Select inline e Modal */}
-                            <TableCell className="py-3.5 px-4 whitespace-nowrap text-right">
-                              <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                                {/* Select inline para alteração em tempo real */}
-                                <div className="w-[145px] text-left">
-                                  <Select
-                                    value={normalizeStatus(c.status)}
-                                    onValueChange={(val) => handleQuickStatusChange(c, val as NormalizedStatus)}
-                                    disabled={isUpdatingThis}
-                                  >
-                                    <SelectTrigger className="h-7 text-[11px] bg-white border-gray-300 hover:border-[#006653] font-medium shadow-2xs">
-                                      {isUpdatingThis ? (
-                                        <span className="flex items-center gap-1 text-gray-500">
-                                          <Loader2 className="w-3 h-3 animate-spin text-[#006653]" />
-                                          Salvando...
-                                        </span>
-                                      ) : (
-                                        <SelectValue />
-                                      )}
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Pendente" className="text-xs">
-                                        <span className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded-full bg-yellow-400" />
-                                          Pendente
-                                        </span>
-                                      </SelectItem>
-                                      <SelectItem value="Em Andamento" className="text-xs">
-                                        <span className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded-full bg-blue-500" />
-                                          Em Andamento
-                                        </span>
-                                      </SelectItem>
-                                      <SelectItem value="Concluído" className="text-xs">
-                                        <span className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                          Concluído
-                                        </span>
-                                      </SelectItem>
-                                      <SelectItem value="Cancelado" className="text-xs">
-                                        <span className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded-full bg-gray-400" />
-                                          Cancelado
-                                        </span>
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                {/* Botão para abrir modal detalhado */}
-                                <Button
-                                  size="sm"
-                                  onClick={() => openDetail(c)}
-                                  className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-7 px-2.5 gap-1 shadow-xs"
-                                  title="Abrir modal para gerenciar detalhes, fotos e parecer técnico"
-                                >
-                                  <Eye className="w-3 h-3" />
-                                  <span className="hidden sm:inline">Gerenciar</span>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                <div className="overflow-x-auto scrollbar-thin">
+                  <div id="admin-page-chamados-list" className="min-w-[1090px] text-left text-xs">
+                    <div className="sticky top-0 z-10 grid grid-cols-[40px_130px_minmax(150px,1fr)_minmax(180px,1.2fr)_minmax(180px,1.2fr)_125px_145px_75px] bg-gray-50/95 backdrop-blur border-b border-gray-200 uppercase font-semibold text-[10px] tracking-wider text-gray-600"><div className="px-2 sm:px-3 py-3">#</div><div className="px-2 sm:px-3 py-3">Protocolo</div><div className="px-2 sm:px-3 py-3">Cidadão</div><div className="px-2 sm:px-3 py-3">Serviço</div><div className="px-2 sm:px-3 py-3">Bairro/Endereço</div><div className="px-2 sm:px-3 py-3">Data</div><div className="px-2 sm:px-3 py-3">Status</div><div className="px-2 sm:px-3 py-3 text-right">Ações</div></div>
+                    <div className="divide-y divide-gray-100">{filteredChamados.map((c,index)=>{const catInfo=getCategoriaInfo(c.categoria);const address=c.endereco_texto||(c as any).endereco||'Trindade - GO';const isUpdatingThis=updatingId===(c.id||c.protocolo);return <div key={c.id||c.protocolo} className="grid grid-cols-[40px_130px_minmax(150px,1fr)_minmax(180px,1.2fr)_minmax(180px,1.2fr)_125px_145px_75px] items-center hover:bg-emerald-50/30 transition-colors cursor-pointer" onClick={()=>openDetail(c)}><div className="px-2 sm:px-3 py-3 text-[10px] text-gray-400">{index+1}</div><div className="px-2 sm:px-3 py-3 min-w-0"><span className="font-mono font-bold text-[11px] text-[#006653] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80 truncate">{c.protocolo}</span></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="font-medium text-gray-900 truncate max-w-[170px] xl:max-w-xs">{c.cidadao_nome||(c as any).nome_cidadao||'Cidadão Trindadense'}</div><div className="text-[10px] text-gray-500 truncate max-w-[170px] xl:max-w-xs">{c.cidadao_telefone||(c as any).telefone_cidadao||''}</div></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="flex items-center gap-1.5 font-semibold text-gray-800 text-[11px] truncate"><span>{catInfo?.emoji||'📋'}</span><span className="truncate">{catInfo?.label||(c as any).categoria_servico||c.categoria}</span></div><p className="text-gray-600 text-[11px] line-clamp-1 truncate max-w-[170px] xl:max-w-xs">{c.descricao||'Sem descrição informada'}</p></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="flex items-start gap-1 text-gray-700"><MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0 mt-0.5"/><span className="truncate text-[11px] font-medium max-w-[170px] xl:max-w-xs" title={address}>{address}</span></div></div><div className="px-2 sm:px-3 py-3 whitespace-nowrap"><div className="flex items-center gap-1 text-gray-700 text-[10px]"><Calendar className="w-3 h-3 text-gray-400"/>{formatData(c.created_at)}</div><div className="text-[9px] text-gray-400">{tempoRelativo(c.created_at)}</div></div><div className="px-2 sm:px-3 py-3"><StatusBadge status={c.status}/></div><div className="px-2 sm:px-3 py-3 flex items-center justify-end gap-1" onClick={e=>e.stopPropagation()}><div className="w-[125px]"><Select value={normalizeStatus(c.status)} onValueChange={v=>handleQuickStatusChange(c,v as NormalizedStatus)} disabled={isUpdatingThis}><SelectTrigger className="h-7 text-[10px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Análise">Em Análise</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem><SelectItem value="Cancelado">Cancelado</SelectItem></SelectContent></Select></div><OSContextMenu chamado={c} enabled={menuContextoAtivo} onStatus={v=>handleContextStatus(c,v)} onCopyAddress={()=>handleCopyAddress(c)} onEdit={()=>openDetail(c)}/></div></div>})}</div>
+                  </div>
                 </div>
-              )}
+                {osViewMode === 'cards' && <div className="p-3 sm:p-4"><div className="grid gap-3" style={{gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))'}}>{filteredChamados.map(c=>{const catInfo=getCategoriaInfo(c.categoria);const address=c.endereco_texto||(c as any).endereco||'Trindade - GO';return <Card key={c.id||c.protocolo} className="border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={()=>openDetail(c)}><CardContent className="p-4"><div className="flex items-start justify-between gap-2"><Badge className="font-mono bg-emerald-50 text-[#006653] border border-emerald-200">{c.protocolo}</Badge><div className="flex gap-1" onClick={e=>e.stopPropagation()}><Button variant="ghost" size="icon" className="h-8 w-8" onClick={()=>openDetail(c)} title="Visualização rápida"><Eye className="w-4 h-4"/></Button><OSContextMenu chamado={c} enabled={menuContextoAtivo} onStatus={v=>handleContextStatus(c,v)} onCopyAddress={()=>handleCopyAddress(c)} onEdit={()=>openDetail(c)}/></div></div><div className="mt-3 flex items-center gap-2 font-semibold text-gray-800"><span className="text-lg">{catInfo?.emoji||'📋'}</span>{catInfo?.label||c.categoria}</div><p className="mt-2 text-xs text-gray-600 line-clamp-2">{c.descricao||'Sem descrição informada'}</p><div className="mt-3 space-y-2 text-xs"><div className="flex gap-2 text-gray-700"><MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0"/><span className="truncate">{address}</span></div><div className="flex gap-2 text-gray-700"><User className="w-3.5 h-3.5 text-gray-400 shrink-0"/><span className="truncate">{c.cidadao_nome||(c as any).nome_cidadao||'Cidadão Trindadense'}</span></div></div><div className="mt-4 pt-3 border-t flex items-center justify-between gap-2" onClick={e=>e.stopPropagation()}><StatusBadge status={c.status}/><Select value={normalizeStatus(c.status)} onValueChange={v=>handleQuickStatusChange(c,v as NormalizedStatus)}><SelectTrigger className="h-8 w-[145px] text-[10px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Análise">Em Análise</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem><SelectItem value="Cancelado">Cancelado</SelectItem></SelectContent></Select></div></CardContent></Card>})}</div></div>}              )}
             </Card>
           </div>
         )}
