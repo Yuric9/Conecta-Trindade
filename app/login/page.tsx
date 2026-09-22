@@ -111,15 +111,12 @@ export default function LoginPage() {
           .eq('id', userId)
           .maybeSingle();
 
-        const isUserAdmin =
-          profileData?.role === 'admin' ||
-          userEmail.toLowerCase() === 'yure-c@hotmail.com' ||
-          userEmail.toLowerCase().includes('admin');
+        const isAuthorizedStaff = ['admin', 'servidor', 'fiscal', 'gestor', 'atendente'].includes(profileData?.role);
 
         // Validação de Regra de Segurança:
         // Se tentou entrar pelo portal do Servidor Municipal, exige permissão de admin
         if (portal === 'servidor') {
-          if (!isUserAdmin) {
+          if (!isAuthorizedStaff) {
             // Desconecta sessão não autorizada para o painel de servidor
             await supabase.auth.signOut();
             throw new Error(
@@ -131,7 +128,7 @@ export default function LoginPage() {
         }
 
         // Se entrou pelo portal do cidadão mas é admin, direciona para meus chamados ou admin
-        if (isUserAdmin) {
+        if (profileData?.role === 'admin') {
           router.push('/admin');
         } else {
           router.push('/meus-chamados');
