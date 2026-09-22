@@ -7,7 +7,6 @@ import dynamic from 'next/dynamic';
 import {
   supabase,
   isSupabaseConfigured,
-  STORAGE_BUCKET,
   getStoredProfiles,
   saveStoredProfile,
   deleteStoredProfile,
