@@ -1,47 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getRequestAuth, hasAdminAccess } from '@/lib/server-auth';
 
 const DEFAULT_CONFIG = { menu_contexto_cards_ativo: true };
-let memoryConfig = { ...DEFAULT_CONFIG };
 
 export async function GET() {
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await (supabase.from('portal_config') as any)
-        .select('menu_contexto_cards_ativo')
-        .eq('id', 1)
-        .maybeSingle();
-      if (!error && data) {
-        return NextResponse.json({ success: true, config: { menu_contexto_cards_ativo: Boolean(data.menu_contexto_cards_ativo) } });
-      }
-    } catch (error) {
-      console.warn('[API Config] fallback para memória:', error);
-    }
+  if (!isSupabaseConfigured) {
+    return NextResponse.json({ success: false, error: 'Serviço temporariamente indisponível.' }, { status: 503 });
   }
-  return NextResponse.json({ success: true, config: memoryConfig, source: 'memory' });
+
+  const { data, error } = await supabase
+    .from('portal_config')
+    .select('menu_contexto_cards_ativo')
+    .eq('id', 1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[API Config] GET failed', error);
+    return NextResponse.json({ success: false, error: 'Não foi possível carregar a configuração.' }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    success: true,
+    config: data ? { menu_contexto_cards_ativo: Boolean(data.menu_contexto_cards_ativo) } : DEFAULT_CONFIG,
+  });
 }
 
 export async function PATCH(req: NextRequest) {
   try {
-    const body = await req.json();
-    const enabled = Boolean(body?.menu_contexto_cards_ativo);
-    const nextConfig = { menu_contexto_cards_ativo: enabled };
-    memoryConfig = nextConfig;
-
-    if (isSupabaseConfigured) {
-      const { data, error } = await (supabase.from('portal_config') as any)
-        .upsert({ id: 1, menu_contexto_cards_ativo: enabled, updated_at: new Date().toISOString() })
-        .select('menu_contexto_cards_ativo')
-        .single();
-      if (error) {
-        console.error('[API Config] erro ao persistir no Supabase:', error);
-        return NextResponse.json({ success: false, error: error.message, config: nextConfig }, { status: 500 });
-      }
-      return NextResponse.json({ success: true, config: { menu_contexto_cards_ativo: Boolean(data.menu_contexto_cards_ativo) }, source: 'supabase' });
+    if (!isSupabaseConfigured) {
+      return NextResponse.json({ success: false, error: 'Serviço temporariamente indisponível.' }, { status: 503 });
     }
 
-    return NextResponse.json({ success: true, config: nextConfig, source: 'memory' });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message || 'Configuração inválida.' }, { status: 400 });
+    const auth = await getRequestAuth(req).catch(() => null);
+    if (!auth || !hasAdminAccess(auth.role)) {
+      return NextResponse.json({ success: false, error: 'Acesso não autorizado.' }, { status: 403 });
+    }
+
+    const body = await req.json().catch(() => null);
+    if (typeof body?.menu_contexto_cards_ativo !== 'boolean') {
+      return NextResponse.json({ success: false, error: 'Configuração inválida.' }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from('portal_config')
+      .update({
+        menu_contexto_cards_ativo: body.menu_contexto_cards_ativo,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 1)
+      .select('menu_contexto_cards_ativo')
+      .single();
+
+    if (error) {
+      console.error('[API Config] PATCH failed', error);
+      return NextResponse.json({ success: false, error: 'Não foi possível salvar a configuração.' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      config: { menu_contexto_cards_ativo: Boolean(data.menu_contexto_cards_ativo) },
+    });
+  } catch (error) {
+    console.error('[API Config] PATCH failed', error);
+    return NextResponse.json({ success: false, error: 'Erro interno ao salvar a configuração.' }, { status: 500 });
   }
 }
