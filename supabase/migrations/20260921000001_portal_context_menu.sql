@@ -29,9 +29,9 @@ CREATE POLICY "Permitir leitura da configuração do portal"
 
 DROP POLICY IF EXISTS "Permitir atualização da configuração do portal" ON public.portal_config;
 CREATE POLICY "Permitir atualização da configuração do portal"
-  ON public.portal_config FOR UPDATE USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  ON public.portal_config FOR UPDATE USING (true)
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Permitir inserção da configuração do portal" ON public.portal_config;
 CREATE POLICY "Permitir inserção da configuração do portal"
-  ON public.portal_config FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+  ON public.portal_config FOR INSERT WITH CHECK (true);
