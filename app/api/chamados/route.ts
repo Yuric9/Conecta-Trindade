@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, isSupabaseConfigured, type StatusChamado } from '@/lib/supabase';
+import { supabase, createAuthenticatedSupabaseClient, isSupabaseConfigured, type StatusChamado } from '@/lib/supabase';
 import { getRequestAuth, hasStaffAccess } from '@/lib/server-auth';
 
 const STATUS_VALIDOS: StatusChamado[] = ['Pendente', 'Em Análise', 'Em Andamento', 'Concluído', 'Cancelado'];
@@ -44,11 +44,12 @@ export async function POST(req: NextRequest) {
     const auth = await getRequestAuth(req).catch(() => null);
     const id = randomUUID();
     const staff = Boolean(auth && hasStaffAccess(auth.role));
+    const db = auth ? createAuthenticatedSupabaseClient(req.headers.get('authorization')!.slice(7).trim()) : supabase;
     const latitude = typeof body.latitude === 'number' ? body.latitude : null;
     const longitude = typeof body.longitude === 'number' ? body.longitude : null;
     const fotos = Array.isArray(body.fotos) && staff ? body.fotos.filter((value: unknown): value is string => typeof value === 'string').slice(0, 10) : [];
 
-    const { error } = await supabase.from('chamados').insert({
+    const { error } = await db.from('chamados').insert({
       id,
       cidadao_id: auth?.user.id ?? null,
       nome_cidadao: nome,
@@ -121,7 +122,7 @@ export async function GET(req: NextRequest) {
 
       if (hasStaffAccess(auth.role)) {
         const cleanCpf = limparCpf(cpf);
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from('chamados')
           .select('id, protocolo, nome_cidadao, cpf_cidadao, telefone_cidadao, categoria_servico, descricao, endereco, foto_url, status, observacoes_internas, created_at, updated_at')
           .eq('cpf_cidadao', cleanCpf)
@@ -134,7 +135,8 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ success: true, chamados: data ?? [] });
       }
 
-      const { data, error } = await supabase.rpc('consultar_meus_chamados_por_cpf', { p_cpf: cpf });
+      const db = createAuthenticatedSupabaseClient(req.headers.get('authorization')!.slice(7).trim());
+      const { data, error } = await db.rpc('consultar_meus_chamados_por_cpf', { p_cpf: cpf });
       if (error) {
         console.error('[API Chamados] citizen CPF lookup failed', error);
         return jsonError('Não foi possível consultar seus chamados.', 500);
@@ -145,7 +147,8 @@ export async function GET(req: NextRequest) {
     const auth = await getRequestAuth(req).catch(() => null);
     if (!auth || !hasStaffAccess(auth.role)) return jsonError('Acesso não autorizado.', 403);
 
-    const { data, error } = await supabase
+    const db = createAuthenticatedSupabaseClient(req.headers.get('authorization')!.slice(7).trim());
+    const { data, error } = await db
       .from('chamados')
       .select('id, protocolo, nome_cidadao, cpf_cidadao, telefone_cidadao, categoria_servico, descricao, endereco, foto_url, latitude, longitude, fotos, secretaria, prioridade, sla_limite, resposta_cidadao, status, observacoes_internas, cidadao_id, created_at, updated_at')
       .order('created_at', { ascending: false })
@@ -185,7 +188,8 @@ export async function PATCH(req: NextRequest) {
     const payload: Record<string, unknown> = { status };
     if (observacao !== undefined) payload.observacoes_internas = observacao.trim();
 
-    let query = supabase.from('chamados').update(payload);
+    const db = createAuthenticatedSupabaseClient(req.headers.get('authorization')!.slice(7).trim());
+    let query = db.from('chamados').update(payload);
     query = id ? query.eq('id', id) : query.eq('protocolo', protocolo);
 
     const { data, error } = await query
