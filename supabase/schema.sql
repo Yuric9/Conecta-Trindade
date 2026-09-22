@@ -149,7 +149,7 @@ WITH CHECK (public.get_current_user_role() = 'admin');
 
 DROP POLICY IF EXISTS "chamados_insert_publico" ON public.chamados;
 CREATE POLICY "chamados_insert_publico" ON public.chamados FOR INSERT TO anon, authenticated
-WITH CHECK (auth.uid() IS NULL OR cidadao_id = auth.uid());
+WITH CHECK ((auth.uid() IS NULL AND cidadao_id IS NULL) OR (auth.uid() IS NOT NULL AND cidadao_id = auth.uid()));
 
 DROP POLICY IF EXISTS "chamados_select_proprio" ON public.chamados;
 CREATE POLICY "chamados_select_proprio" ON public.chamados FOR SELECT TO authenticated
