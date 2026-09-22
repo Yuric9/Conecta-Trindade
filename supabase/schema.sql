@@ -164,7 +164,7 @@ DROP POLICY IF EXISTS "chamados_delete_admin" ON public.chamados;
 CREATE POLICY "chamados_delete_admin" ON public.chamados FOR DELETE TO authenticated
 USING (public.get_current_user_role() = 'admin');
 
-CREATE OR REPLACE VIEW public.solicitacoes AS SELECT * FROM public.chamados;
+CREATE OR REPLACE VIEW public.solicitacoes AS SELECT id, protocolo, categoria_servico, descricao, status, created_at, updated_at FROM public.chamados;
 
 CREATE OR REPLACE FUNCTION public.consultar_chamado_publico(p_protocolo TEXT)
 RETURNS TABLE (protocolo TEXT, categoria_servico TEXT, descricao TEXT, status TEXT, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ)
