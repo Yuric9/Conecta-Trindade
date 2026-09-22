@@ -13,7 +13,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // 1. Tipos e Enums do Banco de Dados Conecta-Trindade
 // =====================================================================
 
-export type StatusChamado = 'Pendente' | 'Em Andamento' | 'Concluído' | 'Cancelado';
+export type StatusChamado = 'Pendente' | 'Em Análise' | 'Em Andamento' | 'Concluído' | 'Cancelado';
 
 export interface ChamadoRow {
   id: string;
