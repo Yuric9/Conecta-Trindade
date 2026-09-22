@@ -1,20 +1,14 @@
--- =====================================================================
--- Conecta Trindade - Cadastro do Administrador Principal
--- =====================================================================
--- Execute este script no SQL Editor do Supabase se estiver conectando
--- com o seu projeto Supabase real.
+-- Conecta Trindade - promoção manual de um usuário para administrador.
+-- Segurança: não inclua e-mails, senhas, tokens ou outros dados pessoais neste arquivo.
 --
--- Administrador solicitado:
--- E-mail: yure-c@hotmail.com
--- =====================================================================
-
--- 1. Se o usuário já criou a conta pelo site (/login), promove para admin:
-UPDATE public.profiles
-SET role = 'admin',
-    nome = 'Gestor Municipal (Admin)'
-WHERE email = 'yure-c@hotmail.com';
-
--- 2. Verificação do status:
-SELECT id, email, nome, role, created_at
-FROM public.profiles
-WHERE email = 'yure-c@hotmail.com';
+-- No SQL Editor do projeto Supabase, primeiro localize o UUID do usuário em
+-- Authentication > Users. Em seguida, execute a instrução abaixo substituindo
+-- SOMENTE o UUID pelo valor real da conta administrativa criada no Supabase.
+--
+-- UPDATE public.profiles
+-- SET role = 'admin', updated_at = timezone('utc'::text, now())
+-- WHERE id = '<UUID_DO_USUARIO_AUTH>';
+--
+-- Depois valide:
+-- SELECT id, email, nome, role FROM public.profiles
+-- WHERE id = '<UUID_DO_USUARIO_AUTH>';
