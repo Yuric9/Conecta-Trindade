@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase/client';
+
 export interface PortalConfig {
   menu_contexto_cards_ativo: boolean;
 }
@@ -18,9 +20,13 @@ export async function getPortalConfig(): Promise<PortalConfig> {
 }
 
 export async function savePortalConfig(config: PortalConfig): Promise<PortalConfig> {
+  const { data: { session } } = await supabase.auth.getSession();
   const response = await fetch('/api/config', {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
     body: JSON.stringify(config),
   });
   if (!response.ok) throw new Error('Não foi possível salvar a configuração do portal.');
