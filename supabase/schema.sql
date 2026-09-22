@@ -122,7 +122,7 @@ BEGIN
   VALUES (
     NEW.id, COALESCE(NEW.email, ''),
     COALESCE(NEW.raw_user_meta_data->>'nome', ''),
-    NULLIF(regexp_replace(COALESCE(NEW.raw_user_meta_data->>'cpf', ''), '\\D', '', 'g'), ''),
+    NULLIF(regexp_replace(COALESCE(NEW.raw_user_meta_data->>'cpf', ''), '\D', '', 'g'), ''),
     NULLIF(NEW.raw_user_meta_data->>'telefone', ''), 'cidadao'
   )
   ON CONFLICT (id) DO NOTHING;
@@ -194,7 +194,7 @@ AS $$
   SELECT c.id, c.protocolo::TEXT, c.categoria_servico::TEXT, c.descricao::TEXT, c.status::TEXT, c.created_at, c.updated_at
   FROM public.chamados c JOIN public.profiles p ON p.id = auth.uid()
   WHERE auth.uid() IS NOT NULL AND c.cidadao_id = auth.uid()
-    AND p.cpf = regexp_replace(COALESCE(p_cpf,''), '\\D', '', 'g')
+    AND p.cpf = regexp_replace(COALESCE(p_cpf,''), '\D', '', 'g')
   ORDER BY c.created_at DESC;
 $$;
 
