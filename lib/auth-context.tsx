@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase/client';
 import type { Profile } from '@/lib/types';
 
 interface AuthContextType {
-  user: any | null;
+  user: { id: string; email?: string } | null;
   session: any | null;
   profile: Profile | null;
   loading: boolean;
@@ -26,57 +26,39 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<any | null>(null);
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string, userEmail?: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+  const fetchProfile = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-      if (!error && data) {
-        setProfile(data as Profile);
-        return;
-      }
-
-      // Fallback perfil baseado no e-mail caso não exista no banco
-      const email = userEmail || '';
-      const isAdminEmail =
-        email.toLowerCase() === 'yure-c@hotmail.com' ||
-        email.toLowerCase().includes('admin');
-
-      setProfile({
-        id: userId,
-        email,
-        nome: email ? email.split('@')[0] : 'Usuário',
-        role: isAdminEmail ? 'admin' : 'cidadao',
-        created_at: new Date().toISOString(),
-      });
-    } catch {
-      // Ignora erro de rede em modo demo
+    if (error) {
+      console.error('[Auth] Falha ao carregar perfil:', error);
+      setProfile(null);
+      return;
     }
+
+    setProfile((data as Profile | null) ?? null);
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    if (user?.id) {
-      await fetchProfile(user.id, user.email);
-    }
+    if (user?.id) await fetchProfile(user.id);
   }, [user, fetchProfile]);
 
   useEffect(() => {
     let mounted = true;
 
-    // Buscar sessão inicial
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       if (!mounted) return;
       setSession(initialSession);
-      setUser(initialSession?.user ?? null);
+      setUser(initialSession?.user ? { id: initialSession.user.id, email: initialSession.user.email } : null);
       if (initialSession?.user) {
-        fetchProfile(initialSession.user.id, initialSession.user.email).finally(() => {
+        fetchProfile(initialSession.user.id).finally(() => {
           if (mounted) setLoading(false);
         });
       } else {
@@ -84,18 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Escutar mudanças de autenticação
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!mounted) return;
       setSession(newSession);
-      setUser(newSession?.user ?? null);
-      if (newSession?.user) {
-        await fetchProfile(newSession.user.id, newSession.user.email);
-      } else {
-        setProfile(null);
-      }
+      setUser(newSession?.user ? { id: newSession.user.id, email: newSession.user.email } : null);
+      if (newSession?.user) await fetchProfile(newSession.user.id);
+      else setProfile(null);
       setLoading(false);
     });
 
@@ -112,33 +88,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   }, []);
 
-  const isAdmin = Boolean(
-    profile?.role === 'admin' ||
-      user?.email?.toLowerCase() === 'yure-c@hotmail.com' ||
-      user?.email?.toLowerCase().includes('admin')
-  );
+  const isAdmin = profile?.role === 'admin';
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        loading,
-        isAdmin,
-        signOut,
-        refreshProfile,
-      }}
-    >
+    <AuthContext.Provider value={{ user, session, profile, loading, isAdmin, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth deve ser utilizado dentro de um AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }
