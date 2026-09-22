@@ -196,10 +196,10 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 const KANBAN_COLUMNS: { status: ChamadoStatus; label: string; color: string }[] = [
-  { status: 'ABERTO', label: 'Aberto', color: 'amber' },
-  { status: 'TRIADO', label: 'Triado', color: 'purple' },
-  { status: 'EM_ANDAMENTO', label: 'Em Andamento', color: 'blue' },
-  { status: 'RESOLVIDO', label: 'Resolvido', color: 'green' },
+  { status: 'Pendente', label: 'Pendente', color: 'amber' },
+  { status: 'Em Análise', label: 'Em Análise', color: 'orange' },
+  { status: 'Em Andamento', label: 'Em Andamento', color: 'blue' },
+  { status: 'Concluído', label: 'Concluído', color: 'green' },
 ];
 
 function OSContextMenu({ chamado, enabled, onStatus, onCopyAddress, onEdit }: { chamado: Chamado; enabled: boolean; onStatus: (status: NormalizedStatus) => void; onCopyAddress: () => void; onEdit: () => void }) {
