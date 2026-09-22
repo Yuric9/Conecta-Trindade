@@ -280,7 +280,7 @@ export default function AdminPage() {
           latitude: c.latitude || existing?.latitude || -16.6496,
           longitude: c.longitude || existing?.longitude || -49.4912,
           fotos: c.foto_url ? [c.foto_url] : (c.fotos || existing?.fotos || []),
-          status: (c.status || existing?.status || 'ABERTO') as ChamadoStatus,
+          status: normalizeStatus(c.status || existing?.status || 'Pendente'),
           prioridade: existing?.prioridade || 'MEDIA',
           secretaria: existing?.secretaria || null,
           observacoes_internas: c.observacoes_internas || existing?.observacoes_internas,
@@ -465,8 +465,8 @@ export default function AdminPage() {
         id,
         label,
         total: items.length,
-        resolvidos: items.filter((c) => c.status === 'RESOLVIDO' || c.status === 'AVALIADO').length,
-        pendentes: items.filter((c) => c.status !== 'RESOLVIDO' && c.status !== 'AVALIADO' && c.status !== 'REJEITADO').length,
+        resolvidos: items.filter((c) => normalizeStatus(c.status) === 'Concluído').length,
+        pendentes: items.filter((c) => !['Concluído', 'Cancelado'].includes(normalizeStatus(c.status))).length,
       };
     });
   }, [chamados]);
@@ -1059,7 +1059,7 @@ export default function AdminPage() {
                   <div className="rounded-xl bg-amber-50 p-3.5 border border-amber-100">
                     <span className="text-xs text-amber-800 font-medium">O.S. de Lixo Pendentes</span>
                     <p className="text-xl font-bold text-amber-900 mt-1">
-                      {chamados.filter((c) => c.categoria === 'LIXO' && c.status !== 'RESOLVIDO' && c.status !== 'REJEITADO').length}
+                      {chamados.filter((c) => c.categoria === 'LIXO' && !['Concluído', 'Cancelado'].includes(normalizeStatus(c.status))).length}
                     </p>
                     <span className="text-[11px] text-amber-700">Aguardando/em rota</span>
                   </div>
@@ -1416,9 +1416,7 @@ export default function AdminPage() {
                       const slaExpired =
                         c.sla_limite &&
                         new Date(c.sla_limite) < new Date() &&
-                        c.status !== 'RESOLVIDO' &&
-                        c.status !== 'REJEITADO' &&
-                        c.status !== 'AVALIADO';
+                        !['Concluído', 'Cancelado'].includes(normalizeStatus(c.status));
 
                       return (
                         <Card
