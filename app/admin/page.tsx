@@ -130,6 +130,7 @@ import {
 } from '@/lib/whatsapp-share';
 import { CRONOGRAMA_OFICIAL_TRINDADE, getBairrosHoje, DIAS_SEMANA_LABELS } from '@/lib/rsu-schedule';
 import { getPortalConfig, savePortalConfig } from '@/lib/config-portal';
+import { authHeaders } from '@/lib/auth-headers';
 
 type NormalizedStatus = 'Pendente' | 'Em Análise' | 'Em Andamento' | 'Concluído' | 'Cancelado';
 
@@ -250,7 +251,7 @@ export default function AdminPage() {
       // 1. Tentar buscar da API /api/chamados
       let apiChamados: any[] = [];
       try {
-        const res = await fetch('/api/chamados?limit=100', { cache: 'no-store' });
+        const res = await fetch('/api/chamados?limit=100', { cache: 'no-store', headers: await authHeaders() });
         if (res.ok) {
           const data = await res.json();
           if (data.success && Array.isArray(data.chamados)) {
@@ -349,7 +350,7 @@ export default function AdminPage() {
       // 1. Chamar PATCH na API /api/chamados
       const res = await fetch('/api/chamados', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           id: chamado.id,
           protocolo: chamado.protocolo,
@@ -523,7 +524,7 @@ export default function AdminPage() {
     try {
       await fetch('/api/chamados', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           id: updated.id,
           protocolo: updated.protocolo,
