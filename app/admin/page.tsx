@@ -260,8 +260,9 @@ export default function AdminPage() {
         console.warn('API /api/chamados inacessível, usando armazenamento local:', apiErr);
       }
 
-      // 2. Buscar dados locais persistentes
-      const localChamados = getStoredChamadosList();
+      // 2. Dados locais do navegador só existem no modo demonstração.
+      //    Com o banco configurado, o painel mostra apenas chamados reais.
+      const localChamados = isSupabaseConfigured ? [] : getStoredChamadosList();
 
       // 3. Mesclar registros garantindo exibição de novos chamados
       const map = new Map<string, Chamado>();
@@ -302,7 +303,7 @@ export default function AdminPage() {
       setChamados(mergedList);
     } catch (err) {
       console.error('Erro ao buscar chamados do banco de dados:', err);
-      setChamados(getStoredChamadosList());
+      setChamados(isSupabaseConfigured ? [] : getStoredChamadosList());
     } finally {
       setRefreshing(false);
       setLoading(false);
@@ -312,8 +313,17 @@ export default function AdminPage() {
   useEffect(() => {
     fetchChamadosFromDatabase();
 
-    const loadedProfiles = getStoredProfiles();
-    setProfiles(loadedProfiles);
+    if (isSupabaseConfigured) {
+      (supabase.from('profiles') as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .then(({ data, error }: { data: Profile[] | null; error: any }) => {
+          if (error) console.error('Erro ao carregar usuários:', error);
+          setProfiles(data || []);
+        });
+    } else {
+      setProfiles(getStoredProfiles());
+    }
 
     const loadedOrgaos = getStoredOrgaos();
     setOrgaos(loadedOrgaos);
@@ -557,14 +567,32 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteChamado = (id: string) => {
-    deleteStoredChamadoItem(id);
+  const handleDeleteChamado = async (id: string) => {
+    if (isSupabaseConfigured) {
+      const { error } = await (supabase.from('chamados') as any).delete().eq('id', id);
+      if (error) {
+        console.error('Erro ao excluir chamado:', error);
+        setFeedbackMessage({ type: 'error', text: 'Não foi possível excluir a O.S. (apenas administradores podem excluir).' });
+        return;
+      }
+    } else {
+      deleteStoredChamadoItem(id);
+    }
     setChamados((prev) => prev.filter((c) => c.id !== id));
     if (selectedChamado?.id === id) {
       setSelectedChamado(null);
       setIsEditModalOpen(false);
     }
   };
+
+  // Com o banco configurado, a abertura manual usa o formulário completo
+  // (/solicitar), que grava nome, CPF e endereço exigidos pela tabela.
+  useEffect(() => {
+    if (isNewChamadoOpen && isSupabaseConfigured) {
+      setIsNewChamadoOpen(false);
+      router.push('/solicitar');
+    }
+  }, [isNewChamadoOpen, router]);
 
   const handleCreateChamado = (novo: Partial<Chamado>) => {
     const id = `ch-adm-${Date.now()}`;
@@ -594,8 +622,27 @@ export default function AdminPage() {
     setChamados((prev) => [fullChamado, ...prev]);
   };
 
-  const handleSaveProfile = (updated: Profile) => {
-    saveStoredProfile(updated);
+  const handleSaveProfile = async (updated: Profile) => {
+    if (isSupabaseConfigured) {
+      const { error } = await (supabase.from('profiles') as any)
+        .update({
+          nome: updated.nome,
+          telefone: updated.telefone ?? null,
+          role: updated.role,
+          secretaria: updated.secretaria ?? null,
+          cargo: updated.cargo ?? null,
+          status: updated.status ?? 'ativo',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', updated.id);
+      if (error) {
+        console.error('Erro ao salvar usuário:', error);
+        setFeedbackMessage({ type: 'error', text: 'Não foi possível salvar o usuário. Novas contas são criadas pela tela de cadastro.' });
+        return;
+      }
+    } else {
+      saveStoredProfile(updated);
+    }
     setProfiles((prev) => {
       const idx = prev.findIndex((p) => p.id === updated.id);
       if (idx >= 0) {
@@ -607,8 +654,17 @@ export default function AdminPage() {
     });
   };
 
-  const handleDeleteProfile = (id: string) => {
-    deleteStoredProfile(id);
+  const handleDeleteProfile = async (id: string) => {
+    if (isSupabaseConfigured) {
+      const { error } = await (supabase.from('profiles') as any).delete().eq('id', id);
+      if (error) {
+        console.error('Erro ao remover usuário:', error);
+        setFeedbackMessage({ type: 'error', text: 'Não foi possível remover o usuário.' });
+        return;
+      }
+    } else {
+      deleteStoredProfile(id);
+    }
     setProfiles((prev) => prev.filter((p) => p.id !== id));
   };
 
@@ -1576,7 +1632,7 @@ export default function AdminPage() {
 
       {/* Modal de Criação de Nova Ordem de Serviço Manual (Administrador) */}
       <AdminModalNovoChamado
-        open={isNewChamadoOpen}
+        open={isNewChamadoOpen && !isSupabaseConfigured}
         onClose={() => setIsNewChamadoOpen(false)}
         onCreate={handleCreateChamado}
       />
