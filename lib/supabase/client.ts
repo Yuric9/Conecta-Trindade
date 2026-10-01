@@ -28,10 +28,9 @@ export const STORAGE_BUCKET = 'chamados-fotos';
 const DEMO_ADMIN_ID = 'demo-admin-trindade-001';
 const DEMO_CITIZEN_ID = 'demo-cidadao-trindade-002';
 
-export const ADMIN_CREDENTIALS = {
-  email: 'yure-c@hotmail.com',
-  password: 'YU' + 're1990',
-};
+// Modo demonstração (sem Supabase): qualquer senha é aceita e e-mails com
+// "admin" entram como administrador. Não há dados reais neste modo.
+const DEMO_ADMIN_EMAIL = 'gestor.demo@trindade.go.gov.br';
 
 export interface ConectaProfile {
   id: string;
@@ -49,7 +48,7 @@ export interface ConectaProfile {
 const SEED_PROFILES: ConectaProfile[] = [
   {
     id: DEMO_ADMIN_ID,
-    email: 'yure-c@hotmail.com',
+    email: DEMO_ADMIN_EMAIL,
     nome: 'Gestor Municipal (Admin Geral)',
     cpf: '000.000.000-01',
     telefone: '(62) 3506-7000',
@@ -378,12 +377,7 @@ const createMockSupabaseClient = () => {
     },
     signInWithPassword: async ({ email, password }: { email: string; password?: string }) => {
       const emailLower = email.trim().toLowerCase();
-      const isAdminEmail = emailLower === ADMIN_CREDENTIALS.email.toLowerCase() || emailLower.includes('admin');
-
-      // Se for a conta do administrador principal, checar a senha configurada
-      if (emailLower === ADMIN_CREDENTIALS.email.toLowerCase() && password && password !== ADMIN_CREDENTIALS.password) {
-        return { data: { session: null, user: null }, error: { message: 'Credenciais inválidas. Verifique a senha digitada.' } };
-      }
+      const isAdminEmail = emailLower === DEMO_ADMIN_EMAIL || emailLower.includes('admin');
 
       const profiles = getStoredItems('conecta_trindade_profiles', SEED_PROFILES);
       let foundProfile = profiles.find((p: any) => p.email?.toLowerCase() === emailLower);

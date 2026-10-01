@@ -240,9 +240,7 @@ export default function AdminPage() {
     profile?.role === 'admin' ||
     profile?.role === 'fiscal' ||
     profile?.role === 'gestor' ||
-    profile?.role === 'atendente' ||
-    session?.user?.email?.toLowerCase().includes('admin') ||
-    session?.user?.email?.toLowerCase().includes('fiscal')
+    profile?.role === 'atendente'
   );
 
   const fetchChamadosFromDatabase = useCallback(async () => {

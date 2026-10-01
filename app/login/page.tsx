@@ -102,7 +102,6 @@ export default function LoginPage() {
         }
 
         const userId = authData?.user?.id;
-        const userEmail = authData?.user?.email || '';
 
         // Buscar perfil e role no banco de dados com segurança
         const { data: profileData } = await supabase
@@ -111,10 +110,8 @@ export default function LoginPage() {
           .eq('id', userId)
           .maybeSingle();
 
-        const isUserAdmin =
-          profileData?.role === 'admin' ||
-          userEmail.toLowerCase() === 'yure-c@hotmail.com' ||
-          userEmail.toLowerCase().includes('admin');
+        // A permissão vem somente do perfil no banco, nunca do e-mail.
+        const isUserAdmin = ['admin', 'gestor', 'fiscal', 'atendente'].includes(profileData?.role);
 
         // Validação de Regra de Segurança:
         // Se tentou entrar pelo portal do Servidor Municipal, exige permissão de admin

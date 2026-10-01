@@ -43,17 +43,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Fallback perfil baseado no e-mail caso não exista no banco
+      // Sem perfil no banco: trata como cidadão. Permissões vêm SOMENTE da
+      // tabela profiles, nunca do e-mail (qualquer um cria "admin@...").
       const email = userEmail || '';
-      const isAdminEmail =
-        email.toLowerCase() === 'yure-c@hotmail.com' ||
-        email.toLowerCase().includes('admin');
 
       setProfile({
         id: userId,
         email,
         nome: email ? email.split('@')[0] : 'Usuário',
-        role: isAdminEmail ? 'admin' : 'cidadao',
+        role: 'cidadao',
         created_at: new Date().toISOString(),
       });
     } catch {
@@ -112,11 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   }, []);
 
-  const isAdmin = Boolean(
-    profile?.role === 'admin' ||
-      user?.email?.toLowerCase() === 'yure-c@hotmail.com' ||
-      user?.email?.toLowerCase().includes('admin')
-  );
+  const isAdmin = profile?.role === 'admin';
 
   return (
     <AuthContext.Provider
