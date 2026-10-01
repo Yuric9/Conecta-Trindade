@@ -1,13 +1,13 @@
--- Configuração persistente do portal e suporte ao status EM_ANALISE.
+-- Configuração persistente do portal e suporte ao status "Em Análise".
 
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_chamado')
      AND NOT EXISTS (
        SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
-       WHERE t.typname = 'status_chamado' AND e.enumlabel = 'EM_ANALISE'
+       WHERE t.typname = 'status_chamado' AND e.enumlabel = 'Em Análise'
      ) THEN
-    ALTER TYPE status_chamado ADD VALUE 'EM_ANALISE';
+    ALTER TYPE status_chamado ADD VALUE 'Em Análise' AFTER 'Pendente';
   END IF;
 END $$;
 
