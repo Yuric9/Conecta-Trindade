@@ -94,29 +94,21 @@ export default function CronogramaRSUPage() {
   return (
     <div className="min-h-screen bg-[#f4f6f4] pb-20">
       {/* Hero Header */}
-      <section className="bg-gradient-to-r from-[#006653] via-[#005847] to-[#004d3e] text-white py-12 px-4 shadow-md relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
-          <Truck className="w-80 h-80 text-white" />
-        </div>
+      <section className="bg-[#006653] text-white py-10 px-4">
 
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-900/60 border border-emerald-400/30 text-xs font-semibold text-emerald-200">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#FFC20E]" />
-              <span>Secretaria Municipal de Serviços Públicos de Trindade</span>
-            </div>
-            <span className="text-xs text-emerald-200 font-medium flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
+            <span className="text-sm text-emerald-50 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
               <span>Hoje: {resumoHoje.diaSemanaLabel}</span>
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold font-heading text-white tracking-tight mb-2">
-            Cronograma Oficial de Coleta de Lixo (RSU)
+          <h1 className="text-2xl sm:text-3xl font-bold font-heading text-white mb-2">
+            Coleta de lixo por bairro
           </h1>
-          <p className="text-emerald-100 text-sm sm:text-base max-w-2xl leading-relaxed">
-            Consulte a frequência, dias e turnos oficiais da coleta de lixo orgânico em todos os{' '}
-            <strong>117 bairros e setores</strong> do Município de Trindade - GO.
+          <p className="text-emerald-50 text-sm sm:text-base max-w-2xl leading-relaxed">
+            Veja os dias e o turno da coleta domiciliar nos 117 bairros e setores de Trindade.
           </p>
 
           {/* Navegação de Abas */}
@@ -152,7 +144,7 @@ export default function CronogramaRSUPage() {
         {activeTab === 'consulta' && (
           <div className="space-y-6">
             <Card className="border-gray-200 shadow-sm bg-white overflow-hidden">
-              <div className="p-5 sm:p-6 border-b border-gray-100 bg-gradient-to-r from-emerald-50/60 to-white">
+              <div className="p-5 sm:p-6 border-b border-gray-100">
                 <div className="max-w-2xl">
                   <label
                     htmlFor="bairro-search-input"
@@ -253,8 +245,6 @@ export default function CronogramaRSUPage() {
                     <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5 text-gray-400" />
                       <span>Trindade - GO</span>
-                      <span className="text-gray-300">·</span>
-                      <span>Secretaria Municipal de Serviços Públicos</span>
                     </p>
                   </div>
 
@@ -262,10 +252,10 @@ export default function CronogramaRSUPage() {
                   <div className="flex items-center">
                     {statusColeta.temColetaHoje ? (
                       <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-right flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                         <div>
-                          <span className="block text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                            🟢 Coleta HOJE no seu bairro!
+                          <span className="block text-sm font-semibold text-emerald-800">
+                            Tem coleta hoje
                           </span>
                           <span className="text-xs text-emerald-600 font-medium">
                             Turno {currentItem.turno} ({horarioInfo.faixa})
@@ -276,8 +266,8 @@ export default function CronogramaRSUPage() {
                       <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-right flex items-center gap-2.5">
                         <Clock className="w-4 h-4 text-amber-600" />
                         <div>
-                          <span className="block text-xs font-bold text-amber-800 uppercase tracking-wide">
-                            🟡 Hoje não há coleta neste bairro
+                          <span className="block text-sm font-semibold text-amber-800">
+                            Sem coleta hoje
                           </span>
                           <span className="text-xs text-amber-700 font-medium">
                             Próxima passagem: {statusColeta.proximaColeta.diaSemanaExtenso} ({statusColeta.proximaColeta.dataEstimada})
@@ -322,7 +312,7 @@ export default function CronogramaRSUPage() {
                             <Sunset className="w-4 h-4" />
                           )}
                         </div>
-                        <span className="font-bold text-sm text-gray-900">Turno Oficial</span>
+                        <span className="font-bold text-sm text-gray-900">Turno</span>
                       </div>
                       <p className="text-base font-extrabold text-blue-900 mt-2">
                         {currentItem.turno} ({horarioInfo.faixa})
@@ -332,7 +322,7 @@ export default function CronogramaRSUPage() {
                       </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-blue-200/60 text-[11px] text-blue-800 font-medium">
-                      💡 {horarioInfo.instrucao}
+                      {horarioInfo.instrucao}
                     </div>
                   </div>
 
@@ -349,11 +339,8 @@ export default function CronogramaRSUPage() {
                         {currentItem.regiao === 'CENTRO' ? 'Região Centro / Sede' : 'Região Leste / Trindade II'}
                       </p>
                       <p className="text-xs text-gray-600 mt-1">
-                        Atendido pela base operacional e caminhões compactadores da Secretaria de Serviços Públicos.
+                        Região de atendimento da coleta.
                       </p>
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-emerald-200/60 text-[11px] text-emerald-800 font-medium">
-                      📍 Cadastro oficial da planilha municipal de RSU
                     </div>
                   </div>
                 </div>
@@ -367,7 +354,7 @@ export default function CronogramaRSUPage() {
                         O caminhão não passou no seu bairro ou há lixo acumulado na rua?
                       </h4>
                       <p className="text-xs text-emerald-800 mt-0.5">
-                        Abra uma Ordem de Serviço pelo Conecta Trindade para que a equipe de fiscalização e limpeza seja notificada.
+                        Registre uma solicitação de limpeza pelo Conecta Trindade.
                       </p>
                     </div>
                   </div>
@@ -391,10 +378,7 @@ export default function CronogramaRSUPage() {
           <div className="space-y-6">
             <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
               <div>
-                <span className="text-xs font-bold text-[#006653] uppercase tracking-wider">
-                  Operação Diária de RSU
-                </span>
-                <h2 className="text-xl font-bold font-heading text-gray-900 mt-0.5">
+                <h2 className="text-xl font-bold font-heading text-gray-900">
                   Bairros com Coleta Hoje ({resumoHoje.diaSemanaLabel})
                 </h2>
               </div>
@@ -579,7 +563,7 @@ export default function CronogramaRSUPage() {
                             }}
                             className="text-[#006653] hover:underline font-semibold text-[11px]"
                           >
-                            Ver detalhes →
+                            Ver detalhes
                           </button>
                         </td>
                       </tr>

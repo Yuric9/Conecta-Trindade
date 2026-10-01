@@ -22,7 +22,7 @@ export function CityHeader() {
   const navItems = [
     { href: '/', label: 'Início', icon: Home },
     { href: '/acompanhar', label: 'Acompanhar', icon: Search },
-    { href: '/cronograma-rsu', label: 'Coleta RSU', icon: Truck },
+    { href: '/cronograma-rsu', label: 'Coleta de Lixo', icon: Truck },
     { href: '/meus-chamados', label: 'Meus Chamados', icon: ClipboardList },
   ];
 
@@ -32,102 +32,65 @@ export function CityHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full shadow-md">
-      <div className="bg-gradient-to-r from-[#006653] via-[#005847] to-[#004d3e] border-b border-white/10">
+    <header className="sticky top-0 z-50 w-full">
+      <div className="bg-[#005847] border-b border-white/10">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            {/* Logo oficial da prefeitura */}
-            <Link href="/" className="flex items-center gap-3.5 group">
+            <Link href="/" className="flex items-center gap-3.5">
               <img
                 src="/images/logo-trindade.png"
                 alt="Prefeitura de Trindade - Onde o Futuro acontece Hoje"
-                className="h-12 sm:h-14 w-auto max-w-[240px] sm:max-w-[270px] object-contain drop-shadow-sm transition-transform group-hover:scale-[1.02]"
+                className="h-12 sm:h-14 w-auto max-w-[240px] sm:max-w-[270px] object-contain"
               />
               <div className="hidden sm:flex flex-col border-l border-white/20 pl-3 py-0.5">
-                <span className="text-xs font-bold text-white tracking-wide uppercase font-heading">
-                  Zelo Urbano
+                <span className="text-sm font-semibold text-white font-heading">
+                  Conecta Trindade
                 </span>
-                <span className="text-[10px] text-emerald-200 font-medium">
-                  Atendimento ao Cidadão
+                <span className="text-xs text-emerald-100/80">
+                  Zelo urbano
                 </span>
               </div>
             </Link>
 
-            {/* Navegação principal do aplicativo com alto contraste e clareza */}
-            <nav className="hidden md:flex items-center gap-2.5">
-              <Link
-                href="/"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  pathname === '/'
-                    ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
-                    : 'bg-white/10 text-white hover:bg-white/20 hover:text-white border border-white/10'
-                }`}
-              >
-                <Home className="w-4 h-4 text-emerald-200" />
-                Início
-              </Link>
-
-              <Link
-                href="/acompanhar"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  pathname === '/acompanhar'
-                    ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
-                    : 'bg-white/10 text-white hover:bg-white/20 hover:text-white border border-white/10'
-                }`}
-              >
-                <Search className="w-4 h-4 text-emerald-200" />
-                Acompanhar
-              </Link>
-
-              <Link
-                href="/cronograma-rsu"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  pathname === '/cronograma-rsu'
-                    ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
-                    : 'bg-white/10 text-white hover:bg-white/20 hover:text-white border border-white/10'
-                }`}
-              >
-                <Truck className="w-4 h-4 text-emerald-200" />
-                Coleta RSU
-              </Link>
-
-              <Link
-                href="/meus-chamados"
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  pathname === '/meus-chamados'
-                    ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
-                    : 'bg-white/10 text-white hover:bg-white/20 hover:text-white border border-white/10'
-                }`}
-              >
-                <ClipboardList className="w-4 h-4 text-emerald-200" />
-                Meus Chamados
-              </Link>
-
-              <Link
-                href="/solicitar"
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
-                  pathname === '/solicitar' || pathname === '/nova-solicitacao'
-                    ? 'bg-yellow-300 text-[#173b32] ring-2 ring-white/50'
-                    : 'bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300'
-                }`}
-              >
-                <PlusCircle className="w-4 h-4" />
-                Nova Solicitação
-              </Link>
+            {/* Navegação principal */}
+            <nav className="hidden md:flex items-center gap-1">
+              {navItems.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
+                      active
+                        ? 'text-white border-[#FFC20E]'
+                        : 'text-emerald-50/90 border-transparent hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
 
               {isAdmin && (
                 <Link
                   href="/admin"
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
                     pathname?.startsWith('/admin')
-                      ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30'
-                      : 'bg-emerald-900/60 text-emerald-100 hover:bg-emerald-900/90 hover:text-white border border-emerald-400/30'
+                      ? 'text-white border-[#FFC20E]'
+                      : 'text-emerald-50/90 border-transparent hover:text-white'
                   }`}
                 >
-                  <LayoutDashboard className="w-4 h-4 text-emerald-300" />
                   Painel Admin
                 </Link>
               )}
+
+              <Link
+                href="/solicitar"
+                className="ml-3 flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 transition-colors"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Nova Solicitação
+              </Link>
             </nav>
 
             {/* Menu do usuário / Login */}
@@ -135,7 +98,7 @@ export function CityHeader() {
               {profile ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all border border-white/15">
+                    <button className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10 text-white text-sm font-medium transition-colors">
                       <div className="w-7 h-7 rounded-full bg-white/30 flex items-center justify-center">
                         <User className="w-4 h-4" />
                       </div>
@@ -153,9 +116,9 @@ export function CityHeader() {
               ) : (
                 <Link
                   href="/login"
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium text-white bg-white/10 hover:bg-white/20 border border-white/25 transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-white/10 transition-colors"
                 >
-                  <LogIn className="w-4 h-4 text-emerald-200" />
+                  <LogIn className="w-4 h-4" />
                   Entrar
                 </Link>
               )}
@@ -178,7 +141,7 @@ export function CityHeader() {
               <Link
                 href="/solicitar"
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold bg-[#FFC20E] text-[#173b32] shadow-sm mb-2"
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-semibold bg-[#FFC20E] text-[#173b32] mb-2"
               >
                 <PlusCircle className="w-5 h-5" />
                 Nova Solicitação
@@ -191,11 +154,11 @@ export function CityHeader() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
-                      active ? 'bg-white/25 text-white shadow-sm ring-1 ring-white/30' : 'text-white bg-white/10 hover:bg-white/20'
+                    className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors ${
+                      active ? 'bg-white/20 text-white' : 'text-white hover:bg-white/10'
                     }`}
                   >
-                    <Icon className="w-5 h-5 text-emerald-200" />
+                    <Icon className="w-5 h-5 text-emerald-100/80" />
                     {item.label}
                   </Link>
                 );
@@ -204,9 +167,9 @@ export function CityHeader() {
                 <Link
                   href="/admin"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-emerald-100 bg-emerald-900/60 hover:bg-emerald-900/90 border border-emerald-400/30"
+                  className="flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10"
                 >
-                  <LayoutDashboard className="w-5 h-5 text-emerald-300" />
+                  <LayoutDashboard className="w-5 h-5 text-emerald-100/80" />
                   Painel Admin
                 </Link>
               )}
@@ -225,7 +188,7 @@ export function CityHeader() {
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-white bg-white/10 hover:bg-white/20"
+                  className="flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10"
                 >
                   <User className="w-5 h-5" />
                   Entrar
@@ -241,53 +204,50 @@ export function CityHeader() {
 
 export function CityFooter() {
   return (
-    <footer className="bg-[#005847] text-white mt-12">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <footer className="bg-[#005847] text-white">
+      <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <img
-                src="/images/logo-trindade.png"
-                alt="Prefeitura de Trindade - Onde o Futuro acontece Hoje"
-                className="h-12 w-auto max-w-[220px] object-contain"
-              />
-            </div>
-            <p className="text-emerald-50 text-xs leading-relaxed">
-              Plataforma municipal de zelo urbano. Registre e acompanhe solicitações de serviços públicos.
+            <img
+              src="/images/logo-trindade.png"
+              alt="Trindade - Onde o Futuro acontece Hoje"
+              className="h-12 w-auto max-w-[220px] object-contain mb-3"
+            />
+            <p className="text-emerald-50/80 text-sm leading-relaxed">
+              Conecta Trindade: registre e acompanhe solicitações de zelo urbano na cidade.
             </p>
           </div>
           <div>
-            <h4 className="font-semibold text-sm mb-3 font-heading">Serviços</h4>
-            <ul className="space-y-2 text-xs text-emerald-50">
+            <h4 className="font-semibold text-sm mb-3">Serviços</h4>
+            <ul className="space-y-2 text-sm text-emerald-50/80">
               <li>
-                <Link href="/acompanhar" className="hover:text-yellow-300 font-medium transition-colors">
-                  🔍 Consultar Demanda / Protocolo
+                <Link href="/solicitar" className="hover:text-white transition-colors">
+                  Nova solicitação
                 </Link>
               </li>
               <li>
-                <Link href="/cronograma-rsu" className="hover:text-yellow-300 font-medium transition-colors">
-                  🚛 Cronograma de Coleta RSU
+                <Link href="/acompanhar" className="hover:text-white transition-colors">
+                  Acompanhar protocolo
                 </Link>
               </li>
-              <li>Iluminação Pública</li>
-              <li>Reparo de Buracos</li>
-              <li>Limpeza Urbana</li>
-              <li>Saneamento e Vazamentos</li>
-              <li>Podas de Árvores</li>
+              <li>
+                <Link href="/cronograma-rsu" className="hover:text-white transition-colors">
+                  Coleta de lixo por bairro
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold text-sm mb-3 font-heading">Contato</h4>
-            <ul className="space-y-2 text-xs text-emerald-50">
+            <h4 className="font-semibold text-sm mb-3">Canais da Prefeitura de Trindade</h4>
+            <ul className="space-y-2 text-sm text-emerald-50/80">
               <li>(62) 3506-7000</li>
               <li>ouvidoria@trindade.go.gov.br</li>
               <li>Av. Goiás, Centro - Trindade/GO</li>
-              <li>CEP 75388-412</li>
             </ul>
           </div>
         </div>
-        <div className="border-t border-white/20 mt-6 pt-4 text-center text-xs text-emerald-100">
-          © 2026 Prefeitura Municipal de Trindade - Goiás. Todos os direitos reservados.
+        <div className="border-t border-white/20 mt-8 pt-4 text-xs text-emerald-50/70 text-center">
+          Conecta Trindade é um projeto independente e não substitui os canais oficiais da Prefeitura.
         </div>
       </div>
     </footer>

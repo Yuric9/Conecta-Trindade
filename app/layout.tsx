@@ -8,11 +8,11 @@ const montserrat = Montserrat({ subsets: ['latin'], variable: '--font-montserrat
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
-  title: 'Conecta Trindade - Zelo Urbano | Prefeitura de Trindade',
-  description: 'Plataforma municipal de zelo urbano de Trindade-GO. Registre e acompanhe solicitações de iluminação, buracos, limpeza e mais.',
+  title: 'Conecta Trindade - Zelo Urbano',
+  description: 'Registre e acompanhe solicitações de iluminação, buracos, limpeza e outros serviços urbanos em Trindade-GO.',
   openGraph: {
     title: 'Conecta Trindade - Zelo Urbano',
-    description: 'Plataforma municipal de zelo urbano de Trindade-GO',
+    description: 'Registre e acompanhe solicitações de zelo urbano em Trindade-GO.',
   },
 };
 

@@ -379,7 +379,7 @@ export default function MeusChamadosPage() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3.5">
                   <div className="flex items-center gap-1.5 text-blue-900 font-semibold text-xs uppercase tracking-wide mb-1">
                     <Building2 className="w-4 h-4 text-blue-600" />
-                    Resposta Oficial da Prefeitura
+                    Resposta da equipe
                   </div>
                   <p className="text-sm text-blue-900 leading-relaxed">
                     {selectedChamado.resposta_cidadao}

@@ -94,14 +94,14 @@ type ChamadoFormValues = z.infer<typeof chamadoFormSchema>;
 
 // Categorias oficiais de serviços municipais de Trindade - GO
 const CATEGORIAS_MUNICIPAIS = [
-  { value: 'Iluminação Pública', label: '💡 Iluminação Pública (Postes, Lâmpadas, Braços)', prazo: '48 horas' },
-  { value: 'Buracos e Pavimentação', label: '🕳️ Buracos e Pavimentação Asfáltica (Tapa-buraco)', prazo: '5 dias' },
-  { value: 'Limpeza e Entulho', label: '🗑️ Limpeza Urbana, Entulho e Descarte Irregular', prazo: '72 horas' },
-  { value: 'Roçagem e Capina', label: '🌾 Roçagem e Capina (Mato Alto, Lotes e Vias Públicas)', prazo: '5 dias' },
-  { value: 'Poda e Arborização', label: '🌳 Poda de Árvores e Riscos de Queda', prazo: '7 dias' },
-  { value: 'Vazamento de Água', label: '💧 Vazamento de Água ou Esgoto em Via Pública', prazo: '24 horas' },
-  { value: 'Sinalização e Trânsito', label: '🚦 Sinalização de Trânsito, Semáforos e Placas', prazo: '72 horas' },
-  { value: 'Outros Serviços', label: '⚠️ Outros Serviços Municipais', prazo: '5 dias' },
+  { value: 'Iluminação Pública', label: 'Iluminação Pública (Postes, Lâmpadas, Braços)' },
+  { value: 'Buracos e Pavimentação', label: 'Buracos e Pavimentação Asfáltica (Tapa-buraco)' },
+  { value: 'Limpeza e Entulho', label: 'Limpeza Urbana, Entulho e Descarte Irregular' },
+  { value: 'Roçagem e Capina', label: 'Roçagem e Capina (Mato Alto, Lotes e Vias Públicas)' },
+  { value: 'Poda e Arborização', label: 'Poda de Árvores e Riscos de Queda' },
+  { value: 'Vazamento de Água', label: 'Vazamento de Água ou Esgoto em Via Pública' },
+  { value: 'Sinalização e Trânsito', label: 'Sinalização de Trânsito, Semáforos e Placas' },
+  { value: 'Outros Serviços', label: 'Outros Serviços Municipais' },
 ];
 
 export default function SolicitarPage() {
@@ -337,39 +337,31 @@ export default function SolicitarPage() {
   const isSubmitting = form.formState.isSubmitting;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 via-gray-50 to-white pb-16">
+    <div className="min-h-screen bg-[#eef1ef] pb-16">
       {/* Barra de Título Superior */}
-      <div className="bg-[#006653] text-white py-8 px-4 shadow-sm border-b border-emerald-800/30">
+      <div className="bg-[#006653] text-white py-10 px-4">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-2 text-emerald-200 text-xs font-semibold mb-2 uppercase tracking-wider">
-            <Building2 className="w-4 h-4 text-emerald-300" />
-            <span>Prefeitura Municipal de Trindade - GO • Zeladoria Urbana</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-heading text-white tracking-tight">
-            Abertura de Solicitação de Serviço
+          <h1 className="text-2xl sm:text-3xl font-bold font-heading text-white">
+            Nova solicitação
           </h1>
-          <p className="text-emerald-100/90 text-sm mt-1 max-w-2xl">
-            Registre demandas de iluminação pública, reparos asfálticos, limpeza urbana e outros serviços municipais. Você receberá um protocolo oficial para acompanhamento em tempo real.
+          <p className="text-emerald-50 text-sm md:text-base mt-2 max-w-2xl">
+            Descreva o problema e informe o endereço. Ao enviar, você recebe um número de protocolo para acompanhar o andamento.
           </p>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 mt-6">
-        <Card className="border-gray-200/80 shadow-md bg-white">
+        <Card className="border-gray-200 shadow-sm bg-white rounded-lg">
           <CardHeader className="border-b border-gray-100 pb-5">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-bold text-gray-900 font-heading">
-                  Dados do Cidadão e da Demanda
+                <CardTitle className="text-lg font-semibold text-gray-900 font-heading">
+                  Dados da solicitação
                 </CardTitle>
-                <CardDescription className="text-xs text-gray-500 mt-0.5">
-                  Preencha os campos abaixo. Todos os dados marcados com (*) são de preenchimento obrigatório.
+                <CardDescription className="text-sm text-gray-500 mt-0.5">
+                  Campos marcados com * são obrigatórios.
                 </CardDescription>
               </div>
-              <span className="text-[11px] font-semibold bg-emerald-50 text-[#006653] border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Canal Oficial
-              </span>
             </div>
           </CardHeader>
 
@@ -390,9 +382,9 @@ export default function SolicitarPage() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 {/* Seção 1: Identificação do Solicitante */}
                 <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-200/70 space-y-4">
-                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-[#006653]" />
-                    1. Identificação do Solicitante
+                    1. Seus dados
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -476,9 +468,9 @@ export default function SolicitarPage() {
 
                 {/* Seção 2: Categoria e Detalhes da Ocorrência */}
                 <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-200/70 space-y-4">
-                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-[#006653]" />
-                    2. Detalhes da Solicitação
+                    2. O problema
                   </h3>
 
                   {/* Categoria do Serviço */}
@@ -504,12 +496,7 @@ export default function SolicitarPage() {
                           <SelectContent className="bg-white">
                             {CATEGORIAS_MUNICIPAIS.map((cat) => (
                               <SelectItem key={cat.value} value={cat.value} className="text-xs sm:text-sm py-2">
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-1">
-                                  <span>{cat.label}</span>
-                                  <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 w-fit">
-                                    SLA: {cat.prazo}
-                                  </span>
-                                </div>
+                                {cat.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -549,9 +536,9 @@ export default function SolicitarPage() {
                 {/* Seção 3: Endereço e Localização em Trindade */}
                 <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-200/70 space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                    <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-[#006653]" />
-                      3. Localização do Problema
+                      3. Endereço
                     </h3>
                     <Button
                       type="button"
@@ -566,7 +553,7 @@ export default function SolicitarPage() {
                       ) : (
                         <Locate className="w-3 h-3 text-emerald-600" />
                       )}
-                      <span>Usar Minha Localização Atual</span>
+                      <span>Usar minha localização</span>
                     </Button>
                   </div>
 
@@ -666,7 +653,7 @@ export default function SolicitarPage() {
                     )}
                   </Button>
                   <p className="text-center text-[11px] text-gray-400 mt-2">
-                    Ao enviar, você receberá um protocolo único oficial registrado na Prefeitura de Trindade.
+                    Seus dados pessoais são usados apenas para identificar e acompanhar a solicitação.
                   </p>
                 </div>
               </form>
@@ -685,17 +672,17 @@ export default function SolicitarPage() {
               <CheckCircle2 className="w-9 h-9 text-[#006653]" />
             </div>
             <DialogTitle className="text-xl font-bold text-gray-900 font-heading">
-              Solicitação Aberta com Sucesso!
+              Solicitação registrada
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500 mt-1">
-              Sua demanda foi registrada no sistema da Prefeitura de Trindade e encaminhada para a secretaria competente.
+              Guarde o número abaixo para acompanhar o andamento.
             </DialogDescription>
           </DialogHeader>
 
           {/* Destaque do Número do Protocolo */}
-          <div className="my-5 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-500/40 text-center">
-            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest block mb-1">
-              Número Oficial do Protocolo
+          <div className="my-5 p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-center">
+            <span className="text-sm font-medium text-emerald-800 block mb-1">
+              Número do protocolo
             </span>
             <div className="font-mono text-2xl sm:text-3xl font-black text-[#006653] tracking-wider selection:bg-emerald-200">
               {protocoloGerado}

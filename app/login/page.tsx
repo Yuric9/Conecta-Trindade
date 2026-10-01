@@ -160,23 +160,10 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-140px)] flex items-center justify-center px-4 py-10 bg-gradient-to-b from-emerald-50/40 via-white to-gray-50">
+    <div className="min-h-[calc(100vh-140px)] flex items-center justify-center px-4 py-10 bg-[#eef1ef]">
       <div className="w-full max-w-md">
-        {/* Cabeçalho de Identidade */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center mb-3">
-            <img
-              src="/images/logo-trindade.png"
-              alt="Prefeitura de Trindade"
-              className="h-14 w-auto object-contain drop-shadow-sm"
-            />
-          </div>
-          <h1 className="text-xl font-bold text-[#004d3e] font-heading">
-            Conecta Trindade · Zelo Urbano
-          </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Plataforma Digital de Atendimento e Gestão dos Serviços Municipais
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900 font-heading">Entrar no Conecta Trindade</h1>
         </div>
 
         {/* Seletor de Perfil / Portal com Segregação Estrita */}
@@ -203,16 +190,16 @@ function LoginContent() {
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            Servidor / Gestão
+            Equipe de gestão
           </button>
         </div>
 
-        <Card className="shadow-lg border-gray-200/90 overflow-hidden">
+        <Card className="shadow-sm border-gray-200 rounded-lg overflow-hidden">
           {/* Tarja de Segurança para Servidores */}
           {portal === 'servidor' && (
-            <div className="bg-gradient-to-r from-emerald-900 via-[#005847] to-emerald-900 px-4 py-2.5 text-white flex items-center gap-2.5 text-xs font-medium border-b border-emerald-800">
+            <div className="bg-[#005847] px-4 py-2.5 text-white flex items-center gap-2.5 text-xs font-medium">
               <ShieldAlert className="w-4 h-4 text-[#FFC20E] shrink-0" />
-              <span>Acesso restrito e monitorado para servidores públicos municipais.</span>
+              <span>Acesso restrito à equipe de gestão.</span>
             </div>
           )}
 
@@ -430,13 +417,6 @@ function LoginContent() {
               </Button>
             </form>
 
-            {/* Rodapé Informativo de Segurança */}
-            <div className="pt-3 border-t border-gray-100 text-center">
-              <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                Ambiente criptografado e seguro · Lei Geral de Proteção de Dados (LGPD)
-              </p>
-            </div>
           </CardContent>
         </Card>
 
@@ -445,7 +425,7 @@ function LoginContent() {
             href="/"
             className="text-xs font-semibold text-[#006653] hover:text-[#004d3e] hover:underline transition-colors"
           >
-            ← Voltar para a página inicial
+            Voltar para a página inicial
           </Link>
         </div>
       </div>
