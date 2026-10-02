@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { CategoriaIcone } from '@/components/categoria-icone';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -382,7 +383,7 @@ export default function AdminPage() {
 
       setFeedbackMessage({
         type: 'success',
-        text: `O.S. ${chamado.protocolo} atualizada para "${newStatus}" em tempo real no banco de dados!`,
+        text: `O.S. ${chamado.protocolo} atualizada para "${newStatus}".`,
       });
       setTimeout(() => setFeedbackMessage(null), 4000);
     } catch (err) {
@@ -728,7 +729,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-amber-600 flex-shrink-0" />
             <span>
-              <strong>Ambiente de Fiscalização Conecta-Trindade (Modo Demonstração):</strong> Você pode gerenciar ordens de serviço, alterar status em tempo real e visualizar chamados salvos.
+              <strong>Ambiente de Fiscalização Conecta-Trindade (Modo Demonstração):</strong> Os dados ficam só neste navegador.
             </span>
           </div>
           <Button
@@ -744,32 +745,25 @@ export default function AdminPage() {
       )}
 
       {/* Admin header bar */}
-      <div className="bg-gradient-to-r from-[#006653] to-[#004d3e] text-white py-5 px-4 shadow-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <LayoutDashboard className="w-6 h-6" />
-            <div>
-              <h1 className="text-lg font-bold font-heading">Painel de Fiscalização Urbana</h1>
-              <p className="text-emerald-100 text-xs">Prefeitura de Trindade - Gestão de Ordens de Serviço</p>
-            </div>
-          </div>
-          <div className="text-right text-xs">
-            <p className="text-emerald-100">Operador,</p>
-            <p className="font-semibold">{profile?.nome || (isFiscalOrAdmin ? 'Fiscal Trindade' : 'Fiscal (Demonstração)')}</p>
+      <div className="bg-[#006653] text-white">
+        <div className="w-full px-4 sm:px-6 lg:px-8 pt-6 flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold font-heading">Painel de gestão</h1>
+            <p className="text-emerald-50/90 text-sm mt-0.5">
+              {profile?.nome ? `Olá, ${profile.nome.split(' ')[0]}` : 'Conecta Trindade'}
+            </p>
           </div>
         </div>
-      </div>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
-        {/* Main Navigation Tabs */}
-        <div className="flex flex-wrap gap-2 mb-6 rounded-xl bg-white border border-gray-200 p-2 shadow-sm">
+
+        <nav className="w-full px-4 sm:px-6 lg:px-8 mt-4 flex gap-1 overflow-x-auto" aria-label="Seções do painel">
           {[
-            { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
+            { id: 'dashboard' as const, label: 'Visão geral', icon: LayoutDashboard },
             { id: 'chamados' as const, label: 'Ordens de Serviço', icon: ClipboardList, badge: chamados.length },
-            { id: 'usuarios' as const, label: 'Usuários & Servidores', icon: UsersRound, badge: profiles.length },
-            { id: 'orgaos' as const, label: 'Órgãos no Mapa', icon: Building2, badge: orgaos.length },
-            { id: 'mapa' as const, label: 'Mapa Interativo', icon: MapPinned },
-            { id: 'rsu' as const, label: 'Coleta RSU', icon: Truck, badge: '117' },
+            { id: 'usuarios' as const, label: 'Usuários', icon: UsersRound, badge: profiles.length },
+            { id: 'orgaos' as const, label: 'Prédios públicos', icon: Building2, badge: orgaos.length },
+            { id: 'mapa' as const, label: 'Mapa', icon: MapPinned },
+            { id: 'rsu' as const, label: 'Coleta de lixo', icon: Truck },
             { id: 'relatorios' as const, label: 'Relatórios', icon: BarChart3 },
             { id: 'configuracoes' as const, label: 'Configurações', icon: Settings },
           ].map((item) => {
@@ -783,65 +777,61 @@ export default function AdminPage() {
                   if (item.id === 'mapa') setView('mapa');
                   if (item.id === 'chamados' && view === 'mapa') setView('os');
                 }}
-                className={`flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-all ${
+                aria-current={active ? 'page' : undefined}
+                className={`flex items-center gap-2 whitespace-nowrap px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
                   active
-                    ? 'bg-[#006653] text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-emerald-50 hover:text-[#006653]'
+                    ? 'text-white border-[#FFC20E]'
+                    : 'text-emerald-50/80 border-transparent hover:text-white hover:border-white/40'
                 }`}
               >
                 <Icon className="w-4 h-4" />
                 <span>{item.label}</span>
                 {item.badge !== undefined && (
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                      active
-                        ? 'bg-emerald-800 text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
+                  <span className="text-[11px] px-1.5 rounded-full bg-white/20 text-white">{item.badge}</span>
                 )}
               </button>
             );
           })}
-        </div>
+        </nav>
+      </div>
 
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#b18400]">Visão geral</p>
-            <h2 className="text-2xl font-bold font-heading text-[#173b32]">Dashboard operacional</h2>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs text-gray-500 border border-gray-200">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Dados atualizados em tempo real
-          </div>
-        </div>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
 
-        {/* Stats cards */}
+        {/* Números: clicar filtra a lista de O.S. */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {[
-            { label: 'Total de chamados', value: stats.total, icon: LayoutDashboard, color: 'text-[#006653]', bg: 'bg-emerald-50' },
-            { label: 'Abertos', value: stats.abertos, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: 'Em andamento', value: stats.andamento, icon: Timer, color: 'text-sky-600', bg: 'bg-sky-50' },
-            { label: 'Resolvidos', value: stats.resolvidos, icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50' },
-            { label: 'Atrasados (SLA)', value: stats.atrasados, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
-          ].map((stat, i) => {
+            { label: 'Total de chamados', value: stats.total, icon: LayoutDashboard, color: 'text-[#006653]', bg: 'bg-emerald-50', status: 'TODOS', atrasado: false },
+            { label: 'Pendentes', value: stats.abertos, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', status: 'Pendente', atrasado: false },
+            { label: 'Em andamento', value: stats.andamento, icon: Timer, color: 'text-blue-600', bg: 'bg-blue-50', status: 'Em Andamento', atrasado: false },
+            { label: 'Concluídos', value: stats.resolvidos, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', status: 'Concluído', atrasado: false },
+            { label: 'Prazo vencido', value: stats.atrasados, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', status: 'TODOS', atrasado: true },
+          ].map((stat) => {
             const Icon = stat.icon;
+            const ativo = adminTab === 'chamados' && (stat.atrasado ? filterAtrasado : !filterAtrasado && filterStatus === stat.status);
             return (
-              <Card key={i} className="border-gray-200 shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg ${stat.bg} flex items-center justify-center flex-shrink-0`}>
-                      <Icon className={`w-5 h-5 ${stat.color}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-2xl font-bold text-gray-800 leading-tight">{stat.value}</p>
-                      <p className="text-xs text-gray-500 truncate">{stat.label}</p>
-                    </div>
+              <button
+                key={stat.label}
+                type="button"
+                onClick={() => {
+                  setAdminTab('chamados');
+                  if (view === 'mapa') setView('os');
+                  setFilterStatus(stat.status);
+                  setFilterAtrasado(stat.atrasado);
+                }}
+                className={`group text-left bg-white rounded-lg border p-4 transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006653] ${
+                  ativo ? 'border-[#006653] ring-1 ring-[#006653]' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-md ${stat.bg} flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105`}>
+                    <Icon className={`w-5 h-5 ${stat.color}`} />
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="min-w-0">
+                    <p className="text-2xl font-bold text-gray-900 leading-tight tabular-nums">{stat.value}</p>
+                    <p className="text-sm text-gray-500 truncate">{stat.label}</p>
+                  </div>
+                </div>
+              </button>
             );
           })}
         </div>
@@ -928,7 +918,7 @@ export default function AdminPage() {
                       const categoryInfo = getCategoriaInfo(chamado.categoria);
                       return (
                         <button key={chamado.id} onClick={() => openDetail(chamado)} className="w-full flex items-center gap-3 py-3 text-left hover:bg-gray-50 transition-colors rounded-md px-2">
-                          <span className="text-xl">{categoryInfo?.emoji}</span>
+                          <CategoriaIcone categoria={categoryInfo.id} className="w-5 h-5" />
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-semibold text-gray-800 truncate">{chamado.protocolo}</span>
                             <span className="block text-xs text-gray-500 truncate">{categoryInfo?.label} · {tempoRelativo(chamado.created_at)}</span>
@@ -1130,7 +1120,7 @@ export default function AdminPage() {
                 {/* Tabela de Bairros Oficiais */}
                 <div className="mt-6">
                   <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">
-                    Grade Oficial de Bairros e Frequência de Coleta (117 Setores)
+                    Bairros e frequência de coleta
                   </h4>
                   <div className="overflow-x-auto rounded-lg border border-gray-200 max-h-96">
                     <table className="w-full text-left text-xs">
@@ -1194,9 +1184,9 @@ export default function AdminPage() {
                   title="Visualização em Lista de Ordens de Serviço"
                 >
                   <ClipboardList className="w-3.5 h-3.5" />
-                  <span>Ordens de Serviço</span>
+                  <span>Tabela</span>
                 </button>
-                <button onClick={() => { setView('os'); setOsViewMode('cards'); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${view === 'os' && osViewMode === 'cards' ? 'bg-[#006653] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`} title="Visualização em Cards Grid"><LayoutGrid className="w-3.5 h-3.5"/><span>Cards Grid</span></button>
+                <button onClick={() => { setView('os'); setOsViewMode('cards'); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${view === 'os' && osViewMode === 'cards' ? 'bg-[#006653] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`} title="Ver em cartões"><LayoutGrid className="w-3.5 h-3.5"/><span>Cartões</span></button>
                 <button
                   onClick={() => setView('kanban')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
@@ -1212,7 +1202,7 @@ export default function AdminPage() {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                     view === 'mapa' ? 'bg-[#006653] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
                   }`}
-                  title="Visualização no Mapa Territorial"
+                  title="Ver no mapa"
                 >
                   <MapPinned className="w-3.5 h-3.5" />
                   <span>Mapa</span>
@@ -1241,7 +1231,7 @@ export default function AdminPage() {
                     {CATEGORIAS.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         <span className="flex items-center gap-1.5">
-                          <span>{cat.emoji}</span>
+                          <CategoriaIcone categoria={cat.id} className="w-3.5 h-3.5" />
                           <span>{cat.label}</span>
                         </span>
                       </SelectItem>
@@ -1278,10 +1268,10 @@ export default function AdminPage() {
                 }`}
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                SLA Atrasado
+                Prazo vencido
               </button>
 
-              <button type="button" onClick={handleToggleContextMenu} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700"><span className={`relative h-4 w-7 rounded-full ${menuContextoAtivo ? 'bg-[#006653]' : 'bg-gray-300'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${menuContextoAtivo ? 'translate-x-3.5' : 'translate-x-0.5'}`}/></span>Menu rápido {menuContextoAtivo ? 'ON' : 'OFF'}</button>
+              <button type="button" onClick={handleToggleContextMenu} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700"><span className={`relative h-4 w-7 rounded-full ${menuContextoAtivo ? 'bg-[#006653]' : 'bg-gray-300'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${menuContextoAtivo ? 'translate-x-3.5' : 'translate-x-0.5'}`}/></span>Menu rápido</button>
 
               {(filterCategoria !== 'TODAS' || filterSecretaria !== 'TODAS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
                 <button
@@ -1355,6 +1345,7 @@ export default function AdminPage() {
                   {[
                     { id: 'TODOS', label: 'Todas as O.S.', count: stats.total },
                     { id: 'Pendente', label: 'Pendentes', count: stats.pendentes, dot: 'bg-yellow-400' },
+                    { id: 'Em Análise', label: 'Em análise', count: chamados.filter((c) => normalizeStatus(c.status) === 'Em Análise').length, dot: 'bg-orange-500' },
                     { id: 'Em Andamento', label: 'Em Andamento', count: stats.andamento, dot: 'bg-blue-500' },
                     { id: 'Concluído', label: 'Concluídas', count: stats.concluidos, dot: 'bg-emerald-500' },
                     { id: 'Cancelado', label: 'Canceladas', count: stats.cancelados, dot: 'bg-gray-400' },
@@ -1391,7 +1382,7 @@ export default function AdminPage() {
                     title="Recarregar chamados salvos do banco de dados"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-[#006653]' : ''}`} />
-                    <span>{refreshing ? 'Atualizando...' : 'Recarregar Banco'}</span>
+                    <span>{refreshing ? 'Atualizando...' : 'Atualizar'}</span>
                   </Button>
 
                   <Button
@@ -1408,12 +1399,12 @@ export default function AdminPage() {
 
               <div className="px-3 sm:px-4 py-2.5 border-b border-gray-100 bg-white flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-gray-600">
                 <span className="font-bold text-gray-700">Legenda:</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-yellow-400"/>Pendente (Aguardando Triagem)</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-yellow-400"/>Pendente</span>
                 <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-orange-500"/>Em Análise</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500"/>Em Andamento (Equipe em Campo)</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Concluído (Finalizado)</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500"/>Em andamento</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Concluído</span>
                 <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gray-900"/>Cancelado</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500 animate-pulse"/>SLA Atrasado</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500"/>Prazo vencido</span>
               </div>
 
               {filteredChamados.length === 0 ? (
@@ -1445,11 +1436,11 @@ export default function AdminPage() {
                   {osViewMode === 'table' && (                <div className="overflow-x-auto scrollbar-thin">
                   <div id="admin-page-chamados-list" className="min-w-[1205px] text-left text-xs">
                     <div className="sticky top-0 z-10 grid grid-cols-[40px_130px_minmax(150px,1fr)_minmax(180px,1.2fr)_minmax(180px,1.2fr)_125px_150px_175px] bg-gray-50/95 backdrop-blur border-b border-gray-200 uppercase font-semibold text-[10px] tracking-wider text-gray-600"><div className="px-2 sm:px-3 py-3">#</div><div className="px-2 sm:px-3 py-3">Protocolo</div><div className="px-2 sm:px-3 py-3">Cidadão</div><div className="px-2 sm:px-3 py-3">Serviço</div><div className="px-2 sm:px-3 py-3">Bairro/Endereço</div><div className="px-2 sm:px-3 py-3">Data</div><div className="px-2 sm:px-3 py-3">Status</div><div className="px-2 sm:px-3 py-3 text-right">Ações</div></div>
-                    <div className="divide-y divide-gray-100">{filteredChamados.map((c,index)=>{const catInfo=getCategoriaInfo(c.categoria);const address=c.endereco_texto||(c as any).endereco||'Trindade - GO';const isUpdatingThis=updatingId===(c.id||c.protocolo);return <div key={c.id||c.protocolo} className="grid grid-cols-[40px_130px_minmax(150px,1fr)_minmax(180px,1.2fr)_minmax(180px,1.2fr)_125px_150px_175px] items-center hover:bg-emerald-50/30 transition-colors cursor-pointer" onClick={()=>openDetail(c)}><div className="px-2 sm:px-3 py-3 text-[10px] text-gray-400">{index+1}</div><div className="px-2 sm:px-3 py-3 min-w-0"><span className="font-mono font-bold text-[11px] text-[#006653] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80 truncate">{c.protocolo}</span></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="font-medium text-gray-900 truncate max-w-[170px] xl:max-w-xs">{c.cidadao_nome||(c as any).nome_cidadao||'Cidadão Trindadense'}</div><div className="text-[10px] text-gray-500 truncate max-w-[170px] xl:max-w-xs">{c.cidadao_telefone||(c as any).telefone_cidadao||''}</div></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="flex items-center gap-1.5 font-semibold text-gray-800 text-[11px] truncate"><span>{catInfo?.emoji||'📋'}</span><span className="truncate">{catInfo?.label||(c as any).categoria_servico||c.categoria}</span></div><p className="text-gray-600 text-[11px] line-clamp-1 truncate max-w-[170px] xl:max-w-xs">{c.descricao||'Sem descrição informada'}</p></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="flex items-start gap-1 text-gray-700"><MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0 mt-0.5"/><span className="truncate text-[11px] font-medium max-w-[170px] xl:max-w-xs" title={address}>{address}</span></div></div><div className="px-2 sm:px-3 py-3 whitespace-nowrap"><div className="flex items-center gap-1 text-gray-700 text-[10px]"><Calendar className="w-3 h-3 text-gray-400"/>{formatData(c.created_at)}</div><div className="text-[9px] text-gray-400">{tempoRelativo(c.created_at)}</div></div><div className="px-2 sm:px-3 py-3"><StatusBadge status={c.status}/></div><div className="px-2 sm:px-3 py-3 flex items-center justify-end gap-1" onClick={e=>e.stopPropagation()}><div className="w-[125px]"><Select value={normalizeStatus(c.status)} onValueChange={v=>handleQuickStatusChange(c,v as NormalizedStatus)} disabled={isUpdatingThis}><SelectTrigger className="h-7 text-[10px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Análise">Em Análise</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem><SelectItem value="Cancelado">Cancelado</SelectItem></SelectContent></Select></div><OSContextMenu chamado={c} enabled={menuContextoAtivo} onStatus={v=>handleContextStatus(c,v)} onCopyAddress={()=>handleCopyAddress(c)} onEdit={()=>openDetail(c)}/></div></div>})}</div>
+                    <div className="divide-y divide-gray-100">{filteredChamados.map((c,index)=>{const catInfo=getCategoriaInfo(c.categoria);const address=c.endereco_texto||(c as any).endereco||'Trindade - GO';const isUpdatingThis=updatingId===(c.id||c.protocolo);return <div key={c.id||c.protocolo} className="grid grid-cols-[40px_130px_minmax(150px,1fr)_minmax(180px,1.2fr)_minmax(180px,1.2fr)_125px_150px_175px] items-center hover:bg-emerald-50/30 transition-colors cursor-pointer" onClick={()=>openDetail(c)}><div className="px-2 sm:px-3 py-3 text-[10px] text-gray-400">{index+1}</div><div className="px-2 sm:px-3 py-3 min-w-0"><span className="font-mono font-bold text-[11px] text-[#006653] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80 truncate">{c.protocolo}</span></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="font-medium text-gray-900 truncate max-w-[170px] xl:max-w-xs">{c.cidadao_nome||(c as any).nome_cidadao||'Cidadão Trindadense'}</div><div className="text-[10px] text-gray-500 truncate max-w-[170px] xl:max-w-xs">{c.cidadao_telefone||(c as any).telefone_cidadao||''}</div></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="flex items-center gap-1.5 font-semibold text-gray-800 text-[11px] truncate"><CategoriaIcone categoria={catInfo.id} className="w-3.5 h-3.5"/><span className="truncate">{catInfo?.label||(c as any).categoria_servico||c.categoria}</span></div><p className="text-gray-600 text-[11px] line-clamp-1 truncate max-w-[170px] xl:max-w-xs">{c.descricao||'Sem descrição informada'}</p></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="flex items-start gap-1 text-gray-700"><MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0 mt-0.5"/><span className="truncate text-[11px] font-medium max-w-[170px] xl:max-w-xs" title={address}>{address}</span></div></div><div className="px-2 sm:px-3 py-3 whitespace-nowrap"><div className="flex items-center gap-1 text-gray-700 text-[10px]"><Calendar className="w-3 h-3 text-gray-400"/>{formatData(c.created_at)}</div><div className="text-[9px] text-gray-400">{tempoRelativo(c.created_at)}</div></div><div className="px-2 sm:px-3 py-3"><StatusBadge status={c.status}/></div><div className="px-2 sm:px-3 py-3 flex items-center justify-end gap-1" onClick={e=>e.stopPropagation()}><div className="w-[125px]"><Select value={normalizeStatus(c.status)} onValueChange={v=>handleQuickStatusChange(c,v as NormalizedStatus)} disabled={isUpdatingThis}><SelectTrigger className="h-7 text-[10px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Análise">Em Análise</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem><SelectItem value="Cancelado">Cancelado</SelectItem></SelectContent></Select></div><OSContextMenu chamado={c} enabled={menuContextoAtivo} onStatus={v=>handleContextStatus(c,v)} onCopyAddress={()=>handleCopyAddress(c)} onEdit={()=>openDetail(c)}/></div></div>})}</div>
                   </div>
                 </div>
                 )}
-                {osViewMode === 'cards' && <div className="p-3 sm:p-4"><div className="grid gap-3" style={{gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))'}}>{filteredChamados.map(c=>{const catInfo=getCategoriaInfo(c.categoria);const address=c.endereco_texto||(c as any).endereco||'Trindade - GO';return <Card key={c.id||c.protocolo} className="border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={()=>openDetail(c)}><CardContent className="p-4"><div className="flex items-start justify-between gap-2"><Badge className="font-mono bg-emerald-50 text-[#006653] border border-emerald-200">{c.protocolo}</Badge><div className="flex gap-1" onClick={e=>e.stopPropagation()}><Button variant="ghost" size="icon" className="h-8 w-8" onClick={()=>openDetail(c)} title="Visualização rápida"><Eye className="w-4 h-4"/></Button><OSContextMenu chamado={c} enabled={menuContextoAtivo} onStatus={v=>handleContextStatus(c,v)} onCopyAddress={()=>handleCopyAddress(c)} onEdit={()=>openDetail(c)}/></div></div><div className="mt-3 flex items-center gap-2 font-semibold text-gray-800"><span className="text-lg">{catInfo?.emoji||'📋'}</span>{catInfo?.label||c.categoria}</div><p className="mt-2 text-xs text-gray-600 line-clamp-2">{c.descricao||'Sem descrição informada'}</p><div className="mt-3 space-y-2 text-xs"><div className="flex gap-2 text-gray-700"><MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0"/><span className="truncate">{address}</span></div><div className="flex gap-2 text-gray-700"><User className="w-3.5 h-3.5 text-gray-400 shrink-0"/><span className="truncate">{c.cidadao_nome||(c as any).nome_cidadao||'Cidadão Trindadense'}</span></div></div><div className="mt-4 pt-3 border-t flex items-center justify-between gap-2" onClick={e=>e.stopPropagation()}><StatusBadge status={c.status}/><Select value={normalizeStatus(c.status)} onValueChange={v=>handleQuickStatusChange(c,v as NormalizedStatus)}><SelectTrigger className="h-8 w-[145px] text-[10px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Análise">Em Análise</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem><SelectItem value="Cancelado">Cancelado</SelectItem></SelectContent></Select></div></CardContent></Card>})}</div></div>}
+                {osViewMode === 'cards' && <div className="p-3 sm:p-4"><div className="grid gap-3" style={{gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))'}}>{filteredChamados.map(c=>{const catInfo=getCategoriaInfo(c.categoria);const address=c.endereco_texto||(c as any).endereco||'Trindade - GO';return <Card key={c.id||c.protocolo} className="border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={()=>openDetail(c)}><CardContent className="p-4"><div className="flex items-start justify-between gap-2"><Badge className="font-mono bg-emerald-50 text-[#006653] border border-emerald-200">{c.protocolo}</Badge><div className="flex gap-1" onClick={e=>e.stopPropagation()}><Button variant="ghost" size="icon" className="h-8 w-8" onClick={()=>openDetail(c)} title="Visualização rápida"><Eye className="w-4 h-4"/></Button><OSContextMenu chamado={c} enabled={menuContextoAtivo} onStatus={v=>handleContextStatus(c,v)} onCopyAddress={()=>handleCopyAddress(c)} onEdit={()=>openDetail(c)}/></div></div><div className="mt-3 flex items-center gap-2 font-semibold text-gray-800"><CategoriaIcone categoria={catInfo.id} className="w-4 h-4"/>{catInfo?.label||c.categoria}</div><p className="mt-2 text-xs text-gray-600 line-clamp-2">{c.descricao||'Sem descrição informada'}</p><div className="mt-3 space-y-2 text-xs"><div className="flex gap-2 text-gray-700"><MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0"/><span className="truncate">{address}</span></div><div className="flex gap-2 text-gray-700"><User className="w-3.5 h-3.5 text-gray-400 shrink-0"/><span className="truncate">{c.cidadao_nome||(c as any).nome_cidadao||'Cidadão Trindadense'}</span></div></div><div className="mt-4 pt-3 border-t flex items-center justify-between gap-2" onClick={e=>e.stopPropagation()}><StatusBadge status={c.status}/><Select value={normalizeStatus(c.status)} onValueChange={v=>handleQuickStatusChange(c,v as NormalizedStatus)}><SelectTrigger className="h-8 w-[145px] text-[10px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Análise">Em Análise</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem><SelectItem value="Cancelado">Cancelado</SelectItem></SelectContent></Select></div></CardContent></Card>})}</div></div>}
                 </>
               )}
             </Card>
@@ -1508,7 +1499,7 @@ export default function AdminPage() {
                                 {c.protocolo}
                               </span>
                               <span className="text-xs text-gray-500 flex items-center gap-1">
-                                <span>{catInfo?.emoji}</span>
+                                <CategoriaIcone categoria={catInfo.id} className="w-3.5 h-3.5" />
                                 <span>{catInfo?.label}</span>
                               </span>
                             </div>
@@ -1544,7 +1535,7 @@ export default function AdminPage() {
                 <div className="bg-emerald-950 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="font-semibold text-emerald-100">Mapa Territorial Oficial de Trindade - GO</span>
+                    <span className="font-semibold text-emerald-100">Mapa de Trindade - GO</span>
                     <span className="text-emerald-300/70 hidden md:inline">| Prédios Públicos e Chamados Georreferenciados</span>
                   </div>
                   <div className="flex items-center gap-2 text-emerald-200 text-[11px]">
@@ -1573,35 +1564,32 @@ export default function AdminPage() {
         {/* Aba de Mapa Territorial Completo e Dedicado */}
         {adminTab === 'mapa' && (
           <Card className="border-gray-200 overflow-hidden shadow-sm mb-6 bg-white">
-            <div className="bg-gradient-to-r from-emerald-950 via-[#004d3e] to-[#006653] text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <div>
-                  <h3 className="font-bold text-emerald-50 text-sm font-heading">
-                    Mapa Territorial e Patrimonial de Trindade - GO
-                  </h3>
-                  <p className="text-emerald-200/80 text-[11px]">
-                    Visualização georreferenciada de prédios públicos, UBS, CMEIs, escolas e ordens de serviço ativas
-                  </p>
-                </div>
+            <div className="border-b border-gray-200 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div>
+                <h3 className="font-semibold text-gray-900 text-base font-heading">
+                  Mapa de chamados e prédios públicos
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  Clique em um pino para ver o chamado.
+                </p>
               </div>
               <div className="flex items-center gap-2 text-xs">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setAdminTab('orgaos')}
-                  className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs h-8 gap-1.5"
+                  className="text-xs h-8 gap-1.5"
                 >
                   <Building2 className="w-3.5 h-3.5" />
-                  <span>Gerenciar Órgãos no Mapa</span>
+                  <span>Prédios públicos</span>
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => setIsNewChamadoOpen(true)}
-                  className="bg-amber-500 hover:bg-amber-600 text-gray-950 font-bold text-xs h-8 gap-1.5 shadow-xs"
+                  className="bg-[#006653] hover:bg-[#005242] text-white font-semibold text-xs h-8 gap-1.5"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Nova O.S. no Mapa</span>
+                  <span>Nova O.S.</span>
                 </Button>
               </div>
             </div>

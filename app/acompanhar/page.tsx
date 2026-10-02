@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useTransition } from 'react';
+import { CategoriaIcone } from '@/components/categoria-icone';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -560,8 +561,8 @@ function AcompanharContent() {
                           );
                           return (
                             <>
-                              <span className="text-xl p-1 rounded-lg bg-emerald-50 border border-emerald-100">
-                                {catInfo.emoji}
+                              <span className="p-1.5 rounded-md bg-emerald-50">
+                                <CategoriaIcone categoria={catInfo.id} className="w-5 h-5" />
                               </span>
                               <span>
                                 {chamadoSelecionado.categoria_servico ||

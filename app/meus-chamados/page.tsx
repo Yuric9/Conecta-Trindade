@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CategoriaIcone } from '@/components/categoria-icone';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
@@ -217,7 +218,7 @@ export default function MeusChamadosPage() {
                         <div className="flex items-start justify-between mb-2 gap-2">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-2xl">{catInfo?.emoji}</span>
+                              <CategoriaIcone categoria={catInfo.id} className="w-6 h-6" />
                               <span className="font-semibold text-gray-800">{catInfo?.label}</span>
                             </div>
                             <p className="text-xs text-gray-500 font-mono font-medium">{chamado.protocolo}</p>
@@ -313,7 +314,7 @@ export default function MeusChamadosPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl">{getCategoriaInfo(selectedChamado.categoria)?.emoji}</span>
+                    <CategoriaIcone categoria={selectedChamado.categoria} className="w-6 h-6" />
                     <DialogTitle className="text-lg font-bold text-gray-900">
                       {getCategoriaInfo(selectedChamado.categoria)?.label}
                     </DialogTitle>
