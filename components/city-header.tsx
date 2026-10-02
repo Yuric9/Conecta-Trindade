@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Menu, X, ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn, Truck, Search } from 'lucide-react';
+import { ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn, Truck, Search } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +16,6 @@ export function CityHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { profile, signOut, isAdmin } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
     { href: '/', label: 'Início', icon: Home },
@@ -35,14 +33,14 @@ export function CityHeader() {
     <header className="sticky top-0 z-50 w-full">
       <div className="bg-[#005847] border-b border-white/10">
         <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-14 md:h-20 pt-[env(safe-area-inset-top)] md:pt-0">
             <Link href="/" className="flex items-center gap-3.5">
               <img
                 src="/images/logo-trindade.png"
                 alt="Prefeitura de Trindade - Onde o Futuro acontece Hoje"
-                className="h-12 sm:h-14 w-auto max-w-[240px] sm:max-w-[270px] object-contain"
+                className="h-9 md:h-14 w-auto max-w-[180px] md:max-w-[270px] object-contain"
               />
-              <div className="hidden sm:flex flex-col border-l border-white/20 pl-3 py-0.5">
+              <div className="hidden md:flex flex-col border-l border-white/20 pl-3 py-0.5">
                 <span className="text-sm font-semibold text-white font-heading">
                   Conecta Trindade
                 </span>
@@ -124,79 +122,9 @@ export function CityHeader() {
               )}
             </div>
 
-            {/* Mobile menu button */}
-            <button
-              className="md:hidden text-white p-2"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
           </div>
         </div>
 
-        {/* Mobile nav */}
-        {mobileOpen && (
-          <div className="md:hidden border-t border-white/20 bg-[#005847]">
-            <div className="px-4 py-3 space-y-2">
-              <Link
-                href="/solicitar"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-semibold bg-[#FFC20E] text-[#173b32] mb-2"
-              >
-                <PlusCircle className="w-5 h-5" />
-                Nova Solicitação
-              </Link>
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors ${
-                      active ? 'bg-white/20 text-white' : 'text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5 text-emerald-100/80" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10"
-                >
-                  <LayoutDashboard className="w-5 h-5 text-emerald-100/80" />
-                  Painel Admin
-                </Link>
-              )}
-              {profile ? (
-                <button
-                  onClick={() => {
-                    setMobileOpen(false);
-                    handleSignOut();
-                  }}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-200 hover:bg-white/10 w-full"
-                >
-                  <LogOut className="w-5 h-5" />
-                  Sair
-                </button>
-              ) : (
-                <Link
-                  href="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium text-white hover:bg-white/10"
-                >
-                  <User className="w-5 h-5" />
-                  Entrar
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );
@@ -204,7 +132,7 @@ export function CityHeader() {
 
 export function CityFooter() {
   return (
-    <footer className="bg-[#005847] text-white">
+    <footer className="hidden md:block bg-[#005847] text-white">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>

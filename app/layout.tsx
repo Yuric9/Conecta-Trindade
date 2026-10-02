@@ -1,5 +1,5 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Montserrat } from 'next/font/google';
 import { LayoutWrapper } from './layout-wrapper';
 
@@ -14,6 +14,13 @@ export const metadata: Metadata = {
     title: 'Conecta Trindade - Zelo Urbano',
     description: 'Registre e acompanhe solicitações de zelo urbano em Trindade-GO.',
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#005847',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
