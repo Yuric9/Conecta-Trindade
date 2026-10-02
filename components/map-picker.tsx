@@ -219,15 +219,13 @@ export default function MapPicker({
               marker.setLatLng([lat, lng]);
               onChange(lat, lng);
             } else {
+              // Fora de Trindade: só centraliza a visão. Não marca o centro
+              // como local do problema (seria uma localização falsa).
               map.setView([TRINDADE_CENTER.lat, TRINDADE_CENTER.lng], 15);
-              marker.setLatLng([TRINDADE_CENTER.lat, TRINDADE_CENTER.lng]);
-              onChange(TRINDADE_CENTER.lat, TRINDADE_CENTER.lng);
             }
           },
           () => {
             map.setView([TRINDADE_CENTER.lat, TRINDADE_CENTER.lng], 15);
-            marker.setLatLng([TRINDADE_CENTER.lat, TRINDADE_CENTER.lng]);
-            onChange(TRINDADE_CENTER.lat, TRINDADE_CENTER.lng);
           },
           { enableHighAccuracy: true, timeout: 5000 }
         );
@@ -259,6 +257,7 @@ export default function MapPicker({
   useEffect(() => {
     if (markerRef.current && latitude && longitude && isWithinTrindade(latitude, longitude)) {
       markerRef.current.setLatLng([latitude, longitude]);
+      mapRef.current?.setView([latitude, longitude], Math.max(mapRef.current.getZoom?.() ?? 16, 16));
     }
   }, [latitude, longitude]);
 

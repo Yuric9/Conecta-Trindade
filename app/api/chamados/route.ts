@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured, type ChamadoRow, type StatusChamado } f
 import { getSharedChamadosMemory, addSharedChamado, updateSharedChamadoStatus } from '@/lib/chamados-memory';
 import { normalizarTermoBusca, buscarChamadosPublico } from '@/lib/chamados-publico';
 import { requireStaff } from '@/lib/supabase/server-auth';
+import { isWithinTrindade } from '@/lib/geo';
 
 const STATUS_VALIDOS: StatusChamado[] = ['Pendente', 'Em Análise', 'Em Andamento', 'Concluído', 'Cancelado'];
 
@@ -67,6 +68,18 @@ export async function POST(req: NextRequest) {
     const descricao = (body.descricao || '').toString().trim();
     const endereco = (body.endereco || '').toString().trim();
     const foto_url = body.foto_url || body.foto || null;
+
+    // Localização opcional: só aceita pontos dentro de Trindade
+    const lat = Number(body.latitude);
+    const lng = Number(body.longitude);
+    const temLocalizacao =
+      body.latitude != null && body.longitude != null && Number.isFinite(lat) && Number.isFinite(lng);
+    if (temLocalizacao && !isWithinTrindade(lat, lng)) {
+      return NextResponse.json(
+        { success: false, error: 'A localização informada fica fora de Trindade.' },
+        { status: 400 }
+      );
+    }
 
     // 3. Validação dos campos obrigatórios
     const errosValidacao: string[] = [];
@@ -155,6 +168,8 @@ export async function POST(req: NextRequest) {
           descricao: novoChamado.descricao,
           endereco: novoChamado.endereco,
           foto_url: novoChamado.foto_url,
+          latitude: temLocalizacao ? lat : null,
+          longitude: temLocalizacao ? lng : null,
           status: novoChamado.status,
           created_at: novoChamado.created_at,
           updated_at: novoChamado.updated_at,
@@ -280,9 +295,20 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const PRIORIDADES = ['BAIXA', 'MEDIA', 'ALTA', 'URGENTE'];
+
+/** Texto opcional: string aparada (vazia vira null) com limite de tamanho. */
+function textoOpcional(valor: unknown, max: number): string | null | undefined {
+  if (valor === undefined) return undefined;
+  if (valor === null) return null;
+  const t = String(valor).trim();
+  return t ? t.slice(0, max) : null;
+}
+
 /**
  * PATCH /api/chamados
- * Atualiza o status de um chamado. Restrito a servidores municipais logados.
+ * Atualiza status e campos de gestão de um chamado. Restrito a servidores.
+ * Só altera os campos enviados no corpo.
  */
 export async function PATCH(req: NextRequest) {
   try {
@@ -290,7 +316,7 @@ export async function PATCH(req: NextRequest) {
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { id, protocolo, status, observacao } = body || {};
+    const { id, protocolo } = body || {};
 
     if (!id && !protocolo) {
       return NextResponse.json(
@@ -299,26 +325,57 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    if (!STATUS_VALIDOS.includes(status)) {
-      return NextResponse.json(
-        { success: false, error: `Status inválido. Use um destes: ${STATUS_VALIDOS.join(', ')}.` },
-        { status: 400 }
-      );
+    const alteracoes: Record<string, unknown> = {};
+
+    if (body.status !== undefined) {
+      if (!STATUS_VALIDOS.includes(body.status)) {
+        return NextResponse.json(
+          { success: false, error: `Status inválido. Use um destes: ${STATUS_VALIDOS.join(', ')}.` },
+          { status: 400 }
+        );
+      }
+      alteracoes.status = body.status;
     }
 
-    const updated_at = new Date().toISOString();
+    if (body.prioridade !== undefined) {
+      if (!PRIORIDADES.includes(body.prioridade)) {
+        return NextResponse.json({ success: false, error: 'Prioridade inválida.' }, { status: 400 });
+      }
+      alteracoes.prioridade = body.prioridade;
+    }
+
+    if (body.sla_limite !== undefined) {
+      if (body.sla_limite === null || body.sla_limite === '') {
+        alteracoes.sla_limite = null;
+      } else if (Number.isNaN(Date.parse(body.sla_limite))) {
+        return NextResponse.json({ success: false, error: 'Prazo inválido.' }, { status: 400 });
+      } else {
+        alteracoes.sla_limite = new Date(body.sla_limite).toISOString();
+      }
+    }
+
+    const secretaria = textoOpcional(body.secretaria, 50);
+    if (secretaria !== undefined) alteracoes.secretaria = secretaria;
+    const observacoes = textoOpcional(body.observacoes_internas ?? body.observacao, 2000);
+    if (observacoes !== undefined) alteracoes.observacoes_internas = observacoes;
+    const resposta = textoOpcional(body.resposta_cidadao, 2000);
+    if (resposta !== undefined) alteracoes.resposta_cidadao = resposta;
+
+    if (Object.keys(alteracoes).length === 0) {
+      return NextResponse.json({ success: false, error: 'Nenhuma alteração enviada.' }, { status: 400 });
+    }
 
     // Atualização no Supabase, com a sessão do servidor (as regras de RLS valem aqui)
     if (auth.client) {
-      let query = (auth.client.from('chamados') as any).update({ status, updated_at });
+      let query = (auth.client.from('chamados') as any).update(alteracoes);
       query = id ? query.eq('id', id) : query.eq('protocolo', protocolo);
 
       const { data, error } = await query.select().maybeSingle();
 
       if (error) {
-        console.error('[API Chamados] Erro ao atualizar status no Supabase:', error);
+        console.error('[API Chamados] Erro ao atualizar chamado no Supabase:', error);
         return NextResponse.json(
-          { success: false, error: 'Erro ao atualizar status no banco de dados.' },
+          { success: false, error: 'Erro ao atualizar o chamado no banco de dados.' },
           { status: 500 }
         );
       }
@@ -327,20 +384,19 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Chamado não encontrado.' }, { status: 404 });
       }
 
-      return NextResponse.json(
-        { success: true, message: `Status atualizado para "${status}" com sucesso!`, chamado: data },
-        { status: 200 }
-      );
+      return NextResponse.json({ success: true, message: 'Chamado atualizado.', chamado: data }, { status: 200 });
     }
 
     // Modo demonstração (memória do servidor)
-    const updatedChamado = updateSharedChamadoStatus(protocolo || id, status as StatusChamado, observacao);
+    const atualizado = alteracoes.status
+      ? updateSharedChamadoStatus(protocolo || id, alteracoes.status as StatusChamado, observacoes ?? undefined)
+      : null;
 
     return NextResponse.json(
       {
         success: true,
-        message: `Status atualizado para "${status}" com sucesso! (Modo Demonstração)`,
-        chamado: updatedChamado || { id, protocolo, status, updated_at },
+        message: 'Chamado atualizado. (Modo Demonstração)',
+        chamado: atualizado || { id, protocolo, ...alteracoes },
       },
       { status: 200 }
     );

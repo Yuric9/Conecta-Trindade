@@ -38,6 +38,8 @@ import { useAuth } from '@/lib/auth-context';
 import { compressImage } from '@/lib/image-compress';
 import { shareViaWhatsApp } from '@/lib/whatsapp-share';
 import { SolicitarWizard } from '@/components/solicitar-wizard';
+import { LocalNoMapa } from '@/components/local-no-mapa';
+import { isWithinTrindade } from '@/lib/geo';
 import {
   Loader2,
   CheckCircle2,
@@ -90,6 +92,9 @@ const chamadoFormSchema = z.object({
     .string()
     .min(5, { message: 'Informe o endereço completo com rua, setor e ponto de referência.' }),
   foto_url: z.string().optional(),
+  // Ponto no mapa (opcional): preenchido pelo GPS ou tocando no mapa
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 });
 
 type ChamadoFormValues = z.infer<typeof chamadoFormSchema>;
@@ -136,6 +141,8 @@ export default function SolicitarPage() {
       descricao: '',
       endereco: '',
       foto_url: '',
+      latitude: undefined,
+      longitude: undefined,
     },
     mode: 'onBlur',
   });
@@ -238,6 +245,10 @@ export default function SolicitarPage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        if (isWithinTrindade(latitude, longitude)) {
+          form.setValue('latitude', latitude);
+          form.setValue('longitude', longitude);
+        }
         try {
           const res = await fetch(`/api/geocode/reverse?lat=${latitude}&lon=${longitude}`);
           if (res.ok) {
@@ -302,6 +313,8 @@ export default function SolicitarPage() {
         descricao: values.descricao.trim(),
         endereco: values.endereco.trim(),
         foto_url: values.foto_url || null,
+        latitude: values.latitude ?? null,
+        longitude: values.longitude ?? null,
       };
 
       const response = await fetch('/api/chamados', {
@@ -335,6 +348,8 @@ export default function SolicitarPage() {
         descricao: '',
         endereco: '',
         foto_url: '',
+        latitude: undefined,
+        longitude: undefined,
       });
       setFotoPreview(null);
       setFotoNome(null);
@@ -613,6 +628,9 @@ export default function SolicitarPage() {
                       </FormItem>
                     )}
                   />
+
+                  {/* Ponto no mapa (opcional) */}
+                  <LocalNoMapa form={form} altura="280px" />
 
                   {/* Foto Opcional da Ocorrência */}
                   <div>

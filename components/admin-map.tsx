@@ -75,6 +75,12 @@ export default function AdminMap({
   // O Leaflet carrega de forma assíncrona: só desenhamos os marcadores
   // depois que o mapa e as camadas existem.
   const [mapaPronto, setMapaPronto] = useState(false);
+
+  // Só chamados com localização salva aparecem no mapa.
+  const chamadosNoMapa = useMemo(
+    () => chamados.filter((c) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude)),
+    [chamados]
+  );
   const [activeFilterPopover, setActiveFilterPopover] = useState(false);
   const [selectedOrgaoInfo, setSelectedOrgaoInfo] = useState<OrgaoPublico | null>(null);
 
@@ -218,7 +224,7 @@ export default function AdminMap({
       if (showOrgaos) {
         orgaosFiltrados.forEach((orgao) => {
           // Identificar quantos chamados existem nas proximidades deste prédio público (600m)
-          const chamadosEntorno = chamados.filter(
+          const chamadosEntorno = chamadosNoMapa.filter(
             (c) => distanceMeters(c.latitude, c.longitude, orgao.latitude, orgao.longitude) <= 600
           );
 
@@ -288,7 +294,7 @@ export default function AdminMap({
       // 2. ADICIONAR MARCADORES DOS CHAMADOS
       // ==========================================
       if (showChamados) {
-        chamados.forEach((c) => {
+        chamadosNoMapa.forEach((c) => {
           const catInfo = getCategoriaInfo(c.categoria);
           const isAtrasado =
             c.sla_limite &&
@@ -364,7 +370,7 @@ export default function AdminMap({
         });
       }
     })();
-  }, [mapaPronto, chamados, orgaosFiltrados, showChamados, showOrgaos, onSelect, onEditOrgao, onDeleteOrgao]);
+  }, [mapaPronto, chamadosNoMapa, orgaosFiltrados, showChamados, showOrgaos, onSelect, onEditOrgao, onDeleteOrgao]);
 
   // Função para voar até um local pesquisado
   const handleSelectSearchResult = (lat: number, lng: number, key?: string) => {
@@ -401,7 +407,7 @@ export default function AdminMap({
       key: `orgao-${o.id}`,
     }));
 
-    const chamadosMatches = chamados
+    const chamadosMatches = chamadosNoMapa
       .filter(
         (c) =>
           c.protocolo.toLowerCase().includes(q) ||
@@ -422,7 +428,7 @@ export default function AdminMap({
       }));
 
     return [...orgaosMatches, ...chamadosMatches].slice(0, 8);
-  }, [searchQuery, chamados]);
+  }, [searchQuery, chamadosNoMapa]);
 
   return (
     <div className="relative w-full h-full rounded-xl overflow-hidden shadow-inner border border-gray-200">
@@ -485,7 +491,7 @@ export default function AdminMap({
             title="Mostrar/Ocultar chamados no mapa"
           >
             <AlertCircle className="w-3.5 h-3.5" />
-            <span>Chamados ({chamados.length})</span>
+            <span>Chamados no mapa ({chamadosNoMapa.length})</span>
           </button>
 
           {/* Toggle Órgãos Públicos */}
