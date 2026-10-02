@@ -223,6 +223,10 @@ export default function AdminPage() {
   const [copiedProtocol, setCopiedProtocol] = useState<string | null>(null);
   const [view, setView] = useState<'os' | 'kanban' | 'mapa'>('os');
   const [osViewMode, setOsViewMode] = useState<'table' | 'cards'>('table');
+  // No celular a tabela não cabe: começa no modo cartões.
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches) setOsViewMode('cards');
+  }, []);
   const [menuContextoAtivo, setMenuContextoAtivo] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [filterCategoria, setFilterCategoria] = useState<ChamadoCategoria | 'TODAS'>('TODAS');
@@ -818,17 +822,17 @@ export default function AdminPage() {
                   setFilterStatus(stat.status);
                   setFilterAtrasado(stat.atrasado);
                 }}
-                className={`group text-left bg-white rounded-lg border p-4 transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006653] ${
+                className={`group text-left bg-white rounded-lg border p-3 sm:p-4 transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006653] ${
                   ativo ? 'border-[#006653] ring-1 ring-[#006653]' : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-md ${stat.bg} flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105`}>
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-md ${stat.bg} flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105`}>
                     <Icon className={`w-5 h-5 ${stat.color}`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-2xl font-bold text-gray-900 leading-tight tabular-nums">{stat.value}</p>
-                    <p className="text-sm text-gray-500 truncate">{stat.label}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight tabular-nums">{stat.value}</p>
+                    <p className="text-xs sm:text-sm text-gray-500 leading-snug">{stat.label}</p>
                   </div>
                 </div>
               </button>
@@ -1179,7 +1183,7 @@ export default function AdminPage() {
                 <button
                   onClick={() => { setView('os'); setOsViewMode('table'); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    view === 'os' ? 'bg-[#006653] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+                    view === 'os' && osViewMode === 'table' ? 'bg-[#006653] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
                   }`}
                   title="Visualização em Lista de Ordens de Serviço"
                 >
