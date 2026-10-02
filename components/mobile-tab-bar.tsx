@@ -18,6 +18,8 @@ export function MobileTabBar() {
 
   // Durante o passo a passo de nova solicitação o fluxo ocupa a tela toda
   if (pathname.startsWith('/solicitar')) return null;
+  // O painel de gestão tem a própria barra inferior (components/admin-mobile-nav.tsx)
+  if (pathname.startsWith('/admin')) return null;
 
   const ativa = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href) || (href === '/perfil' && ['/login', '/meus-chamados', '/admin'].some((p) => pathname.startsWith(p)));

@@ -156,16 +156,17 @@ export default function AdminModalEditChamado({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Pendente">🟡 Pendente</SelectItem>
-                  <SelectItem value="Em Andamento">🔵 Em Andamento</SelectItem>
-                  <SelectItem value="Concluído">🟢 Concluído</SelectItem>
-                  <SelectItem value="Cancelado">⚪ Cancelado</SelectItem>
-                  <SelectItem value="ABERTO">🟡 Aberto (Pendente)</SelectItem>
-                  <SelectItem value="TRIADO">🟣 Triado (Encaminhado)</SelectItem>
-                  <SelectItem value="EM_ANDAMENTO">🔵 Em Andamento (Equipe em Campo)</SelectItem>
-                  <SelectItem value="RESOLVIDO">🟢 Resolvido (Concluído)</SelectItem>
-                  <SelectItem value="AVALIADO">⭐ Avaliado pelo Cidadão</SelectItem>
-                  <SelectItem value="REJEITADO">🔴 Cancelado / Rejeitado</SelectItem>
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Em Análise">Em análise</SelectItem>
+                  <SelectItem value="Em Andamento">Em andamento</SelectItem>
+                  <SelectItem value="Concluído">Concluído</SelectItem>
+                  <SelectItem value="Cancelado">Cancelado</SelectItem>
+                  <SelectItem value="ABERTO">Aberto (Pendente)</SelectItem>
+                  <SelectItem value="TRIADO">Triado (Encaminhado)</SelectItem>
+                  <SelectItem value="EM_ANDAMENTO">Em Andamento (Equipe em Campo)</SelectItem>
+                  <SelectItem value="RESOLVIDO">Resolvido (Concluído)</SelectItem>
+                  <SelectItem value="AVALIADO">Avaliado pelo Cidadão</SelectItem>
+                  <SelectItem value="REJEITADO">Cancelado / Rejeitado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -194,10 +195,10 @@ export default function AdminModalEditChamado({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="BAIXA">🟢 Baixa Prioridade</SelectItem>
-                  <SelectItem value="MEDIA">🟡 Média Prioridade</SelectItem>
-                  <SelectItem value="ALTA">🟠 Alta Prioridade</SelectItem>
-                  <SelectItem value="URGENTE">🔴 Urgente / Risco Imediato</SelectItem>
+                  <SelectItem value="BAIXA">Baixa Prioridade</SelectItem>
+                  <SelectItem value="MEDIA">Média Prioridade</SelectItem>
+                  <SelectItem value="ALTA">Alta Prioridade</SelectItem>
+                  <SelectItem value="URGENTE">Urgente / Risco Imediato</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -294,7 +295,7 @@ export default function AdminModalEditChamado({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-semibold text-gray-700">
-                Observações Internas da Equipe (Uso Interno)
+                Observações internas da equipe
               </Label>
               <Textarea
                 rows={3}
@@ -307,7 +308,7 @@ export default function AdminModalEditChamado({
 
             <div>
               <Label className="text-xs font-semibold text-gray-700">
-                Resposta Oficial para o Cidadão (Visível ao Munícipe)
+                Resposta para o cidadão
               </Label>
               <Textarea
                 rows={3}

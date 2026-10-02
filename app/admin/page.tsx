@@ -132,6 +132,7 @@ import {
 import { CRONOGRAMA_OFICIAL_TRINDADE, getBairrosHoje, DIAS_SEMANA_LABELS } from '@/lib/rsu-schedule';
 import { getPortalConfig, savePortalConfig } from '@/lib/config-portal';
 import { authHeaders } from '@/lib/auth-headers';
+import { AdminMobileNav, type AbaAdmin } from '@/components/admin-mobile-nav';
 
 type NormalizedStatus = 'Pendente' | 'Em Análise' | 'Em Andamento' | 'Concluído' | 'Cancelado';
 
@@ -233,6 +234,7 @@ export default function AdminPage() {
   const [filterSecretaria, setFilterSecretaria] = useState<ChamadoSecretaria | 'TODAS'>('TODAS');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAtrasado, setFilterAtrasado] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [selectedChamado, setSelectedChamado] = useState<Chamado | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isNewChamadoOpen, setIsNewChamadoOpen] = useState(false);
@@ -337,6 +339,12 @@ export default function AdminPage() {
     setCityConfig(loadedConfig);
     getPortalConfig().then((config) => setMenuContextoAtivo(config.menu_contexto_cards_ativo));
   }, [fetchChamadosFromDatabase]);
+
+  const selecionarAba = (id: AbaAdmin) => {
+    setAdminTab(id);
+    if (id === 'mapa') setView('mapa');
+    if (id === 'chamados' && view === 'mapa') setView('os');
+  };
 
   const handleQuickStatusChange = async (chamado: Chamado, newStatus: NormalizedStatus) => {
     const chamadoId = chamado.id || chamado.protocolo;
@@ -750,7 +758,7 @@ export default function AdminPage() {
 
       {/* Admin header bar */}
       <div className="ct-malha-urbana text-white">
-        <div className="w-full px-4 sm:px-6 lg:px-8 pt-6 flex items-end justify-between gap-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8 pt-5 pb-5 md:pb-0 md:pt-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold font-heading">Painel de gestão</h1>
             <p className="text-emerald-50/90 text-sm mt-0.5">
@@ -760,7 +768,7 @@ export default function AdminPage() {
         </div>
 
 
-        <nav className="w-full px-4 sm:px-6 lg:px-8 mt-4 flex gap-1 overflow-x-auto" aria-label="Seções do painel">
+        <nav className="hidden md:flex w-full px-4 sm:px-6 lg:px-8 mt-4 gap-1 overflow-x-auto" aria-label="Seções do painel">
           {[
             { id: 'dashboard' as const, label: 'Visão geral', icon: LayoutDashboard },
             { id: 'chamados' as const, label: 'Ordens de Serviço', icon: ClipboardList, badge: chamados.length },
@@ -776,11 +784,7 @@ export default function AdminPage() {
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  setAdminTab(item.id);
-                  if (item.id === 'mapa') setView('mapa');
-                  if (item.id === 'chamados' && view === 'mapa') setView('os');
-                }}
+                onClick={() => selecionarAba(item.id)}
                 aria-current={active ? 'page' : undefined}
                 className={`flex items-center gap-2 whitespace-nowrap px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
                   active
@@ -1179,7 +1183,7 @@ export default function AdminPage() {
           <>
             {/* Toolbar com Ações, Filtros e Botão de Nova O.S. */}
             <div className="flex flex-wrap items-center gap-3 mb-6 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-full overflow-x-auto [&>button]:shrink-0">
                 <button
                   onClick={() => { setView('os'); setOsViewMode('table'); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
@@ -1213,7 +1217,7 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              <div className="relative min-w-[200px] flex-1 max-w-xs">
+              <div className="relative w-full basis-full md:basis-auto md:w-auto md:min-w-[200px] flex-1 md:max-w-xs">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <Input
                   type="text"
@@ -1224,6 +1228,23 @@ export default function AdminPage() {
                 />
               </div>
 
+              {/* No celular os filtros ficam recolhidos atrás do botão "Filtros" */}
+              <button
+                type="button"
+                onClick={() => setFiltrosAbertos((v) => !v)}
+                aria-expanded={filtrosAbertos}
+                className="md:hidden flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-200 bg-gray-50 text-xs font-semibold text-gray-700"
+              >
+                <Filter className="w-4 h-4" />
+                Filtros
+                {(filterCategoria !== 'TODAS' ? 1 : 0) + (filterSecretaria !== 'TODAS' ? 1 : 0) + (filterAtrasado ? 1 : 0) > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#006653] text-white text-[10px] leading-[18px] text-center">
+                    {(filterCategoria !== 'TODAS' ? 1 : 0) + (filterSecretaria !== 'TODAS' ? 1 : 0) + (filterAtrasado ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+
+              <div className={`${filtrosAbertos ? 'flex' : 'hidden'} w-full flex-wrap items-center gap-3 md:contents`}>
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-400" />
                 <Select value={filterCategoria} onValueChange={(v) => setFilterCategoria(v as any)}>
@@ -1276,6 +1297,7 @@ export default function AdminPage() {
               </button>
 
               <button type="button" onClick={handleToggleContextMenu} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700"><span className={`relative h-4 w-7 rounded-full ${menuContextoAtivo ? 'bg-[#006653]' : 'bg-gray-300'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${menuContextoAtivo ? 'translate-x-3.5' : 'translate-x-0.5'}`}/></span>Menu rápido</button>
+              </div>
 
               {(filterCategoria !== 'TODAS' || filterSecretaria !== 'TODAS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
                 <button
@@ -1628,6 +1650,11 @@ export default function AdminPage() {
         onClose={() => setIsNewChamadoOpen(false)}
         onCreate={handleCreateChamado}
       />
+
+      {/* Celular: navegação do painel na barra inferior */}
+      {isFiscalOrAdmin && (
+        <AdminMobileNav aba={adminTab} onSelecionar={selecionarAba} totalChamados={chamados.length} />
+      )}
     </div>
   );
 }
