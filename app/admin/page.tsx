@@ -199,10 +199,10 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 const KANBAN_COLUMNS: { status: ChamadoStatus; label: string; color: string }[] = [
-  { status: 'ABERTO', label: 'Aberto', color: 'amber' },
-  { status: 'TRIADO', label: 'Triado', color: 'purple' },
+  { status: 'ABERTO', label: 'Pendente', color: 'amber' },
+  { status: 'TRIADO', label: 'Em análise', color: 'purple' },
   { status: 'EM_ANDAMENTO', label: 'Em Andamento', color: 'blue' },
-  { status: 'RESOLVIDO', label: 'Resolvido', color: 'green' },
+  { status: 'RESOLVIDO', label: 'Concluído', color: 'green' },
 ];
 
 function OSContextMenu({ chamado, enabled, onStatus, onCopyAddress, onEdit }: { chamado: Chamado; enabled: boolean; onStatus: (status: NormalizedStatus) => void; onCopyAddress: () => void; onEdit: () => void }) {
@@ -1477,7 +1477,7 @@ export default function AdminPage() {
         {view === 'kanban' && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             {KANBAN_COLUMNS.map((col) => {
-              const colChamados = filteredChamados.filter((c) => c.status === col.status);
+              const colChamados = filteredChamados.filter((c) => normalizeStatus(c.status) === normalizeStatus(col.status));
               return (
                 <div key={col.status} className="space-y-3">
                   <div className="flex items-center justify-between px-2 py-1 bg-white rounded-lg border border-gray-200 shadow-xs">

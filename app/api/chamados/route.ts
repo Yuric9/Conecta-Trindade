@@ -3,7 +3,7 @@ import { randomUUID, randomInt } from 'crypto';
 import { supabase, isSupabaseConfigured, type ChamadoRow, type StatusChamado } from '@/lib/supabase';
 import { getSharedChamadosMemory, addSharedChamado, updateSharedChamadoStatus } from '@/lib/chamados-memory';
 import { normalizarTermoBusca, buscarChamadosPublico } from '@/lib/chamados-publico';
-import { requireStaff } from '@/lib/supabase/server-auth';
+import { requireStaff, usuarioOpcional } from '@/lib/supabase/server-auth';
 import { isWithinTrindade } from '@/lib/geo';
 
 const STATUS_VALIDOS: StatusChamado[] = ['Pendente', 'Em Análise', 'Em Andamento', 'Concluído', 'Cancelado'];
@@ -158,7 +158,12 @@ export async function POST(req: NextRequest) {
       try {
         // Sem .select() depois do insert: o visitante pode criar o chamado,
         // mas não tem permissão de leitura na tabela (proteção dos dados pessoais).
-        const { error: dbError } = await (supabase.from('chamados') as any).insert({
+        // Logado: grava com a sessão da pessoa e liga o chamado à conta
+        // (o banco confere que cidadao_id é a própria pessoa).
+        const usuario = await usuarioOpcional(req);
+        const cliente = usuario?.client ?? supabase;
+        const { error: dbError } = await (cliente.from('chamados') as any).insert({
+          cidadao_id: usuario?.userId ?? null,
           id: novoChamado.id,
           protocolo: novoChamado.protocolo,
           nome_cidadao: novoChamado.nome_cidadao,

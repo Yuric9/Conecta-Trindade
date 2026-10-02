@@ -358,7 +358,7 @@ export default function CronogramaRSUPage() {
                       </p>
                     </div>
                   </div>
-                  <Link href="/nova-solicitacao">
+                  <Link href={`/solicitar?categoria=${encodeURIComponent("Limpeza e Entulho")}`}>
                     <Button
                       size="sm"
                       className="bg-[#006653] hover:bg-[#005242] text-white text-xs font-semibold whitespace-nowrap shadow-xs h-9 px-4 gap-1.5"

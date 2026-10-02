@@ -39,6 +39,7 @@ import { compressImage } from '@/lib/image-compress';
 import { shareViaWhatsApp } from '@/lib/whatsapp-share';
 import { SolicitarWizard } from '@/components/solicitar-wizard';
 import { LocalNoMapa } from '@/components/local-no-mapa';
+import { authHeaders } from '@/lib/auth-headers';
 import { isWithinTrindade } from '@/lib/geo';
 import {
   Loader2,
@@ -317,11 +318,10 @@ export default function SolicitarPage() {
         longitude: values.longitude ?? null,
       };
 
+      // Envia a sessão (se houver) para o chamado aparecer em "Meus chamados"
       const response = await fetch('/api/chamados', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
 
@@ -808,18 +808,21 @@ export default function SolicitarPage() {
               <span>Acompanhar Andamento da Demanda</span>
             </Button>
 
+            {/* Só quem está logado tem o chamado ligado à conta */}
+            {user && (
             <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setSuccessDialogOpen(false);
-                router.push(`/meus-chamados?protocolo=${encodeURIComponent(protocoloGerado)}`);
-              }}
-              className="w-full border-gray-300 text-gray-700 hover:bg-emerald-50 text-xs h-9 gap-2"
-            >
-              <ClipboardList className="w-4 h-4 text-emerald-700" />
-              <span>Ver em Meus Chamados</span>
-            </Button>
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSuccessDialogOpen(false);
+                  router.push(`/meus-chamados?protocolo=${encodeURIComponent(protocoloGerado)}`);
+                }}
+                className="w-full border-gray-300 text-gray-700 hover:bg-emerald-50 text-xs h-9 gap-2"
+              >
+                <ClipboardList className="w-4 h-4 text-emerald-700" />
+                <span>Ver em Meus Chamados</span>
+              </Button>
+            )}
 
             <Button
               type="button"
