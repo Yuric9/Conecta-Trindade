@@ -54,3 +54,16 @@ export function formatarTelefone(valor: string): string {
   return `(${limpo.slice(0, 2)}) ${limpo.slice(2, 7)}-${limpo.slice(7)}`;
 }
 
+
+/**
+ * Escapa texto antes de inserir em HTML montado à mão (popups do mapa).
+ * Evita que conteúdo digitado por usuários seja executado como código (XSS).
+ */
+export function escapeHtml(valor: unknown): string {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
