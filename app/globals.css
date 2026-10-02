@@ -206,3 +206,148 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* =====================================================================
+   Marcadores do mapa (lib/map-icons.tsx)
+   ===================================================================== */
+.ct-pino {
+  position: relative;
+  width: 34px;
+  height: 44px;
+  transform-origin: 50% 100%;
+  transition: transform 150ms ease;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+}
+.leaflet-marker-icon:hover .ct-pino {
+  transform: translateY(-3px) scale(1.08) !important;
+}
+.ct-pino-icone {
+  position: absolute;
+  top: 8px;
+  left: 9px;
+  display: flex;
+}
+.ct-ponto {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid var(--ct-cor);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 150ms ease;
+}
+.leaflet-marker-icon:hover .ct-ponto {
+  transform: scale(1.15);
+}
+.ct-ponto-contador {
+  position: absolute;
+  top: -6px;
+  right: -7px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: #b91c1c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  border: 1.5px solid #ffffff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ct-pino,
+  .ct-ponto {
+    transition: none;
+  }
+}
+
+/* =====================================================================
+   Interações do site público
+   ===================================================================== */
+
+/* Padrão discreto de quadras/ruas no fundo das faixas verdes */
+.ct-malha-urbana {
+  background-color: #006653;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+  background-position: -1px -1px;
+}
+
+/* Entrada suave de listas (cada item com um pequeno atraso) */
+@keyframes ct-surgir {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ct-surgir {
+  animation: ct-surgir 380ms ease-out both;
+}
+
+/* Quem pediu "reduzir movimento" no sistema não vê animações */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =====================================================================
+   Celular: janelas (Dialog) viram painéis que sobem de baixo
+   ===================================================================== */
+@keyframes ct-sheet-subir {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes ct-sheet-descer {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+@media (max-width: 767px) {
+  .ct-sheet {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    overflow-y: auto !important;
+    transform: none !important;
+    border-radius: 20px 20px 0 0 !important;
+    padding-top: 28px !important;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+    animation: ct-sheet-subir 240ms cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  .ct-sheet[data-state='closed'] {
+    animation: ct-sheet-descer 180ms ease-in forwards !important;
+  }
+  /* "alça" do painel */
+  .ct-sheet::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    margin-left: -20px;
+    border-radius: 9999px;
+    background: #d1d5db;
+  }
+}

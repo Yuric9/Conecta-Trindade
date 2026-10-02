@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { OrgaoIcone } from '@/components/categoria-icone';
 import type { OrgaoPublico, TipoOrgaoPublico } from '@/lib/public-places';
 import {
   CATEGORIAS_ORGAOS,
@@ -347,8 +348,8 @@ export default function AdminOrgaosTab({
                     {/* Nome e Badge */}
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-2.5">
-                        <span className="text-xl p-1.5 bg-gray-100 rounded-lg flex-shrink-0">
-                          {o.emoji}
+                        <span className="p-1.5 bg-gray-100 rounded-md flex-shrink-0">
+                          <OrgaoIcone tipo={o.tipo} cor={o.cor} />
                         </span>
                         <div>
                           <p className="font-semibold text-gray-900 leading-snug">{o.nome}</p>

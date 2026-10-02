@@ -11,6 +11,7 @@ import {
 import { TRINDADE_GEOJSON } from '@/lib/trindade-geojson';
 import { ORGAOS_PUBLICOS_TRINDADE, OrgaoPublico } from '@/lib/public-places';
 import { Building2, MapPin, Navigation } from 'lucide-react';
+import { pinoHtml, pontoHtml, iconeOrgao, iconeInlineHtml, TAMANHO_PINO, ANCORA_PINO, TAMANHO_PONTO, ANCORA_PONTO } from '@/lib/map-icons';
 
 let leafletCssLoaded = false;
 function loadLeafletCss() {
@@ -110,7 +111,7 @@ export default function MapPicker({
         interactive: true,
       }).addTo(map);
 
-      borderLine.bindTooltip('🏛️ Limite Oficial do Município de Trindade - GO', {
+      borderLine.bindTooltip('Limite do município de Trindade - GO', {
         sticky: false,
         direction: 'top',
         className: 'trindade-boundary-tooltip',
@@ -118,15 +119,10 @@ export default function MapPicker({
 
       // Marcador selecionável do chamado
       const icon = L.divIcon({
-        className: 'custom-marker',
-        html: `<div class="marker-pulse" style="width:36px;height:36px;border-radius:50%;background:#006653;border:2.5px solid white;box-shadow:0 3px 8px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-            <circle cx="12" cy="10" r="3"/>
-          </svg>
-        </div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 36],
+        className: 'ct-marcador',
+        html: pinoHtml(MapPin, '#006653'),
+        iconSize: TAMANHO_PINO,
+        iconAnchor: ANCORA_PINO,
       });
 
       const marker = L.marker([safeCoords.lat, safeCoords.lng], {
@@ -157,25 +153,10 @@ export default function MapPicker({
       // Adicionar prédios públicos como referência visual
       ORGAOS_PUBLICOS_TRINDADE.forEach((orgao: OrgaoPublico) => {
         const orgaoIcon = L.divIcon({
-          className: 'orgao-marker-pin',
-          html: `
-            <div style="
-              width: 30px;
-              height: 30px;
-              border-radius: 8px;
-              background: ${orgao.cor};
-              border: 2px solid white;
-              box-shadow: 0 3px 8px rgba(0,0,0,0.25);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 14px;
-            ">
-              ${orgao.emoji}
-            </div>
-          `,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
+          className: 'ct-marcador',
+          html: pontoHtml(iconeOrgao(orgao.tipo), orgao.cor),
+          iconSize: TAMANHO_PONTO,
+          iconAnchor: ANCORA_PONTO,
         });
 
         const oMarker = L.marker([orgao.latitude, orgao.longitude], {
@@ -183,14 +164,14 @@ export default function MapPicker({
         });
 
         oMarker.bindTooltip(
-          `<strong>${orgao.emoji} ${orgao.nome}</strong><br/><span style="font-size:10px;opacity:0.9;">Ponto de Referência (${orgao.tipoLabel})</span>`,
+          `<strong>${orgao.nome}</strong><br/><span style="font-size:11px;opacity:0.9;">${orgao.tipoLabel}</span>`,
           { className: 'orgao-tooltip', direction: 'top', offset: [0, -16] }
         );
 
         // Ao clicar no prédio público, oferece selecionar o local como ponto da solicitação
         const popupContent = `
           <div style="font-family: sans-serif; padding: 10px; width: 230px;">
-            <div style="font-size: 18px; margin-bottom: 4px;">${orgao.emoji}</div>
+            <div style="margin-bottom: 4px;">${iconeInlineHtml(iconeOrgao(orgao.tipo), orgao.cor, 18)}</div>
             <strong style="font-size: 13px; color: #173b32; display: block; line-height: 1.2;">${orgao.nome}</strong>
             <span style="font-size: 10.5px; color: #64748b; display: block; margin: 3px 0 6px;">${orgao.tipoLabel} - ${orgao.bairro}</span>
             <p style="font-size: 11px; color: #475569; margin: 0 0 8px;">${orgao.endereco}</p>

@@ -1,0 +1,10 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#006653"/>
+  <g opacity="0.12" stroke="#ffffff" stroke-width="3">
+    <line x1="128" y1="0" x2="128" y2="512"/><line x1="0" y1="128" x2="512" y2="128"/><line x1="256" y1="0" x2="256" y2="512"/><line x1="0" y1="256" x2="512" y2="256"/><line x1="384" y1="0" x2="384" y2="512"/><line x1="0" y1="384" x2="512" y2="384"/>
+  </g>
+  <text x="256" y="305" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800"
+        font-size="200" letter-spacing="-6" fill="#ffffff">CT</text>
+  <circle cx="400" cy="128" r="28" fill="#FFC20E"/>
+</svg>

@@ -16,6 +16,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_chamado') THEN
     CREATE TYPE status_chamado AS ENUM (
       'Pendente',
+      'Em Análise',
       'Em Andamento',
       'Concluído',
       'Cancelado'

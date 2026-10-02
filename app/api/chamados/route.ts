@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomInt } from 'crypto';
 import { supabase, isSupabaseConfigured, type ChamadoRow, type StatusChamado } from '@/lib/supabase';
 import { getSharedChamadosMemory, addSharedChamado, updateSharedChamadoStatus } from '@/lib/chamados-memory';
+import { normalizarTermoBusca, buscarChamadosPublico } from '@/lib/chamados-publico';
+import { requireStaff } from '@/lib/supabase/server-auth';
+
+const STATUS_VALIDOS: StatusChamado[] = ['Pendente', 'Em Análise', 'Em Andamento', 'Concluído', 'Cancelado'];
 
 /**
- * Gera um protocolo único no formato solicitado:
- * TRIN-2026- + 4 dígitos/letras aleatórias (ex: TRIN-2026-7B4K, TRIN-2026-9X2M)
+ * Gera um protocolo único no formato TRIN-<ano>-XXXXXX (ex: TRIN-2026-7B4K9X).
+ * Usa gerador criptográfico e 6 caracteres (~887 milhões de combinações), para
+ * que ninguém consiga adivinhar protocolos de outras pessoas na consulta pública.
  */
 function gerarProtocoloTrindade(): string {
   // Caracteres alfanuméricos em maiúsculas, evitando caracteres confusos (0/O, 1/I)
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   let sufixo = '';
-  for (let i = 0; i < 4; i++) {
-    const idx = Math.floor(Math.random() * chars.length);
-    sufixo += chars[idx];
+  for (let i = 0; i < 6; i++) {
+    sufixo += chars[randomInt(chars.length)];
   }
-  return `TRIN-2026-${sufixo}`;
+  return `TRIN-${new Date().getFullYear()}-${sufixo}`;
 }
 
 /**
@@ -115,7 +119,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Geração do protocolo único no formato TRIN-2026-XXXX (4 dígitos/letras)
+    // 4. Geração do protocolo único no formato TRIN-<ano>-XXXXXX
     const protocolo = gerarProtocoloTrindade();
     const chamadoId = randomUUID();
     const timestampAtual = new Date().toISOString();
@@ -139,37 +143,35 @@ export async function POST(req: NextRequest) {
     // 5. Inserção no banco de dados Supabase
     if (isSupabaseConfigured) {
       try {
-        const { data, error: dbError } = await (supabase.from('chamados') as any)
-          .insert({
-            id: novoChamado.id,
-            protocolo: novoChamado.protocolo,
-            nome_cidadao: novoChamado.nome_cidadao,
-            cpf_cidadao: novoChamado.cpf_cidadao,
-            telefone_cidadao: novoChamado.telefone_cidadao,
-            categoria_servico: novoChamado.categoria_servico,
-            descricao: novoChamado.descricao,
-            endereco: novoChamado.endereco,
-            foto_url: novoChamado.foto_url,
-            status: novoChamado.status,
-            created_at: novoChamado.created_at,
-            updated_at: novoChamado.updated_at,
-          })
-          .select()
-          .single();
+        // Sem .select() depois do insert: o visitante pode criar o chamado,
+        // mas não tem permissão de leitura na tabela (proteção dos dados pessoais).
+        const { error: dbError } = await (supabase.from('chamados') as any).insert({
+          id: novoChamado.id,
+          protocolo: novoChamado.protocolo,
+          nome_cidadao: novoChamado.nome_cidadao,
+          cpf_cidadao: novoChamado.cpf_cidadao,
+          telefone_cidadao: novoChamado.telefone_cidadao,
+          categoria_servico: novoChamado.categoria_servico,
+          descricao: novoChamado.descricao,
+          endereco: novoChamado.endereco,
+          foto_url: novoChamado.foto_url,
+          status: novoChamado.status,
+          created_at: novoChamado.created_at,
+          updated_at: novoChamado.updated_at,
+        });
 
         if (dbError) {
           console.error('[API Chamados] Erro ao inserir no Supabase:', dbError);
           return NextResponse.json(
             {
               success: false,
-              error: 'Erro de comunicação com o banco de dados Supabase ao salvar a solicitação.',
-              mensagem_banco: dbError.message,
+              error: 'Erro de comunicação com o banco de dados ao salvar a solicitação.',
             },
             { status: 500 }
           );
         }
 
-        const registroCriado = data || novoChamado;
+        const registroCriado = novoChamado;
 
         // 6. Resposta com status 201 (Created)
         return NextResponse.json(
@@ -189,7 +191,6 @@ export async function POST(req: NextRequest) {
           {
             success: false,
             error: 'Erro interno de banco de dados ao processar a solicitação.',
-            detalhes: err?.message || 'Erro inesperado',
           },
           { status: 500 }
         );
@@ -226,89 +227,43 @@ export async function POST(req: NextRequest) {
 
 /**
  * GET /api/chamados
- * Permite consultar chamados por protocolo ou listar registros recentes.
+ *  - ?protocolo=... ou ?cpf=...  → consulta pública (dados não sensíveis)
+ *  - sem filtros                  → listagem completa, só para servidores logados
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const protocoloParam = searchParams.get('protocolo');
-    const cpfParam = searchParams.get('cpf');
-    const limit = Math.min(Number(searchParams.get('limit')) || 20, 50);
+    const termoPublico = searchParams.get('protocolo') || searchParams.get('cpf');
+    const limit = Math.min(Number(searchParams.get('limit')) || 20, 100);
 
-    // Consulta por protocolo específico
-    if (protocoloParam) {
-      const protoLimpo = protocoloParam.trim();
-
-      if (isSupabaseConfigured) {
-        const { data, error } = await (supabase.from('chamados') as any)
-          .select('*')
-          .ilike('protocolo', protoLimpo)
-          .single();
-
-        if (error || !data) {
-          return NextResponse.json(
-            { success: false, error: `Chamado com protocolo ${protoLimpo} não encontrado.` },
-            { status: 404 }
-          );
-        }
-
-        return NextResponse.json({ success: true, chamado: data }, { status: 200 });
-      }
-
-      // Fallback
-      const store = getSharedChamadosMemory();
-      const encontrado = store.find(
-        (c) => c.protocolo.toLowerCase() === protoLimpo.toLowerCase() || c.id.toLowerCase() === protoLimpo.toLowerCase()
-      );
-      if (!encontrado) {
+    if (termoPublico) {
+      const busca = normalizarTermoBusca(termoPublico);
+      if (!busca) {
         return NextResponse.json(
-          { success: false, error: `Chamado com protocolo ${protoLimpo} não encontrado.` },
-          { status: 404 }
+          { success: false, error: 'Informe um protocolo válido ou um CPF completo com 11 dígitos.' },
+          { status: 400 }
         );
       }
-      return NextResponse.json({ success: true, chamado: encontrado }, { status: 200 });
-    }
-
-    // Consulta por CPF
-    if (cpfParam) {
-      const cleanCpf = limparCpf(cpfParam);
-
-      if (isSupabaseConfigured) {
-        const { data, error } = await (supabase.from('chamados') as any)
-          .select('*')
-          .or(`cpf_cidadao.eq.${cpfParam},cpf_cidadao.ilike.%${cleanCpf}%`)
-          .order('created_at', { ascending: false })
-          .limit(limit);
-
-        if (error) {
-          return NextResponse.json(
-            { success: false, error: 'Erro ao consultar chamados por CPF.' },
-            { status: 500 }
-          );
-        }
-
-        return NextResponse.json({ success: true, chamados: data || [] }, { status: 200 });
+      const chamados = await buscarChamadosPublico(busca);
+      if (chamados.length === 0) {
+        return NextResponse.json({ success: false, error: 'Chamado não encontrado.' }, { status: 404 });
       }
-
-      const store = getSharedChamadosMemory();
-      const filtrados = store.filter(
-        (c) => limparCpf(c.cpf_cidadao).includes(cleanCpf)
-      );
-      return NextResponse.json({ success: true, chamados: filtrados }, { status: 200 });
+      return NextResponse.json({ success: true, chamado: chamados[0], chamados }, { status: 200 });
     }
 
-    // Listagem geral (últimos chamados)
-    if (isSupabaseConfigured) {
-      const { data, error } = await (supabase.from('chamados') as any)
+    // Listagem geral: contém CPF e telefone, então exige servidor municipal.
+    const auth = await requireStaff(req);
+    if ('response' in auth) return auth.response;
+
+    if (auth.client) {
+      const { data, error } = await (auth.client.from('chamados') as any)
         .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
       if (error) {
-        return NextResponse.json(
-          { success: false, error: 'Erro ao listar chamados.' },
-          { status: 500 }
-        );
+        console.error('[API Chamados] Erro ao listar chamados:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao listar chamados.' }, { status: 500 });
       }
 
       return NextResponse.json(
@@ -318,24 +273,22 @@ export async function GET(req: NextRequest) {
     }
 
     const store = getSharedChamadosMemory();
-    return NextResponse.json(
-      { success: true, total: store.length, chamados: store },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, total: store.length, chamados: store }, { status: 200 });
   } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: 'Erro ao buscar chamados.', detalhes: err?.message },
-      { status: 500 }
-    );
+    console.error('[API Chamados] Erro ao buscar chamados:', err);
+    return NextResponse.json({ success: false, error: 'Erro ao buscar chamados.' }, { status: 500 });
   }
 }
 
 /**
  * PATCH /api/chamados
- * Permite que fiscais e administradores atualizem o status do chamado em tempo real no banco de dados.
+ * Atualiza o status de um chamado. Restrito a servidores municipais logados.
  */
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = await requireStaff(req);
+    if ('response' in auth) return auth.response;
+
     const body = await req.json();
     const { id, protocolo, status, observacao } = body || {};
 
@@ -346,86 +299,53 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    if (!status) {
+    if (!STATUS_VALIDOS.includes(status)) {
       return NextResponse.json(
-        { success: false, error: 'O novo status é obrigatório.' },
+        { success: false, error: `Status inválido. Use um destes: ${STATUS_VALIDOS.join(', ')}.` },
         { status: 400 }
       );
     }
 
     const updated_at = new Date().toISOString();
-    const updatePayload: Record<string, any> = {
-      status,
-      updated_at,
-    };
-    if (observacao !== undefined) {
-      updatePayload.observacoes_internas = observacao;
-    }
 
-    // Atualização no Supabase se configurado
-    if (isSupabaseConfigured) {
-      let query = (supabase.from('chamados') as any).update(updatePayload);
-      if (id) {
-        query = query.eq('id', id);
-      } else if (protocolo) {
-        query = query.eq('protocolo', protocolo);
-      }
+    // Atualização no Supabase, com a sessão do servidor (as regras de RLS valem aqui)
+    if (auth.client) {
+      let query = (auth.client.from('chamados') as any).update({ status, updated_at });
+      query = id ? query.eq('id', id) : query.eq('protocolo', protocolo);
 
-      const { data, error } = await query.select().single();
+      const { data, error } = await query.select().maybeSingle();
 
       if (error) {
         console.error('[API Chamados] Erro ao atualizar status no Supabase:', error);
         return NextResponse.json(
-          {
-            success: false,
-            error: 'Erro ao atualizar status no banco de dados Supabase.',
-            mensagem_banco: error.message,
-          },
+          { success: false, error: 'Erro ao atualizar status no banco de dados.' },
           { status: 500 }
         );
       }
 
-      // Sincroniza também na memória compartilhada
-      updateSharedChamadoStatus(protocolo || id, status as StatusChamado, observacao);
+      if (!data) {
+        return NextResponse.json({ success: false, error: 'Chamado não encontrado.' }, { status: 404 });
+      }
 
       return NextResponse.json(
-        {
-          success: true,
-          message: `Status atualizado para "${status}" com sucesso!`,
-          chamado: data,
-        },
+        { success: true, message: `Status atualizado para "${status}" com sucesso!`, chamado: data },
         { status: 200 }
       );
     }
 
-    // Fallback de memória para dev / preview
+    // Modo demonstração (memória do servidor)
     const updatedChamado = updateSharedChamadoStatus(protocolo || id, status as StatusChamado, observacao);
 
-    if (updatedChamado) {
-      return NextResponse.json(
-        {
-          success: true,
-          message: `Status atualizado para "${status}" com sucesso! (Modo Local/Fallback)`,
-          chamado: updatedChamado,
-        },
-        { status: 200 }
-      );
-    }
-
-    // Se não encontrou na memória estática, cria objeto de confirmação
     return NextResponse.json(
       {
         success: true,
-        message: `Status do chamado ${protocolo || id} atualizado para "${status}"!`,
-        chamado: { id, protocolo, status, updated_at },
+        message: `Status atualizado para "${status}" com sucesso! (Modo Demonstração)`,
+        chamado: updatedChamado || { id, protocolo, status, updated_at },
       },
       { status: 200 }
     );
   } catch (err: any) {
     console.error('[API Chamados] Erro inesperado no PATCH:', err);
-    return NextResponse.json(
-      { success: false, error: 'Erro ao processar atualização.', detalhes: err?.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Erro ao processar atualização.' }, { status: 500 });
   }
 }

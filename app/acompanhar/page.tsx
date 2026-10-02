@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useTransition } from 'react';
+import { CategoriaIcone } from '@/components/categoria-icone';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -76,15 +77,6 @@ interface ChamadoDetalhe {
   updated_at?: string;
   sla_limite?: string;
 }
-
-// Chips de exemplo para teste rápido do cidadão
-const EXEMPLOS_BUSCA = [
-  { tipo: 'protocolo', valor: 'TRIN-2026-1001', label: 'TRIN-2026-1001 (Iluminação - Pendente)' },
-  { tipo: 'protocolo', valor: 'TRIN-2026-5088', label: 'TRIN-2026-5088 (Roçagem - Em Andamento)' },
-  { tipo: 'protocolo', valor: 'TRIN-2026-2045', label: 'TRIN-2026-2045 (Tapa-Buracos - Em Andamento)' },
-  { tipo: 'protocolo', valor: 'TRIN-2026-3190', label: 'TRIN-2026-3190 (Limpeza - Concluído)' },
-  { tipo: 'cpf', valor: '123.456.789-00', label: 'CPF: 123.456.789-00' },
-];
 
 function AcompanharContent() {
   const searchParams = useSearchParams();
@@ -222,7 +214,7 @@ function AcompanharContent() {
 
   const handleCompartilharWhatsApp = (chamado: ChamadoDetalhe) => {
     const statusAtual = normalizeStatus(chamado.status);
-    const texto = `Olá! Acompanhe o andamento da minha solicitação de zelo urbano em Trindade-GO:\n\n*Protocolo:* ${chamado.protocolo}\n*Serviço:* ${chamado.categoria_servico || chamado.categoria || 'Demanda Municipal'}\n*Status Atual:* ${statusAtual}\n*Endereço:* ${chamado.endereco || chamado.endereco_texto || 'Trindade - GO'}\n\nConsulte o andamento em tempo real no portal Conecta Trindade: ${window.location.origin}/acompanhar?protocolo=${encodeURIComponent(chamado.protocolo)}`;
+    const texto = `Olá! Acompanhe o andamento da minha solicitação de zelo urbano em Trindade-GO:\n\n*Protocolo:* ${chamado.protocolo}\n*Serviço:* ${chamado.categoria_servico || chamado.categoria || 'Demanda Municipal'}\n*Status Atual:* ${statusAtual}\n*Endereço:* ${chamado.endereco || chamado.endereco_texto || 'Trindade - GO'}\n\nConsulte o andamento no Conecta Trindade: ${window.location.origin}/acompanhar?protocolo=${encodeURIComponent(chamado.protocolo)}`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank');
   };
@@ -238,26 +230,20 @@ function AcompanharContent() {
 
   return (
     <div className="bg-[#eef1ef] min-h-[calc(100vh-140px)] pb-16">
-      {/* Header oficial de consulta pública */}
-      <section className="bg-gradient-to-r from-[#006653] to-[#004d3e] text-white py-10 px-4 shadow-sm relative overflow-hidden">
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-emerald-100 border border-white/20 mb-3">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#FFC20E]" />
-            <span>Portal Oficial do Cidadão · Prefeitura de Trindade</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black font-heading tracking-tight mb-3">
-            Acompanhar Solicitação
+      <section className="ct-malha-urbana text-white pt-10 pb-14 px-4">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold font-heading mb-2">
+            Acompanhar solicitação
           </h1>
-          <p className="text-emerald-100 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-            Consulte em tempo real o andamento e os prazos da sua demanda de zelo urbano através do
-            número de protocolo ou CPF cadastrado.
+          <p className="text-emerald-50 text-sm md:text-base max-w-2xl leading-relaxed">
+            Informe o número do protocolo ou o CPF usado na abertura da solicitação.
           </p>
         </div>
       </section>
 
       {/* Caixa de Busca com Alto Contraste */}
       <div className="max-w-4xl mx-auto px-4 -mt-6">
-        <Card className="border border-emerald-200/80 shadow-md bg-white rounded-2xl overflow-hidden">
+        <Card className="border border-gray-200 shadow-sm bg-white rounded-lg overflow-hidden">
           <CardContent className="p-4 sm:p-6">
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-center gap-3">
               <div className="relative flex-1 w-full">
@@ -266,8 +252,8 @@ function AcompanharContent() {
                   type="text"
                   value={termoBusca}
                   onChange={(e) => setTermoBusca(e.target.value)}
-                  placeholder="Digite o Protocolo (ex: TRIN-2026-1001) ou CPF..."
-                  className="pl-11 pr-10 h-12 text-sm bg-gray-50/70 border-gray-300 focus-visible:ring-[#006653] focus-visible:border-[#006653] font-medium rounded-xl"
+                  placeholder="Protocolo (ex.: TRIN-2026-7B4K9X) ou CPF"
+                  className="pl-11 pr-10 h-12 text-sm border-gray-300 focus-visible:ring-[#006653] focus-visible:border-[#006653] rounded-md"
                   autoFocus
                 />
                 {termoBusca && (
@@ -288,43 +274,22 @@ function AcompanharContent() {
               <Button
                 type="submit"
                 disabled={loading || !termoBusca.trim()}
-                className="w-full sm:w-auto h-12 px-7 bg-[#FFC20E] text-[#173b32] hover:bg-yellow-300 font-bold text-sm shadow-sm gap-2 rounded-xl flex-shrink-0"
+                className="w-full sm:w-auto h-12 px-7 bg-[#006653] text-white hover:bg-[#005242] font-semibold text-sm gap-2 rounded-md flex-shrink-0"
               >
                 {loading ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-[#173b32]" />
+                    <RefreshCw className="w-4 h-4 animate-spin" />
                     <span>Consultando...</span>
                   </>
                 ) : (
                   <>
                     <Search className="w-4 h-4" />
-                    <span>Buscar Demanda</span>
+                    <span>Consultar</span>
                   </>
                 )}
               </Button>
             </form>
 
-            {/* Chips de teste rápido */}
-            <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-gray-500 font-medium flex items-center gap-1">
-                <HelpCircle className="w-3.5 h-3.5 text-[#006653]" />
-                Exemplos para consulta rápida:
-              </span>
-              {EXEMPLOS_BUSCA.map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setTermoBusca(item.valor);
-                    router.replace(`/acompanhar?protocolo=${encodeURIComponent(item.valor)}`);
-                    executarBusca(item.valor);
-                  }}
-                  className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-[#006653] border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 font-medium transition-colors"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -419,7 +384,7 @@ function AcompanharContent() {
         {/* Resultado: Detalhes e Linha do Tempo de Status                */}
         {/* ============================================================= */}
         {chamadoSelecionado && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 ct-surgir">
             {/* Card Principal: Cabeçalho do Protocolo e Status */}
             <Card className="border-gray-200 shadow-sm bg-white rounded-2xl overflow-hidden">
               <div className="p-5 md:p-6 bg-gradient-to-r from-emerald-50/80 via-white to-emerald-50/30 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -596,8 +561,8 @@ function AcompanharContent() {
                           );
                           return (
                             <>
-                              <span className="text-xl p-1 rounded-lg bg-emerald-50 border border-emerald-100">
-                                {catInfo.emoji}
+                              <span className="p-1.5 rounded-md bg-emerald-50">
+                                <CategoriaIcone categoria={catInfo.id} className="w-5 h-5" />
                               </span>
                               <span>
                                 {chamadoSelecionado.categoria_servico ||
@@ -773,51 +738,26 @@ function AcompanharContent() {
           </div>
         )}
 
-        {/* Estado inicial / Como funciona quando nenhuma busca foi feita */}
+        {/* Estado inicial: explica o significado de cada status */}
         {!buscaRealizada && !chamadoSelecionado && (
-          <div className="mt-8 space-y-6 animate-fade-in">
-            <Card className="border-gray-200 shadow-sm bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-emerald-50/50 to-white pb-3 border-b border-gray-100">
-                <CardTitle className="text-base font-bold text-[#006653] flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4" />
-                  Como funciona a consulta de solicitações?
-                </CardTitle>
-                <CardDescription className="text-xs text-gray-600">
-                  O sistema municipal Conecta Trindade atualiza os status das ordens de serviço em tempo real.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-5 md:p-6 grid sm:grid-cols-3 gap-4 text-xs">
-                <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-4">
-                  <span className="w-6 h-6 rounded-full bg-amber-200 text-amber-900 font-bold flex items-center justify-center text-xs mb-2">
-                    1
-                  </span>
-                  <h4 className="font-bold text-amber-950 text-sm mb-1">🟡 Pendente</h4>
-                  <p className="text-amber-800 leading-relaxed">
-                    Sua solicitação foi registrada no banco de dados e aguarda a triagem pela equipe técnica da secretaria responsável.
-                  </p>
+          <div className="mt-8 bg-white border border-gray-200 rounded-lg p-5 md:p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-4">O que significa cada status</h2>
+            <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+              {[
+                { cor: 'bg-amber-400', nome: 'Pendente', texto: 'Solicitação recebida, aguardando análise.' },
+                { cor: 'bg-orange-500', nome: 'Em análise', texto: 'A equipe está avaliando o local e o tipo de serviço.' },
+                { cor: 'bg-blue-600', nome: 'Em andamento', texto: 'O serviço foi encaminhado para execução.' },
+                { cor: 'bg-emerald-600', nome: 'Concluído', texto: 'O serviço foi finalizado.' },
+              ].map((st) => (
+                <div key={st.nome}>
+                  <dt className="flex items-center gap-2 font-medium text-gray-900">
+                    <span className={`w-2.5 h-2.5 rounded-full ${st.cor}`} />
+                    {st.nome}
+                  </dt>
+                  <dd className="text-gray-600 mt-1 ml-[18px]">{st.texto}</dd>
                 </div>
-
-                <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-4">
-                  <span className="w-6 h-6 rounded-full bg-blue-200 text-blue-900 font-bold flex items-center justify-center text-xs mb-2">
-                    2
-                  </span>
-                  <h4 className="font-bold text-blue-950 text-sm mb-1">🔵 Em Andamento</h4>
-                  <p className="text-blue-800 leading-relaxed">
-                    A ordem de serviço foi despachada para a equipe de campo ou empresa prestadora e está em fase de execução física.
-                  </p>
-                </div>
-
-                <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4">
-                  <span className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-900 font-bold flex items-center justify-center text-xs mb-2">
-                    3
-                  </span>
-                  <h4 className="font-bold text-emerald-950 text-sm mb-1">🟢 Concluído</h4>
-                  <p className="text-emerald-800 leading-relaxed">
-                    O serviço foi finalizado e vistoriado pela fiscalização municipal, resolvendo o problema no endereço indicado.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+              ))}
+            </dl>
           </div>
         )}
       </div>

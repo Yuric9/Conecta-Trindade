@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { CategoriaIcone } from '@/components/categoria-icone';
 import type { Chamado, ChamadoCategoria, ChamadoSecretaria, ChamadoStatus } from '@/lib/types';
 import {
   CATEGORIAS,
@@ -136,7 +137,7 @@ export default function AdminModalNovoChamado({
                   {CATEGORIAS.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       <span className="flex items-center gap-1.5">
-                        <span>{c.emoji}</span>
+                        <CategoriaIcone categoria={c.id} className="w-3.5 h-3.5" />
                         <span>{c.label}</span>
                       </span>
                     </SelectItem>

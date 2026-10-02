@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { CategoriaIcone } from '@/components/categoria-icone';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { supabase, STORAGE_BUCKET } from '@/lib/supabase/client';
@@ -319,7 +320,7 @@ export default function NovaSolicitacaoPage() {
                 <div className="flex items-center justify-between py-1">
                   <span className="text-gray-400">Categoria:</span>
                   <span className="font-semibold text-gray-800 flex items-center gap-1">
-                    <span>{catInfo.emoji}</span>
+                    <CategoriaIcone categoria={catInfo.id} />
                     <span>{catInfo.label}</span>
                   </span>
                 </div>
@@ -517,7 +518,7 @@ export default function NovaSolicitacaoPage() {
                           : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
                       }`}
                     >
-                      <div className="text-4xl">{cat.emoji}</div>
+                      <CategoriaIcone categoria={cat.id} className="w-8 h-8" />
                       <Icon className={`w-7 h-7 ${selected ? 'text-[#1E5BC6]' : 'text-gray-400'}`} />
                       <span className={`text-sm font-semibold ${selected ? 'text-[#1E5BC6]' : 'text-gray-700'}`}>
                         {cat.label}

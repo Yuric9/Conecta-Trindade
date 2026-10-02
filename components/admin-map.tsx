@@ -14,6 +14,20 @@ import {
   OrgaoPublico,
 } from '@/lib/public-places';
 import { getCategoriaInfo, getStatusInfo, formatData } from '@/lib/types';
+import {
+  iconeCategoria,
+  iconeOrgao,
+  corDoStatus,
+  LEGENDA_STATUS,
+  pinoHtml,
+  pontoHtml,
+  iconeInlineHtml,
+  TAMANHO_PINO,
+  ANCORA_PINO,
+  TAMANHO_PONTO,
+  ANCORA_PONTO,
+} from '@/lib/map-icons';
+import { escapeHtml as esc } from '@/lib/utils';
 import type { Chamado } from '@/lib/types';
 import {
   Search,
@@ -58,6 +72,9 @@ export default function AdminMap({
   const [showOrgaos, setShowOrgaos] = useState(true);
   const [selectedTipoOrgao, setSelectedTipoOrgao] = useState<string>('TODOS');
   const [searchQuery, setSearchQuery] = useState('');
+  // O Leaflet carrega de forma assíncrona: só desenhamos os marcadores
+  // depois que o mapa e as camadas existem.
+  const [mapaPronto, setMapaPronto] = useState(false);
   const [activeFilterPopover, setActiveFilterPopover] = useState(false);
   const [selectedOrgaoInfo, setSelectedOrgaoInfo] = useState<OrgaoPublico | null>(null);
 
@@ -139,10 +156,12 @@ export default function AdminMap({
       orgaosLayerRef.current = L.layerGroup().addTo(map);
 
       mapRef.current = map;
+      setMapaPronto(true);
     })();
 
     return () => {
       destroyed = true;
+      setMapaPronto(false);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -203,133 +222,45 @@ export default function AdminMap({
             (c) => distanceMeters(c.latitude, c.longitude, orgao.latitude, orgao.longitude) <= 600
           );
 
-          // Ícone estilizado do prédio público
+          const IconeOrgao = iconeOrgao(orgao.tipo);
           const icon = L.divIcon({
-            className: 'orgao-marker-pin',
-            html: `
-              <div style="
-                width: 34px;
-                height: 34px;
-                border-radius: 10px;
-                background: ${orgao.cor};
-                border: 2.5px solid #ffffff;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 17px;
-                position: relative;
-              ">
-                ${orgao.emoji}
-                ${
-                  chamadosEntorno.length > 0
-                    ? `<span style="
-                        position: absolute;
-                        top: -6px;
-                        right: -6px;
-                        background: #dc2626;
-                        color: #ffffff;
-                        font-size: 10px;
-                        font-weight: 800;
-                        border-radius: 9999px;
-                        padding: 1px 5px;
-                        border: 1.5px solid #ffffff;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                      ">${chamadosEntorno.length}</span>`
-                    : ''
-                }
-              </div>
-            `,
-            iconSize: [34, 34],
-            iconAnchor: [17, 17],
+            className: 'ct-marcador',
+            html: pontoHtml(IconeOrgao, orgao.cor, chamadosEntorno.length),
+            iconSize: TAMANHO_PONTO,
+            iconAnchor: ANCORA_PONTO,
           });
 
           const marker = L.marker([orgao.latitude, orgao.longitude], { icon });
 
-          // Tooltip ao passar o mouse
-          marker.bindTooltip(`<strong>${orgao.emoji} ${orgao.nome}</strong>`, {
+          marker.bindTooltip(esc(orgao.nome), {
             className: 'orgao-tooltip',
             direction: 'top',
-            offset: [0, -18],
+            offset: [0, -14],
           });
 
-          // Popup detalhado com dados oficiais do prédio público
           const popupContent = `
-            <div style="width: 270px; font-family: sans-serif; padding: 12px; color: #1e293b;">
+            <div style="width: 260px; font-family: inherit; padding: 12px; color: #1f2937;">
               <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
-                <span style="font-size: 24px; line-height: 1;">${orgao.emoji}</span>
+                ${iconeInlineHtml(IconeOrgao, orgao.cor, 18)}
                 <div>
-                  <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #173b32; line-height: 1.2;">
-                    ${orgao.nome}
-                  </h3>
-                  <span style="
-                    display: inline-block;
-                    margin-top: 4px;
-                    font-size: 10px;
-                    font-weight: 600;
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    background: ${orgao.cor}15;
-                    color: ${orgao.cor};
-                    border: 1px solid ${orgao.cor}40;
-                  ">
-                    ${orgao.tipoLabel}
-                  </span>
+                  <h3 style="margin: 0; font-size: 14px; font-weight: 600; line-height: 1.25;">${esc(orgao.nome)}</h3>
+                  <span style="font-size: 11px; color: #6b7280;">${esc(orgao.tipoLabel)}</span>
                 </div>
               </div>
-
-              <div style="font-size: 11px; color: #475569; margin-bottom: 8px; line-height: 1.4;">
-                <p style="margin: 3px 0;"><strong>📍 Endereço:</strong> ${orgao.endereco} - ${orgao.bairro}</p>
-                ${orgao.horario ? `<p style="margin: 3px 0;"><strong>🕒 Horário:</strong> ${orgao.horario}</p>` : ''}
-                ${orgao.telefone ? `<p style="margin: 3px 0;"><strong>📞 Contato:</strong> ${orgao.telefone}</p>` : ''}
+              <div style="font-size: 12px; color: #4b5563; line-height: 1.5;">
+                <p style="margin: 2px 0;">${esc(orgao.endereco)} - ${esc(orgao.bairro)}</p>
+                ${orgao.horario ? `<p style="margin: 2px 0;">Horário: ${esc(orgao.horario)}</p>` : ''}
+                ${orgao.telefone ? `<p style="margin: 2px 0;">Telefone: ${esc(orgao.telefone)}</p>` : ''}
               </div>
-
-              ${
-                orgao.descricao
-                  ? `<p style="margin: 6px 0; font-size: 11px; color: #64748b; font-style: italic; background: #f8fafc; padding: 6px; border-radius: 6px;">
-                      ${orgao.descricao}
-                    </p>`
-                  : ''
-              }
-
-              <div style="
-                margin-top: 8px;
-                padding-top: 8px;
-                border-top: 1px solid #e2e8f0;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                font-size: 11px;
-              ">
-                <span style="color: ${chamadosEntorno.length > 0 ? '#dc2626' : '#16a34a'}; font-weight: 600;">
-                  ${
-                    chamadosEntorno.length > 0
-                      ? `⚠️ ${chamadosEntorno.length} chamado(s) no entorno`
-                      : '✅ Nenhum chamado recente'
-                  }
-                </span>
-                <span style="font-size: 10px; color: #94a3b8;">Trindade - GO</span>
-              </div>
-
+              <p style="margin: 8px 0 0; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 12px; color: ${chamadosEntorno.length > 0 ? '#b91c1c' : '#047857'};">
+                ${chamadosEntorno.length > 0 ? `${chamadosEntorno.length} chamado(s) em até 600 m` : 'Nenhum chamado em até 600 m'}
+              </p>
               ${
                 onEditOrgao || onDeleteOrgao
-                  ? `
-                <div style="display: flex; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
-                  ${
-                    onEditOrgao
-                      ? `<button id="btn-edit-orgao-${orgao.id}" style="flex: 1; background: #006653; color: white; border: none; padding: 5px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                          ✏️ Editar Órgão
-                        </button>`
-                      : ''
-                  }
-                  ${
-                    onDeleteOrgao
-                      ? `<button id="btn-del-orgao-${orgao.id}" title="Remover órgão do mapa" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 5px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
-                          🗑️
-                        </button>`
-                      : ''
-                  }
-                </div>`
+                  ? `<div style="display: flex; gap: 6px; margin-top: 10px;">
+                      ${onEditOrgao ? `<button id="btn-edit-orgao-${orgao.id}" style="flex: 1; background: #006653; color: #fff; border: none; padding: 6px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Editar</button>` : ''}
+                      ${onDeleteOrgao ? `<button id="btn-del-orgao-${orgao.id}" style="background: #fff; color: #b91c1c; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Remover</button>` : ''}
+                    </div>`
                   : ''
               }
             </div>
@@ -359,134 +290,56 @@ export default function AdminMap({
       if (showChamados) {
         chamados.forEach((c) => {
           const catInfo = getCategoriaInfo(c.categoria);
-          const statusInfo = getStatusInfo(c.status);
           const isAtrasado =
             c.sla_limite &&
             new Date(c.sla_limite) < new Date() &&
             c.status !== 'RESOLVIDO' &&
             c.status !== 'REJEITADO';
 
-          // Cores por status
-          const statusColors: Record<string, { bg: string; border: string; text: string }> = {
-            ABERTO: { bg: '#d97706', border: '#ffffff', text: '#d97706' },
-            TRIADO: { bg: '#8b5cf6', border: '#ffffff', text: '#8b5cf6' },
-            EM_ANDAMENTO: { bg: '#2563eb', border: '#ffffff', text: '#2563eb' },
-            RESOLVIDO: { bg: '#16a34a', border: '#ffffff', text: '#16a34a' },
-            REJEITADO: { bg: '#ef4444', border: '#ffffff', text: '#ef4444' },
-            AVALIADO: { bg: '#0d9488', border: '#ffffff', text: '#0d9488' },
-          };
+          const IconeCategoria = iconeCategoria(catInfo?.id || 'OUTROS');
+          const status = corDoStatus(c.status);
+          const corPino = isAtrasado ? '#b91c1c' : status.cor;
 
-          const sColor = statusColors[c.status] || { bg: '#6b7280', border: '#ffffff', text: '#6b7280' };
-
-          // Ícone em formato de pin com o emoji da categoria
           const icon = L.divIcon({
-            className: 'chamado-marker-pin',
-            html: `
-              <div style="position: relative; width: 34px; height: 42px;">
-                <div class="${c.status === 'ABERTO' || isAtrasado ? 'marker-pulse' : ''}" style="
-                  width: 34px;
-                  height: 34px;
-                  border-radius: 50% 50% 50% 0;
-                  background: ${isAtrasado ? '#dc2626' : sColor.bg};
-                  transform: rotate(-45deg);
-                  position: absolute;
-                  top: 0;
-                  left: 0;
-                  border: 2.5px solid #ffffff;
-                  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                ">
-                  <span style="
-                    transform: rotate(45deg);
-                    font-size: 15px;
-                    display: block;
-                    line-height: 1;
-                  ">${catInfo?.emoji || '📋'}</span>
-                </div>
-              </div>
-            `,
-            iconSize: [34, 42],
-            iconAnchor: [17, 42],
-            popupAnchor: [0, -38],
+            className: 'ct-marcador',
+            html: pinoHtml(IconeCategoria, corPino),
+            iconSize: TAMANHO_PINO,
+            iconAnchor: ANCORA_PINO,
+            popupAnchor: [0, -40],
           });
 
           const marker = L.marker([c.latitude, c.longitude], { icon });
 
-          // Tooltip dinâmico
           marker.bindTooltip(
-            `<strong>${catInfo?.emoji || '📋'} ${c.protocolo}</strong> - ${catInfo?.label || c.categoria}`,
-            { direction: 'top', offset: [0, -40] }
+            `<strong>${esc(c.protocolo)}</strong> · ${esc(catInfo?.label || c.categoria)}`,
+            { direction: 'top', offset: [0, -42] }
           );
 
-          // Popup com foto, dados e ação de despacho
           const popupHtml = `
-            <div style="width: 270px; font-family: sans-serif; padding: 12px; color: #1e293b;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+            <div style="width: 260px; font-family: inherit; padding: 12px; color: #1f2937;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="font-size: 20px;">${catInfo?.emoji || '📋'}</span>
-                  <span style="font-weight: 700; font-size: 13px; color: #173b32;">${c.protocolo}</span>
+                  ${iconeInlineHtml(IconeCategoria, corPino, 16)}
+                  <span style="font-weight: 600; font-size: 13px;">${esc(c.protocolo)}</span>
                 </div>
-                <span style="
-                  font-size: 10px;
-                  font-weight: 700;
-                  padding: 2px 8px;
-                  border-radius: 9999px;
-                  background: ${sColor.bg}20;
-                  color: ${sColor.bg};
-                  border: 1px solid ${sColor.bg}40;
-                ">
-                  ${statusInfo.label}
+                <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: ${status.cor};">
+                  <span style="width: 8px; height: 8px; border-radius: 9999px; background: ${status.cor};"></span>
+                  ${status.label}
                 </span>
               </div>
-
               ${
-                c.fotos && c.fotos.length > 0
-                  ? `<div style="width: 100%; height: 90px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #f1f5f9;">
-                      <img src="${c.fotos[0]}" alt="Foto do chamado" style="width: 100%; height: 100%; object-fit: cover;" />
+                c.fotos && c.fotos.length > 0 && /^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/.test(c.fotos[0])
+                  ? `<div style="width: 100%; height: 100px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; background: #f3f4f6;">
+                      <img src="${esc(c.fotos[0])}" alt="Foto do chamado" style="width: 100%; height: 100%; object-fit: cover;" />
                     </div>`
                   : ''
               }
-
-              <div style="font-size: 12px; margin-bottom: 6px;">
-                <p style="margin: 0 0 4px 0; font-weight: 600; color: #334155;">${catInfo?.label || c.categoria}</p>
-                <p style="margin: 0; color: #64748b; font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                  ${c.descricao}
-                </p>
-              </div>
-
-              <div style="background: #f8fafc; padding: 6px 8px; border-radius: 6px; font-size: 10.5px; color: #475569; margin-bottom: 8px;">
-                📍 <strong>Local:</strong> ${c.endereco_texto || 'Sem endereço detalhado'}
-              </div>
-
-              ${
-                isAtrasado
-                  ? `<div style="background: #fef2f2; color: #b91c1c; padding: 4px 6px; border-radius: 4px; font-size: 10.5px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
-                      ⚠️ SLA Limite Atrasado
-                    </div>`
-                  : ''
-              }
-
-              <button
-                id="btn-chamado-${c.id}"
-                style="
-                  width: 100%;
-                  background: #006653;
-                  color: white;
-                  border: none;
-                  padding: 7px 12px;
-                  border-radius: 6px;
-                  font-size: 11px;
-                  font-weight: 600;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  gap: 6px;
-                "
-              >
-                Gerenciar e Atualizar Status
+              <p style="margin: 0 0 2px; font-size: 12px; font-weight: 600; color: #374151;">${esc(catInfo?.label || c.categoria)}</p>
+              <p style="margin: 0 0 8px; font-size: 12px; color: #6b7280; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${esc(c.descricao)}</p>
+              <p style="margin: 0 0 8px; font-size: 12px; color: #4b5563;">${esc(c.endereco_texto || 'Sem endereço detalhado')}</p>
+              ${isAtrasado ? `<p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #b91c1c;">Prazo vencido</p>` : ''}
+              <button id="btn-chamado-${c.id}" style="width: 100%; background: #006653; color: #fff; border: none; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                Abrir chamado
               </button>
             </div>
           `;
@@ -511,7 +364,7 @@ export default function AdminMap({
         });
       }
     })();
-  }, [chamados, orgaosFiltrados, showChamados, showOrgaos, onSelect, onEditOrgao, onDeleteOrgao]);
+  }, [mapaPronto, chamados, orgaosFiltrados, showChamados, showOrgaos, onSelect, onEditOrgao, onDeleteOrgao]);
 
   // Função para voar até um local pesquisado
   const handleSelectSearchResult = (lat: number, lng: number, key?: string) => {
@@ -541,7 +394,8 @@ export default function AdminMap({
       id: o.id,
       titulo: o.nome,
       subtitulo: `${o.tipoLabel} - ${o.bairro}`,
-      emoji: o.emoji,
+      Icone: iconeOrgao(o.tipo),
+      cor: o.cor,
       lat: o.latitude,
       lng: o.longitude,
       key: `orgao-${o.id}`,
@@ -560,7 +414,8 @@ export default function AdminMap({
         id: c.id,
         titulo: `O.S. ${c.protocolo}`,
         subtitulo: `${c.categoria} - ${c.endereco_texto || 'Sem endereço'}`,
-        emoji: getCategoriaInfo(c.categoria)?.emoji || '📋',
+        Icone: iconeCategoria(getCategoriaInfo(c.categoria).id),
+        cor: corDoStatus(c.status).cor,
         lat: c.latitude,
         lng: c.longitude,
         key: `chamado-${c.id}`,
@@ -606,7 +461,7 @@ export default function AdminMap({
                   onClick={() => handleSelectSearchResult(item.lat, item.lng, item.key)}
                   className="w-full px-3 py-2 text-left text-xs hover:bg-emerald-50/80 transition-colors flex items-center gap-2.5"
                 >
-                  <span className="text-base flex-shrink-0">{item.emoji}</span>
+                  <item.Icone className="w-4 h-4 flex-shrink-0" style={{ color: item.cor }} />
                   <div className="truncate">
                     <p className="font-semibold text-gray-800 truncate">{item.titulo}</p>
                     <p className="text-[10.5px] text-gray-500 truncate">{item.subtitulo}</p>
@@ -677,7 +532,6 @@ export default function AdminMap({
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        <span>{cat.icon}</span>
                         <span>{cat.label}</span>
                       </span>
                       {selectedTipoOrgao === cat.id && <Check className="w-3.5 h-3.5" />}
@@ -690,36 +544,34 @@ export default function AdminMap({
         </div>
       </div>
 
-      {/* LEGENDA VISUAL COMPLETA NO CANTO INFERIOR ESQUERDO */}
-      <div className="absolute bottom-4 left-3 z-[400] bg-white/95 backdrop-blur-md px-3.5 py-2.5 rounded-xl shadow-lg border border-emerald-100 text-[11px] text-gray-700 space-y-1.5 max-w-xs">
-        <div className="flex items-center gap-2 font-bold text-[#173b32] text-xs pb-1 border-b border-gray-200">
-          <span className="inline-block w-5 h-0 border-t-2 border-dashed border-[#006653]" />
-          <span>Trindade - GO | Limites & Prédios</span>
+      {/* Legenda */}
+      <div className="absolute bottom-4 left-3 z-[400] bg-white/95 px-3 py-2.5 rounded-lg shadow-md border border-gray-200 text-xs text-gray-700 max-w-xs">
+        <p className="font-semibold text-gray-900 mb-1.5">Chamados por status</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
+          {LEGENDA_STATUS.map((st) => (
+            <div key={st.label} className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: st.cor }} />
+              <span>{st.label}</span>
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10.5px]">
+        <p className="font-semibold text-gray-900 mb-1.5 pt-1.5 border-t border-gray-200">Prédios públicos</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          {[
+            { Icone: iconeOrgao('PREFEITURA'), label: 'Prefeitura' },
+            { Icone: iconeOrgao('UBS'), label: 'Saúde' },
+            { Icone: iconeOrgao('ESCOLA'), label: 'Escolas' },
+            { Icone: iconeOrgao('CMEI'), label: 'CMEIs' },
+            { Icone: iconeOrgao('PARQUE'), label: 'Parques' },
+          ].map(({ Icone, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <Icone className="w-3.5 h-3.5 text-gray-500" />
+              <span>{label}</span>
+            </div>
+          ))}
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
-            <span>Chamados</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span>🏛️</span>
-            <span>Prefeitura</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span>🏥</span>
-            <span>UBS & Hospitais</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span>🏫</span>
-            <span>Escolas</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span>👶</span>
-            <span>CMEIs</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span>🌳</span>
-            <span>Parques & Praças</span>
+            <span className="inline-block w-4 border-t-2 border-dashed border-[#006653]" />
+            <span>Limite do município</span>
           </div>
         </div>
       </div>

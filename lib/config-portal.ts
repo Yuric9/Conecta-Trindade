@@ -1,3 +1,5 @@
+import { authHeaders } from '@/lib/auth-headers';
+
 export interface PortalConfig {
   menu_contexto_cards_ativo: boolean;
 }
@@ -20,7 +22,7 @@ export async function getPortalConfig(): Promise<PortalConfig> {
 export async function savePortalConfig(config: PortalConfig): Promise<PortalConfig> {
   const response = await fetch('/api/config', {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(config),
   });
   if (!response.ok) throw new Error('Não foi possível salvar a configuração do portal.');
