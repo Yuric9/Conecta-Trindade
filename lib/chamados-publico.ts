@@ -19,6 +19,8 @@ export interface ChamadoPublico {
   endereco: string;
   foto_url: string | null;
   status: string;
+  /** Resposta da equipe para o cidadão (nunca as observações internas). */
+  resposta_cidadao: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +56,7 @@ function paraVisaoPublica(c: ChamadoRow): ChamadoPublico {
     endereco: c.endereco,
     foto_url: c.foto_url,
     status: c.status,
+    resposta_cidadao: (c as any).resposta_cidadao ?? null,
     created_at: c.created_at,
     updated_at: c.updated_at,
   };
@@ -61,8 +64,8 @@ function paraVisaoPublica(c: ChamadoRow): ChamadoPublico {
 
 export async function buscarChamadosPublico(busca: TermoBusca): Promise<ChamadoPublico[]> {
   if (isSupabaseConfigured) {
-    // Função SECURITY DEFINER criada na migration 20261001000002_seguranca_rls.sql
-    const { data, error } = await (supabase as any).rpc('consultar_chamados_publico', { termo: busca.valor });
+    // Função SECURITY DEFINER criada na migration 20261002000001_campos_gestao_localizacao.sql
+    const { data, error } = await (supabase as any).rpc('consultar_chamados_publico_v2', { termo: busca.valor });
     if (error) throw error;
     return ((data as any[]) || []).map((row) => ({
       id: row.id,
@@ -73,6 +76,7 @@ export async function buscarChamadosPublico(busca: TermoBusca): Promise<ChamadoP
       endereco: row.endereco,
       foto_url: row.foto_url,
       status: row.status,
+      resposta_cidadao: row.resposta_cidadao ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     }));

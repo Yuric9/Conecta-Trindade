@@ -38,6 +38,9 @@ import { useAuth } from '@/lib/auth-context';
 import { compressImage } from '@/lib/image-compress';
 import { shareViaWhatsApp } from '@/lib/whatsapp-share';
 import { SolicitarWizard } from '@/components/solicitar-wizard';
+import { LocalNoMapa } from '@/components/local-no-mapa';
+import { authHeaders } from '@/lib/auth-headers';
+import { isWithinTrindade } from '@/lib/geo';
 import {
   Loader2,
   CheckCircle2,
@@ -90,6 +93,9 @@ const chamadoFormSchema = z.object({
     .string()
     .min(5, { message: 'Informe o endereço completo com rua, setor e ponto de referência.' }),
   foto_url: z.string().optional(),
+  // Ponto no mapa (opcional): preenchido pelo GPS ou tocando no mapa
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 });
 
 type ChamadoFormValues = z.infer<typeof chamadoFormSchema>;
@@ -136,6 +142,8 @@ export default function SolicitarPage() {
       descricao: '',
       endereco: '',
       foto_url: '',
+      latitude: undefined,
+      longitude: undefined,
     },
     mode: 'onBlur',
   });
@@ -238,6 +246,10 @@ export default function SolicitarPage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        if (isWithinTrindade(latitude, longitude)) {
+          form.setValue('latitude', latitude);
+          form.setValue('longitude', longitude);
+        }
         try {
           const res = await fetch(`/api/geocode/reverse?lat=${latitude}&lon=${longitude}`);
           if (res.ok) {
@@ -302,13 +314,14 @@ export default function SolicitarPage() {
         descricao: values.descricao.trim(),
         endereco: values.endereco.trim(),
         foto_url: values.foto_url || null,
+        latitude: values.latitude ?? null,
+        longitude: values.longitude ?? null,
       };
 
+      // Envia a sessão (se houver) para o chamado aparecer em "Meus chamados"
       const response = await fetch('/api/chamados', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
 
@@ -335,6 +348,8 @@ export default function SolicitarPage() {
         descricao: '',
         endereco: '',
         foto_url: '',
+        latitude: undefined,
+        longitude: undefined,
       });
       setFotoPreview(null);
       setFotoNome(null);
@@ -614,6 +629,9 @@ export default function SolicitarPage() {
                     )}
                   />
 
+                  {/* Ponto no mapa (opcional) */}
+                  <LocalNoMapa form={form} altura="280px" />
+
                   {/* Foto Opcional da Ocorrência */}
                   <div>
                     <label className="text-xs font-semibold text-gray-700 block mb-1.5">
@@ -790,18 +808,21 @@ export default function SolicitarPage() {
               <span>Acompanhar Andamento da Demanda</span>
             </Button>
 
+            {/* Só quem está logado tem o chamado ligado à conta */}
+            {user && (
             <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setSuccessDialogOpen(false);
-                router.push(`/meus-chamados?protocolo=${encodeURIComponent(protocoloGerado)}`);
-              }}
-              className="w-full border-gray-300 text-gray-700 hover:bg-emerald-50 text-xs h-9 gap-2"
-            >
-              <ClipboardList className="w-4 h-4 text-emerald-700" />
-              <span>Ver em Meus Chamados</span>
-            </Button>
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSuccessDialogOpen(false);
+                  router.push(`/meus-chamados?protocolo=${encodeURIComponent(protocoloGerado)}`);
+                }}
+                className="w-full border-gray-300 text-gray-700 hover:bg-emerald-50 text-xs h-9 gap-2"
+              >
+                <ClipboardList className="w-4 h-4 text-emerald-700" />
+                <span>Ver em Meus Chamados</span>
+              </Button>
+            )}
 
             <Button
               type="button"

@@ -176,7 +176,7 @@ export function getStatusInfo(status: ChamadoStatus): StatusInfo {
   switch (status) {
     case 'ABERTO':
       return {
-        label: 'Aberto',
+        label: 'Pendente',
         cor: '#f59e0b',
         bgColor: 'bg-amber-100',
         borderColor: 'border-amber-300',
@@ -186,7 +186,7 @@ export function getStatusInfo(status: ChamadoStatus): StatusInfo {
       };
     case 'TRIADO':
       return {
-        label: 'Triado',
+        label: 'Em análise',
         cor: '#a855f7',
         bgColor: 'bg-purple-100',
         borderColor: 'border-purple-300',
@@ -196,7 +196,7 @@ export function getStatusInfo(status: ChamadoStatus): StatusInfo {
       };
     case 'EM_ANDAMENTO':
       return {
-        label: 'Em Andamento',
+        label: 'Em andamento',
         cor: '#3b82f6',
         bgColor: 'bg-blue-100',
         borderColor: 'border-blue-300',
@@ -206,7 +206,7 @@ export function getStatusInfo(status: ChamadoStatus): StatusInfo {
       };
     case 'RESOLVIDO':
       return {
-        label: 'Resolvido',
+        label: 'Concluído',
         cor: '#10b981',
         bgColor: 'bg-emerald-100',
         borderColor: 'border-emerald-300',

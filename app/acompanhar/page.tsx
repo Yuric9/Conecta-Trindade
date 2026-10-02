@@ -73,6 +73,7 @@ interface ChamadoDetalhe {
   status: string;
   secretaria?: string | null;
   observacoes_internas?: string | null;
+  resposta_cidadao?: string | null;
   created_at: string;
   updated_at?: string;
   sla_limite?: string;
@@ -154,7 +155,7 @@ function AcompanharContent() {
           fotos: item.fotos || [],
           status: item.status,
           secretaria: item.secretaria,
-          observacoes_internas: item.observacoes_internas,
+          resposta_cidadao: (item as any).resposta_cidadao,
           created_at: item.created_at,
           updated_at: item.updated_at,
           sla_limite: item.sla_limite,
@@ -473,9 +474,9 @@ function AcompanharContent() {
                     </div>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       Esta ordem de serviço foi cancelada ou julgada inviável durante a triagem técnica.
-                      {chamadoSelecionado.observacoes_internas && (
+                      {chamadoSelecionado.resposta_cidadao && (
                         <span className="block mt-2 font-medium text-gray-800 bg-white p-2.5 rounded border border-gray-200">
-                          <strong>Parecer da Fiscalização:</strong> {chamadoSelecionado.observacoes_internas}
+                          <strong>Resposta da equipe:</strong> {chamadoSelecionado.resposta_cidadao}
                         </span>
                       )}
                     </p>
@@ -656,15 +657,11 @@ function AcompanharContent() {
                       </p>
                     </div>
 
-                    {/* Parecer do fiscal / Observações se houver */}
-                    {chamadoSelecionado.observacoes_internas && (
-                      <div className="bg-emerald-50/80 p-3.5 rounded-xl border border-emerald-200">
-                        <span className="text-[#006653] block text-[11px] uppercase tracking-wider font-bold mb-1">
-                          Despacho e Parecer Técnico
-                        </span>
-                        <p className="text-emerald-950 font-medium leading-relaxed">
-                          {chamadoSelecionado.observacoes_internas}
-                        </p>
+                    {/* Resposta da equipe ao cidadão (observações internas nunca aparecem aqui) */}
+                    {chamadoSelecionado.resposta_cidadao && (
+                      <div className="bg-emerald-50/80 p-3.5 rounded-lg border border-emerald-200">
+                        <span className="text-[#006653] block text-sm font-semibold mb-1">Resposta da equipe</span>
+                        <p className="text-emerald-950 leading-relaxed">{chamadoSelecionado.resposta_cidadao}</p>
                       </div>
                     )}
                   </div>

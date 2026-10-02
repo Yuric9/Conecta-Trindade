@@ -199,10 +199,10 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 const KANBAN_COLUMNS: { status: ChamadoStatus; label: string; color: string }[] = [
-  { status: 'ABERTO', label: 'Aberto', color: 'amber' },
-  { status: 'TRIADO', label: 'Triado', color: 'purple' },
+  { status: 'ABERTO', label: 'Pendente', color: 'amber' },
+  { status: 'TRIADO', label: 'Em análise', color: 'purple' },
   { status: 'EM_ANDAMENTO', label: 'Em Andamento', color: 'blue' },
-  { status: 'RESOLVIDO', label: 'Resolvido', color: 'green' },
+  { status: 'RESOLVIDO', label: 'Concluído', color: 'green' },
 ];
 
 function OSContextMenu({ chamado, enabled, onStatus, onCopyAddress, onEdit }: { chamado: Chamado; enabled: boolean; onStatus: (status: NormalizedStatus) => void; onCopyAddress: () => void; onEdit: () => void }) {
@@ -291,13 +291,17 @@ export default function AdminPage() {
           categoria: normalizeCategoria(c.categoria_servico || c.categoria || existing?.categoria),
           descricao: c.descricao || existing?.descricao || '',
           endereco_texto: c.endereco || c.endereco_texto || existing?.endereco_texto || 'Trindade - GO',
-          latitude: c.latitude || existing?.latitude || -16.6496,
-          longitude: c.longitude || existing?.longitude || -49.4912,
+          // Sem localização salva, o chamado não aparece no mapa (antes
+          // todos caíam empilhados no centro da cidade).
+          latitude: c.latitude ?? existing?.latitude ?? (null as any),
+          longitude: c.longitude ?? existing?.longitude ?? (null as any),
           fotos: c.foto_url ? [c.foto_url] : (c.fotos || existing?.fotos || []),
           status: (c.status || existing?.status || 'ABERTO') as ChamadoStatus,
-          prioridade: existing?.prioridade || 'MEDIA',
-          secretaria: existing?.secretaria || null,
-          observacoes_internas: c.observacoes_internas || existing?.observacoes_internas,
+          prioridade: c.prioridade || existing?.prioridade || 'MEDIA',
+          secretaria: c.secretaria ?? existing?.secretaria ?? null,
+          sla_limite: c.sla_limite ?? existing?.sla_limite,
+          observacoes_internas: c.observacoes_internas ?? existing?.observacoes_internas,
+          resposta_cidadao: c.resposta_cidadao ?? existing?.resposta_cidadao,
           created_at: c.created_at || existing?.created_at || new Date().toISOString(),
           updated_at: c.updated_at || existing?.updated_at || new Date().toISOString(),
         });
@@ -537,46 +541,42 @@ export default function AdminPage() {
   };
 
   const handleSaveChamado = async (updated: Chamado) => {
-    // 1. Salvar no estado local e no storage persistente
-    saveStoredChamadoItem(updated);
+    const anterior = chamados.find((c) => c.id === updated.id || c.protocolo === updated.protocolo);
     setChamados((prev) => prev.map((c) => (c.id === updated.id || c.protocolo === updated.protocolo ? updated : c)));
 
-    // 2. Chamar PATCH /api/chamados para sincronizar em tempo real no banco
+    if (!isSupabaseConfigured) {
+      saveStoredChamadoItem(updated);
+    }
+
     try {
-      await fetch('/api/chamados', {
+      const res = await fetch('/api/chamados', {
         method: 'PATCH',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           id: updated.id,
           protocolo: updated.protocolo,
-          status: updated.status,
-          observacao: updated.observacoes_internas,
+          status: normalizeStatus(updated.status),
+          secretaria: updated.secretaria ?? null,
+          prioridade: updated.prioridade || 'MEDIA',
+          sla_limite: updated.sla_limite ?? null,
+          observacoes_internas: updated.observacoes_internas ?? null,
+          resposta_cidadao: updated.resposta_cidadao ?? null,
         }),
       });
-
-      if (isSupabaseConfigured) {
-        let q = (supabase.from('chamados') as any).update({
-          status: updated.status,
-          secretaria: updated.secretaria,
-          prioridade: updated.prioridade,
-          observacoes_internas: updated.observacoes_internas,
-          updated_at: new Date().toISOString(),
-        });
-        if (updated.id) {
-          q = q.eq('id', updated.id);
-        } else if (updated.protocolo) {
-          q = q.eq('protocolo', updated.protocolo);
-        }
-        await q;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Falha ao salvar');
       }
 
-      setFeedbackMessage({
-        type: 'success',
-        text: `Ordem de Serviço ${updated.protocolo} salva no banco de dados com sucesso!`,
-      });
+      setFeedbackMessage({ type: 'success', text: `O.S. ${updated.protocolo} salva.` });
       setTimeout(() => setFeedbackMessage(null), 4000);
-    } catch (err) {
-      console.error('Erro ao sincronizar O.S. com o banco:', err);
+    } catch (err: any) {
+      console.error('Erro ao salvar O.S.:', err);
+      // Desfaz a alteração na tela para não mostrar algo que não foi gravado
+      if (anterior) {
+        setChamados((prev) => prev.map((c) => (c.id === anterior.id ? anterior : c)));
+      }
+      setFeedbackMessage({ type: 'error', text: `Não foi possível salvar a O.S. ${updated.protocolo}: ${err?.message || 'erro desconhecido'}.` });
     }
   };
 
@@ -1477,7 +1477,7 @@ export default function AdminPage() {
         {view === 'kanban' && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             {KANBAN_COLUMNS.map((col) => {
-              const colChamados = filteredChamados.filter((c) => c.status === col.status);
+              const colChamados = filteredChamados.filter((c) => normalizeStatus(c.status) === normalizeStatus(col.status));
               return (
                 <div key={col.status} className="space-y-3">
                   <div className="flex items-center justify-between px-2 py-1 bg-white rounded-lg border border-gray-200 shadow-xs">

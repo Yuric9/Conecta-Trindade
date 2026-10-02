@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { CategoriaIcone } from '@/components/categoria-icone';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import {
   type Chamado,
@@ -46,6 +46,36 @@ import {
   shareViaWhatsApp,
   copyToClipboard,
 } from '@/lib/whatsapp-share';
+
+// Esta tela usa os códigos de status antigos (ABERTO, TRIADO...) para cores
+// e filtros; o banco usa os nomes novos. Converte na leitura.
+const STATUS_DA_TELA: Record<string, ChamadoStatus> = {
+  Pendente: 'ABERTO',
+  'Em Análise': 'TRIADO',
+  'Em Andamento': 'EM_ANDAMENTO',
+  'Concluído': 'RESOLVIDO',
+  Cancelado: 'CANCELADO' as ChamadoStatus,
+};
+
+function paraChamadoDaTela(row: any): Chamado {
+  return {
+    id: row.id,
+    protocolo: row.protocolo,
+    cidadao_id: '',
+    categoria: row.categoria_servico,
+    descricao: row.descricao,
+    endereco_texto: row.endereco,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    fotos: row.foto_url ? [row.foto_url] : [],
+    status: STATUS_DA_TELA[row.status] || ('ABERTO' as ChamadoStatus),
+    secretaria: row.secretaria,
+    sla_limite: row.sla_limite || undefined,
+    resposta_cidadao: row.resposta_cidadao || undefined,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  } as Chamado;
+}
 
 export default function MeusChamadosPage() {
   const router = useRouter();
@@ -98,14 +128,23 @@ export default function MeusChamadosPage() {
     if (!session) return;
 
     (async () => {
-      const { data, error } = await supabase
-        .from('chamados')
-        .select('*')
-        .eq('cidadao_id', session.user.id)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setChamados(data as Chamado[]);
+      if (isSupabaseConfigured) {
+        // Função do banco que devolve só os chamados da própria conta
+        // (sem as observações internas da equipe).
+        const { data, error } = await (supabase as any).rpc('meus_chamados');
+        if (error) {
+          console.error('Erro ao carregar meus chamados:', error);
+        } else {
+          setChamados(((data as any[]) || []).map(paraChamadoDaTela));
+        }
+      } else {
+        // Modo demonstração: dados guardados no navegador
+        const { data } = await supabase
+          .from('chamados')
+          .select('*')
+          .eq('cidadao_id', session.user.id)
+          .order('created_at', { ascending: false });
+        setChamados((data as Chamado[]) || []);
       }
       setLoading(false);
     })();
@@ -121,7 +160,7 @@ export default function MeusChamadosPage() {
   if (authLoading || (loading && session)) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#1E5BC6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#006653] animate-spin" />
       </div>
     );
   }
@@ -133,11 +172,11 @@ export default function MeusChamadosPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold font-heading text-[#0A3A7A]">Meus Chamados</h1>
+          <h1 className="text-2xl font-bold font-heading text-[#005242]">Meus Chamados</h1>
           <p className="text-gray-500 text-sm mt-1">{chamados.length} solicitação(ões) registrada(s)</p>
         </div>
-        <Link href="/nova-solicitacao">
-          <Button className="bg-[#1E5BC6] hover:bg-[#0A3A7A] text-white font-semibold h-11">
+        <Link href="/solicitar">
+          <Button className="bg-[#006653] hover:bg-[#005242] text-white font-semibold h-11">
             <Plus className="w-4 h-4 mr-2" />
             Nova Solicitação
           </Button>
@@ -152,7 +191,7 @@ export default function MeusChamadosPage() {
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
               filter === f
-                ? 'bg-[#1E5BC6] text-white shadow-md'
+                ? 'bg-[#006653] text-white shadow-md'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
@@ -173,8 +212,8 @@ export default function MeusChamadosPage() {
             </div>
             <h3 className="font-semibold text-gray-700 mb-1">Nenhuma solicitação encontrada</h3>
             <p className="text-sm text-gray-500 mb-6">Registre seu primeiro chamado de zelo urbano</p>
-            <Link href="/nova-solicitacao">
-              <Button className="bg-[#1E5BC6] hover:bg-[#0A3A7A] text-white font-semibold h-11 px-6">
+            <Link href="/solicitar">
+              <Button className="bg-[#006653] hover:bg-[#005242] text-white font-semibold h-11 px-6">
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Solicitação
               </Button>
@@ -191,7 +230,7 @@ export default function MeusChamadosPage() {
             return (
               <Card
                 key={chamado.id}
-                className="border-gray-200 hover:shadow-md transition-all overflow-hidden cursor-pointer hover:border-blue-300"
+                className="border-gray-200 hover:shadow-md transition-all overflow-hidden cursor-pointer hover:border-emerald-300"
                 onClick={() => setSelectedChamado(chamado)}
               >
                 <CardContent className="p-0">
@@ -293,7 +332,7 @@ export default function MeusChamadosPage() {
                             <span>{copiedId === chamado.id ? 'Copiado!' : 'Comprovante'}</span>
                           </Button>
                         </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-0.5">
+                        <span className="text-xs text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-0.5">
                           Ver detalhes <ChevronRight className="w-3.5 h-3.5" />
                         </span>
                       </div>
@@ -319,7 +358,7 @@ export default function MeusChamadosPage() {
                       {getCategoriaInfo(selectedChamado.categoria)?.label}
                     </DialogTitle>
                   </div>
-                  <p className="text-xs font-mono font-bold text-blue-600">
+                  <p className="text-xs font-mono font-bold text-emerald-700">
                     O.S. {selectedChamado.protocolo}
                   </p>
                 </div>
@@ -377,12 +416,12 @@ export default function MeusChamadosPage() {
 
               {/* Official response from prefeitura if present */}
               {selectedChamado.resposta_cidadao && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3.5">
-                  <div className="flex items-center gap-1.5 text-blue-900 font-semibold text-xs uppercase tracking-wide mb-1">
-                    <Building2 className="w-4 h-4 text-blue-600" />
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3.5">
+                  <div className="flex items-center gap-1.5 text-emerald-950 font-semibold text-xs uppercase tracking-wide mb-1">
+                    <Building2 className="w-4 h-4 text-emerald-700" />
                     Resposta da equipe
                   </div>
-                  <p className="text-sm text-blue-900 leading-relaxed">
+                  <p className="text-sm text-emerald-950 leading-relaxed">
                     {selectedChamado.resposta_cidadao}
                   </p>
                 </div>

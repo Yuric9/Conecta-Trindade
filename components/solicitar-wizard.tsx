@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { UseFormReturn } from 'react-hook-form';
 import { ArrowLeft, Camera, ImagePlus, Loader2, Locate, X, Check, AlertCircle } from 'lucide-react';
 import { CategoriaIcone } from '@/components/categoria-icone';
+import { LocalNoMapa } from '@/components/local-no-mapa';
 
 /**
  * Nova solicitação no celular: uma pergunta por tela, no estilo de aplicativo.
@@ -211,6 +212,7 @@ export function SolicitarWizard(props: Props) {
               />
               <Erro mensagem={erros.endereco?.message} />
             </div>
+            <LocalNoMapa form={form} altura="240px" />
           </div>
         )}
 
