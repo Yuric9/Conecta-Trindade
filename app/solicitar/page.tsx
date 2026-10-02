@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth-context';
 import { compressImage } from '@/lib/image-compress';
+import { shareViaWhatsApp } from '@/lib/whatsapp-share';
+import { SolicitarWizard } from '@/components/solicitar-wizard';
 import {
   Loader2,
   CheckCircle2,
@@ -120,6 +122,8 @@ export default function SolicitarPage() {
   const [dadosCriados, setDadosCriados] = useState<any>(null);
   const [copiado, setCopiado] = useState(false);
   const [localizando, setLocalizando] = useState(false);
+  // Reinicia o passo a passo do celular depois de um envio
+  const [wizardKey, setWizardKey] = useState(0);
 
   // 2. Inicialização do React Hook Form com Zod
   const form = useForm<ChamadoFormValues>({
@@ -235,11 +239,17 @@ export default function SolicitarPage() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
-          const res = await fetch(`/api/geocode?lat=${latitude}&lng=${longitude}`);
+          const res = await fetch(`/api/geocode/reverse?lat=${latitude}&lon=${longitude}`);
           if (res.ok) {
             const data = await res.json();
-            if (data.address) {
-              form.setValue('endereco', `${data.address}, Trindade - GO`);
+            const a = data.address || {};
+            const partes = [
+              [a.road, a.house_number].filter(Boolean).join(', '),
+              a.suburb || a.neighbourhood || a.quarter,
+            ].filter(Boolean);
+            const texto = partes.length > 0 ? `${partes.join(' - ')}, Trindade - GO` : data.display_name;
+            if (texto) {
+              form.setValue('endereco', texto, { shouldValidate: true });
               setLocalizando(false);
               return;
             }
@@ -328,6 +338,7 @@ export default function SolicitarPage() {
       });
       setFotoPreview(null);
       setFotoNome(null);
+      setWizardKey((k) => k + 1);
     } catch (err: any) {
       console.error('Erro ao chamar /api/chamados:', err);
       setApiError('Não foi possível conectar ao servidor da Prefeitura. Verifique sua conexão e tente novamente.');
@@ -337,7 +348,28 @@ export default function SolicitarPage() {
   const isSubmitting = form.formState.isSubmitting;
 
   return (
-    <div className="min-h-screen bg-[#eef1ef] pb-16">
+    <>
+      {/* Celular: passo a passo no estilo de aplicativo */}
+      <div className="md:hidden">
+        <SolicitarWizard
+          key={wizardKey}
+          form={form}
+          categorias={CATEGORIAS_MUNICIPAIS}
+          fotoPreview={fotoPreview}
+          compressing={compressing}
+          onPhotoSelect={handlePhotoSelect}
+          onRemoverFoto={handleRemoverFoto}
+          localizando={localizando}
+          onLocalizar={handleObterLocalizacaoAtual}
+          formatarCpf={formatarCpf}
+          formatarTelefone={formatarTelefone}
+          apiError={apiError}
+          isSubmitting={isSubmitting}
+          onSubmit={() => form.handleSubmit(onSubmit)()}
+        />
+      </div>
+
+    <div className="hidden md:block min-h-screen bg-[#eef1ef] pb-16">
       {/* Barra de Título Superior */}
       <div className="ct-malha-urbana text-white py-10 px-4">
         <div className="max-w-3xl mx-auto">
@@ -662,6 +694,8 @@ export default function SolicitarPage() {
         </Card>
       </div>
 
+    </div>
+
       {/* =====================================================================
           4. Modal (Dialog) de Confirmação de Sucesso com Protocolo em Destaque
           ===================================================================== */}
@@ -734,6 +768,18 @@ export default function SolicitarPage() {
           <DialogFooter className="flex flex-col sm:flex-col gap-2 sm:space-x-0">
             <Button
               type="button"
+              onClick={() =>
+                shareViaWhatsApp(
+                  `Abri uma solicitação no Conecta Trindade.\nProtocolo: ${protocoloGerado}\nAcompanhe: ${window.location.origin}/acompanhar?protocolo=${encodeURIComponent(protocoloGerado)}`
+                )
+              }
+              className="w-full bg-[#25D366] hover:bg-[#1ebe5b] text-white font-semibold h-11 gap-2"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Compartilhar no WhatsApp</span>
+            </Button>
+            <Button
+              type="button"
               onClick={() => {
                 setSuccessDialogOpen(false);
                 router.push(`/acompanhar?protocolo=${encodeURIComponent(protocoloGerado)}`);
@@ -770,6 +816,6 @@ export default function SolicitarPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -328,7 +328,7 @@ export default function AdminMap({
                 </span>
               </div>
               ${
-                c.fotos && c.fotos.length > 0 && /^https:\/\//.test(c.fotos[0])
+                c.fotos && c.fotos.length > 0 && /^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/.test(c.fotos[0])
                   ? `<div style="width: 100%; height: 100px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; background: #f3f4f6;">
                       <img src="${esc(c.fotos[0])}" alt="Foto do chamado" style="width: 100%; height: 100%; object-fit: cover;" />
                     </div>`
