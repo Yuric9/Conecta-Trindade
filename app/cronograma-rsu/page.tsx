@@ -94,7 +94,7 @@ export default function CronogramaRSUPage() {
   return (
     <div className="min-h-screen bg-[#f4f6f4] pb-20">
       {/* Hero Header */}
-      <section className="bg-[#006653] text-white py-10 px-4">
+      <section className="ct-malha-urbana text-white py-10 px-4">
 
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-3">

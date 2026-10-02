@@ -27,7 +27,7 @@ export default function HomePage() {
   return (
     <div className="bg-[#eef1ef]">
       {/* Abertura */}
-      <section className="bg-[#006653] text-white">
+      <section className="ct-malha-urbana text-white">
         <div className="max-w-6xl mx-auto px-4 py-14 md:py-20">
           <div className="max-w-2xl">
             <h1 className="text-3xl md:text-5xl font-bold font-heading leading-tight mb-4">
@@ -75,16 +75,20 @@ export default function HomePage() {
         <h2 className="text-2xl font-bold font-heading text-gray-900 mb-2">O que você precisa registrar?</h2>
         <p className="text-gray-600 mb-8">Escolha uma categoria para abrir a solicitação.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {CATEGORIAS.map((cat) => {
+          {CATEGORIAS.map((cat, i) => {
             const Icon = cat.icon;
             return (
               <Link
                 key={cat.cat}
                 href={`/solicitar?categoria=${encodeURIComponent(cat.cat)}`}
-                className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 bg-white hover:border-[#006653] transition-colors"
+                style={{ animationDelay: `${i * 40}ms` }}
+                className="ct-surgir group flex items-center gap-3 p-4 rounded-lg border border-gray-200 bg-white transition-all duration-150 hover:border-[#006653] hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006653]"
               >
-                <Icon className="w-5 h-5 text-[#006653] flex-shrink-0" />
-                <span className="text-sm font-medium text-gray-800 leading-snug">{cat.label}</span>
+                <span className="w-9 h-9 rounded-md bg-emerald-50 flex items-center justify-center flex-shrink-0 transition-colors group-hover:bg-[#006653]">
+                  <Icon className="w-5 h-5 text-[#006653] transition-colors group-hover:text-white" />
+                </span>
+                <span className="text-sm font-medium text-gray-800 leading-snug flex-1">{cat.label}</span>
+                <ArrowRight className="w-4 h-4 text-gray-300 transition-all group-hover:text-[#006653] group-hover:translate-x-0.5" />
               </Link>
             );
           })}
@@ -93,7 +97,7 @@ export default function HomePage() {
 
       {/* Coleta de lixo */}
       <section className="max-w-6xl mx-auto px-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-shadow hover:shadow-md">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-lg bg-emerald-50 text-[#006653] flex items-center justify-center flex-shrink-0">
               <Truck className="w-6 h-6" />
@@ -105,10 +109,10 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <Link href="/cronograma-rsu" className="w-full md:w-auto">
+          <Link href="/cronograma-rsu" className="group w-full md:w-auto">
             <Button className="w-full md:w-auto bg-[#006653] hover:bg-[#005242] text-white font-semibold h-11 px-6">
               Consultar meu bairro
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
             </Button>
           </Link>
         </div>
@@ -119,7 +123,14 @@ export default function HomePage() {
         <h2 className="text-2xl font-bold font-heading text-gray-900 mb-8">Como funciona</h2>
         <ol className="grid md:grid-cols-3 gap-8">
           {PASSOS.map((passo, i) => (
-            <li key={passo.titulo} className="border-t-2 border-[#006653] pt-4">
+            <li key={passo.titulo} className="relative pt-6">
+              <span className="absolute top-0 left-0 right-0 h-0.5 bg-gray-200" aria-hidden />
+              <span
+                className="absolute top-0 left-0 h-0.5 bg-[#006653] ct-surgir"
+                style={{ width: '100%', animationDelay: `${150 + i * 150}ms` }}
+                aria-hidden
+              />
+              <span className="absolute -top-[7px] left-0 w-4 h-4 rounded-full bg-[#006653] ring-4 ring-[#eef1ef]" aria-hidden />
               <span className="text-sm font-semibold text-[#006653]">Passo {i + 1}</span>
               <h3 className="font-semibold text-lg text-gray-900 mt-1 mb-2">{passo.titulo}</h3>
               <p className="text-gray-600 text-sm leading-relaxed">{passo.texto}</p>

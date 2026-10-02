@@ -265,3 +265,45 @@
     transition: none;
   }
 }
+
+/* =====================================================================
+   Interações do site público
+   ===================================================================== */
+
+/* Padrão discreto de quadras/ruas no fundo das faixas verdes */
+.ct-malha-urbana {
+  background-color: #006653;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+  background-position: -1px -1px;
+}
+
+/* Entrada suave de listas (cada item com um pequeno atraso) */
+@keyframes ct-surgir {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ct-surgir {
+  animation: ct-surgir 380ms ease-out both;
+}
+
+/* Quem pediu "reduzir movimento" no sistema não vê animações */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

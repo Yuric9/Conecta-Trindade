@@ -339,7 +339,7 @@ export default function SolicitarPage() {
   return (
     <div className="min-h-screen bg-[#eef1ef] pb-16">
       {/* Barra de Título Superior */}
-      <div className="bg-[#006653] text-white py-10 px-4">
+      <div className="ct-malha-urbana text-white py-10 px-4">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-2xl sm:text-3xl font-bold font-heading text-white">
             Nova solicitação

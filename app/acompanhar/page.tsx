@@ -230,7 +230,7 @@ function AcompanharContent() {
 
   return (
     <div className="bg-[#eef1ef] min-h-[calc(100vh-140px)] pb-16">
-      <section className="bg-[#006653] text-white pt-10 pb-14 px-4">
+      <section className="ct-malha-urbana text-white pt-10 pb-14 px-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl sm:text-3xl font-bold font-heading mb-2">
             Acompanhar solicitação
@@ -384,7 +384,7 @@ function AcompanharContent() {
         {/* Resultado: Detalhes e Linha do Tempo de Status                */}
         {/* ============================================================= */}
         {chamadoSelecionado && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 ct-surgir">
             {/* Card Principal: Cabeçalho do Protocolo e Status */}
             <Card className="border-gray-200 shadow-sm bg-white rounded-2xl overflow-hidden">
               <div className="p-5 md:p-6 bg-gradient-to-r from-emerald-50/80 via-white to-emerald-50/30 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

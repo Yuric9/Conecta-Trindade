@@ -745,7 +745,7 @@ export default function AdminPage() {
       )}
 
       {/* Admin header bar */}
-      <div className="bg-[#006653] text-white">
+      <div className="ct-malha-urbana text-white">
         <div className="w-full px-4 sm:px-6 lg:px-8 pt-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold font-heading">Painel de gestão</h1>
