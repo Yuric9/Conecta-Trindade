@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import type { Profile, UserRole, ChamadoSecretaria, ChamadoCategoria } from '@/lib/types';
-import { SECRETARIAS, CATEGORIAS, getCategoriaInfo } from '@/lib/types';
+import { SECRETARIAS, SECRETARIAS_ATIVAS, CATEGORIAS, getCategoriaInfo } from '@/lib/types';
+import { papelOS, NOME_PAPEL } from '@/lib/os-status';
 import { CategoriaIcone } from '@/components/categoria-icone';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,10 +61,10 @@ const ROLES_INFO: Record<
     desc: 'Acesso irrestrito a todos os módulos, configurações e relatórios.',
   },
   gestor: {
-    label: 'Gestor de Secretaria',
+    label: 'Secretário / Gestor',
     badge: 'bg-blue-100 text-blue-800 border-blue-300',
     icon: Briefcase,
-    desc: 'Gerencia ordens de serviço e equipes da secretaria designada.',
+    desc: 'Secretaria de Infraestrutura: escolhe o coordenador, confirma e cobra.',
   },
   fiscal: {
     label: 'Fiscal de Campo',
@@ -72,10 +73,10 @@ const ROLES_INFO: Record<
     desc: 'Vistoria, atesta e atualiza status de chamados em campo.',
   },
   atendente: {
-    label: 'Atendente de Protocolo',
+    label: 'Atendente',
     badge: 'bg-purple-100 text-purple-800 border-purple-300',
     icon: UserPlus,
-    desc: 'Triagem, cadastro de chamados de balcão e atendimento ao cidadão.',
+    desc: 'Sem secretaria: central do site (analisa e envia à Secretaria). Com Infraestrutura: atendente da pasta.',
   },
   coordenador: {
     label: 'Coordenador de Serviço',
@@ -423,6 +424,18 @@ export default function AdminUsersTab({
 
                       {/* Secretaria */}
                       <td className="px-4 py-3">
+                        {/* Onde a pessoa atua no fluxo da O.S. */}
+                        {(papelOS(p) === 'central' || papelOS(p) === 'secretaria') && (
+                          <span
+                            className={`block w-fit mb-1 text-[10.5px] font-semibold px-1.5 py-0.5 rounded border ${
+                              papelOS(p) === 'central'
+                                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                : 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                            }`}
+                          >
+                            {NOME_PAPEL[papelOS(p)!]}
+                          </span>
+                        )}
                         {p.secretaria === 'TODAS' ? (
                           <span className="text-emerald-700 font-semibold text-xs bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
                             Todas as Secretarias
@@ -581,7 +594,7 @@ export default function AdminUsersTab({
                   onValueChange={(v) => {
                     setFormRole(v as UserRole);
                     // Hoje todos os serviços são da Infraestrutura
-                    if (v === 'coordenador' && formSecretaria === 'NONE') setFormSecretaria('INFRAESTRUTURA');
+                    if ((v === 'coordenador' || v === 'gestor') && formSecretaria === 'NONE') setFormSecretaria('INFRAESTRUTURA');
                   }}
                 >
                   <SelectTrigger className="h-9 text-xs mt-1">
@@ -599,15 +612,17 @@ export default function AdminUsersTab({
               </div>
 
               <div>
-                <Label className="text-xs font-semibold text-gray-700">Secretaria Vinculada</Label>
+                <Label className="text-xs font-semibold text-gray-700">Lotação</Label>
                 <Select value={formSecretaria} onValueChange={(v) => setFormSecretaria(v as any)}>
                   <SelectTrigger className="h-9 text-xs mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="NONE">Nenhuma (Geral / Cidadão)</SelectItem>
+                    <SelectItem value="NONE">
+                      {formRole === 'atendente' || formRole === 'fiscal' ? 'Central de atendimento (site)' : 'Nenhuma'}
+                    </SelectItem>
                     <SelectItem value="TODAS">Todas as Secretarias (Admin)</SelectItem>
-                    {(Object.entries(SECRETARIAS) as [ChamadoSecretaria, string][]).map(([key, label]) => (
+                    {(Object.entries(SECRETARIAS_ATIVAS) as [ChamadoSecretaria, string][]).map(([key, label]) => (
                       <SelectItem key={key} value={key}>
                         {label}
                       </SelectItem>

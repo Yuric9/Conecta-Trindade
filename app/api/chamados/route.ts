@@ -9,6 +9,7 @@ import { isWithinTrindade } from '@/lib/geo';
 // "Em Análise" saiu do fluxo da O.S. (ver lib/os-status.ts)
 const STATUS_VALIDOS: StatusChamado[] = [
   'Pendente',
+  'Na Secretaria',
   'Encaminhada',
   'Em Andamento',
   'Aguardando Confirmação',

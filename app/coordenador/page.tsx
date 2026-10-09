@@ -116,8 +116,8 @@ export default function CoordenadorPage() {
     if (acao !== 'visualizar') {
       const textos: Record<string, string> = {
         iniciar: `O.S. ${os.protocolo} em execução.`,
-        executar: `O.S. ${os.protocolo} enviada para confirmação da central.`,
-        devolver: `O.S. ${os.protocolo} devolvida para a central.`,
+        executar: `O.S. ${os.protocolo} enviada para a Secretaria confirmar.`,
+        devolver: `O.S. ${os.protocolo} devolvida para a Secretaria.`,
       };
       mostrarAviso('ok', textos[acao]);
     }
@@ -147,7 +147,7 @@ export default function CoordenadorPage() {
   const abas: { id: Aba; label: string; n: number; alerta?: boolean }[] = [
     { id: 'fazer', label: 'A fazer', n: grupos.fazer.length },
     { id: 'atrasadas', label: 'Atrasadas', n: grupos.atrasadas.length, alerta: grupos.atrasadas.length > 0 },
-    { id: 'aguardando', label: 'Na central', n: grupos.aguardando.length },
+    { id: 'aguardando', label: 'Aguardando', n: grupos.aguardando.length },
     { id: 'concluidas', label: 'Concluídas', n: grupos.concluidas.length },
   ];
 
@@ -401,7 +401,7 @@ export default function CoordenadorPage() {
                     {os.status === 'Aguardando Confirmação' && (
                       <span className="flex items-center gap-1.5 text-xs font-medium text-cyan-800">
                         <Hourglass className="w-4 h-4" />
-                        Aguardando a central confirmar
+                        Aguardando a Secretaria confirmar
                       </span>
                     )}
                   </div>
@@ -479,15 +479,15 @@ function DialogoAcao({
       <DialogContent className="max-w-md bg-white">
         <DialogHeader>
           <DialogTitle className="text-base font-bold text-gray-900">
-            {executar ? 'Serviço executado' : 'Devolver para a central'}
+            {executar ? 'Serviço executado' : 'Devolver para a Secretaria'}
           </DialogTitle>
           <p className="text-xs text-gray-500 font-mono">{dados.os.protocolo}</p>
         </DialogHeader>
 
         <p className="text-sm text-gray-600">
           {executar
-            ? 'A central vai conferir e confirmar. Só depois disso o cidadão vê a O.S. como concluída.'
-            : 'Use quando o serviço não é da sua equipe ou não dá para executar. A O.S. volta para a atendente encaminhar de novo.'}
+            ? 'A Secretaria vai conferir e confirmar. Só depois disso o cidadão vê a O.S. como concluída.'
+            : 'Use quando o serviço não é da sua equipe ou não dá para executar. A O.S. volta para a Secretaria encaminhar de novo.'}
         </p>
 
         <div>

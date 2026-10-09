@@ -10,6 +10,7 @@ export type ChamadoStatus =
   | 'AVALIADO'
   | 'Pendente'
   | 'Em Análise'
+  | 'Na Secretaria'
   | 'Encaminhada'
   | 'Em Andamento'
   | 'Aguardando Confirmação'
@@ -63,6 +64,8 @@ export interface Chamado {
   iniciado_em?: string | null;
   executado_em?: string | null;
   concluido_em?: string | null;
+  /** Quando a O.S. chegou à Secretaria (enviada pela central) */
+  na_secretaria_em?: string | null;
   /** Quando o coordenador abriu a O.S. pela primeira vez */
   visualizado_em?: string | null;
   /** Foto do serviço executado, enviada pelo coordenador */
@@ -174,6 +177,11 @@ export const SECRETARIAS: Record<ChamadoSecretaria, string> = {
   SEGURANCA: 'Secretaria de Segurança Pública e Defesa Civil',
 };
 
+/** Secretarias que recebem O.S. hoje (em Trindade, só a Infraestrutura). */
+export const SECRETARIAS_ATIVAS: Partial<Record<ChamadoSecretaria, string>> = {
+  INFRAESTRUTURA: SECRETARIAS.INFRAESTRUTURA,
+};
+
 export const SLA_PADRAO_HORAS: Record<ChamadoCategoria, number> = {
   ILUMINACAO: 48,
   BURACO: 120,
@@ -195,8 +203,9 @@ export interface StatusInfo {
 }
 
 const PROGRESSO_STATUS_OS: Record<StatusOS, number> = {
-  Pendente: 15,
-  Encaminhada: 35,
+  Pendente: 10,
+  'Na Secretaria': 25,
+  Encaminhada: 40,
   'Em Andamento': 60,
   'Aguardando Confirmação': 85,
   'Concluído': 100,

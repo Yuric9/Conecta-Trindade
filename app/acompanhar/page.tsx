@@ -54,6 +54,7 @@ function normalizeStatus(status: string | undefined | null): NormalizedStatus {
     s === 'EM_ANDAMENTO' ||
     s === 'EM ANDAMENTO' ||
     s === 'ANDAMENTO' ||
+    s === 'NA SECRETARIA' ||
     s === 'ENCAMINHADA' ||
     s === 'AGUARDANDO CONFIRMAÇÃO'
   ) {

@@ -7,11 +7,14 @@ import {
   STATUS_OS_INFO,
   STATUS_COM_COORDENADOR,
   normalizarStatusOS,
+  podeMudarStatus,
+  motivoObrigatorio,
+  type PapelOS,
   type StatusOS,
 } from '@/lib/os-status';
 import { CategoriaIcone } from '@/components/categoria-icone';
 import type { Chamado, ChamadoStatus, ChamadoCategoria, ChamadoSecretaria, Profile } from '@/lib/types';
-import { SECRETARIAS, CATEGORIAS, formatData, normalizeCategoria } from '@/lib/types';
+import { SECRETARIAS, SECRETARIAS_ATIVAS, CATEGORIAS, formatData, normalizeCategoria } from '@/lib/types';
 import {
   Dialog,
   DialogContent,
@@ -61,6 +64,8 @@ interface AdminModalEditChamadoProps {
   open: boolean;
   /** Coordenadores ativos que podem receber a O.S. */
   coordenadores: Profile[];
+  /** Papel de quem está editando: limita as etapas e o coordenador */
+  papel: PapelOS | null;
   /** Só o administrador exclui O.S. (os demais cancelam com motivo). */
   podeExcluir: boolean;
   onClose: () => void;
@@ -98,6 +103,7 @@ export default function AdminModalEditChamado({
   chamado,
   open,
   coordenadores,
+  papel,
   podeExcluir,
   onClose,
   onSave,
@@ -186,8 +192,9 @@ export default function AdminModalEditChamado({
       setErro(`Para "${STATUS_OS_INFO[status].label}" a O.S. precisa de um coordenador.`);
       return;
     }
-    if (status === 'Cancelado' && statusOriginal !== 'Cancelado' && !motivo.trim()) {
-      setErro('Informe o motivo do cancelamento.');
+    const pedeMotivo = motivoObrigatorio(statusOriginal, status);
+    if (pedeMotivo && !motivo.trim()) {
+      setErro(`${pedeMotivo}: escreva no campo de observação.`);
       return;
     }
 
@@ -249,7 +256,8 @@ export default function AdminModalEditChamado({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_OS.map((st) => (
+                  {/* Só as etapas que este papel pode alcançar a partir da atual */}
+                  {STATUS_OS.filter((st) => podeMudarStatus(papel, statusOriginal, st)).map((st) => (
                     <SelectItem key={st} value={st}>
                       {STATUS_OS_INFO[st].label}
                     </SelectItem>
@@ -266,7 +274,7 @@ export default function AdminModalEditChamado({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="NONE">Não atribuída</SelectItem>
-                  {(Object.entries(SECRETARIAS) as [ChamadoSecretaria, string][]).map(([k, label]) => (
+                  {(Object.entries(SECRETARIAS_ATIVAS) as [ChamadoSecretaria, string][]).map(([k, label]) => (
                     <SelectItem key={k} value={k}>
                       {label}
                     </SelectItem>
@@ -297,7 +305,12 @@ export default function AdminModalEditChamado({
                 <HardHat className="w-3.5 h-3.5 text-orange-600" />
                 Coordenador responsável
               </Label>
-              <Select value={coordenadorId} onValueChange={setCoordenadorId}>
+              <Select
+                value={coordenadorId}
+                onValueChange={setCoordenadorId}
+                // Só a Secretaria (ou o admin) escolhe o coordenador
+                disabled={papel !== 'secretaria' && papel !== 'admin'}
+              >
                 <SelectTrigger className="h-9 text-xs mt-1 bg-white font-medium">
                   <SelectValue />
                 </SelectTrigger>
@@ -317,7 +330,9 @@ export default function AdminModalEditChamado({
             {mudouEtapa ? (
               <div>
                 <Label className="text-xs font-semibold text-gray-700">
-                  {status === 'Cancelado' ? 'Motivo do cancelamento *' : 'Observação desta alteração'}
+                  {motivoObrigatorio(statusOriginal, status)
+                    ? `${motivoObrigatorio(statusOriginal, status)} *`
+                    : 'Observação desta alteração'}
                 </Label>
                 <Textarea
                   rows={2}

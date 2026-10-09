@@ -54,6 +54,7 @@ const STATUS_DA_TELA: Record<string, ChamadoStatus> = {
   'Em Análise': 'TRIADO',
   // Para o cidadão, a O.S. está em andamento desde que foi encaminhada
   // até a prefeitura confirmar a conclusão.
+  'Na Secretaria': 'EM_ANDAMENTO',
   Encaminhada: 'EM_ANDAMENTO',
   'Em Andamento': 'EM_ANDAMENTO',
   'Aguardando Confirmação': 'EM_ANDAMENTO',

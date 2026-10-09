@@ -16,6 +16,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 export type StatusChamado =
   | 'Pendente'
   | 'Em Análise'
+  | 'Na Secretaria'
   | 'Encaminhada'
   | 'Em Andamento'
   | 'Aguardando Confirmação'

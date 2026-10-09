@@ -15,15 +15,27 @@ O `coordenador` recebe as O.S. dos serviços marcados no cadastro dele
 
 ## Fluxo da O.S.
 
-`Pendente` (nova) → `Encaminhada` (atendente/secretário escolhe o coordenador)
-→ `Em Andamento` (em execução) → `Aguardando Confirmação` (coordenador terminou)
-→ `Concluído` (atendente/secretário confirmou). `Cancelado` em qualquer etapa,
-sempre com motivo.
+```
+Pendente (nova) ──► Na Secretaria ──► Encaminhada ──► Em Andamento ──► Aguardando Confirmação ──► Concluído
+  central analisa     Secretaria de      com o            coordenador       coordenador terminou         Secretaria
+  e envia             Infraestrutura     coordenador                                                      confirma
+```
 
-As regras ficam no gatilho `chamado_fluxo_os` (migration
-`20261009000002`): não deixa encaminhar sem coordenador, exige motivo para
-cancelar, grava a data de cada etapa e registra tudo em
-`chamado_historico`, que só pode ser lido (ninguém edita ou apaga).
+`Cancelado`: só a central (O.S. nova) ou o admin, sempre com motivo.
+
+### Quem faz cada passo (função + lotação no cadastro)
+
+| Papel | Cadastro | Pode |
+|---|---|---|
+| Admin | `admin` | tudo |
+| Central de atendimento | `atendente` **sem** secretaria | Nova → Na Secretaria; cancelar O.S. nova |
+| Secretaria de Infraestrutura | `gestor`, ou `atendente` com secretaria `INFRAESTRUTURA` | escolher/trocar coordenador, marcar etapas, confirmar a conclusão, devolver à central, recusar a execução |
+| Coordenador | `coordenador` | iniciar, executar, devolver à Secretaria |
+
+As regras ficam no gatilho `chamado_fluxo_os` (migration `20261009000005`,
+função `papel_os()`): não deixa encaminhar sem coordenador, exige motivo para
+cancelar, devolver, recusar ou tirar do coordenador, grava a data de cada
+etapa e registra tudo em `chamado_historico`, que só pode ser lido.
 
 ## Tela do coordenador (`/coordenador`)
 
