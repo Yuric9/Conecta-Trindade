@@ -46,7 +46,8 @@ import {
 interface AdminUsersTabProps {
   profiles: Profile[];
   currentUserId?: string;
-  onSaveProfile: (profile: Profile) => void;
+  /** Grava. Com `senha`, cria a conta de login. Devolve null se deu certo ou a mensagem de erro. */
+  onSaveProfile: (profile: Profile, senha?: string) => Promise<string | null>;
   onDeleteProfile: (id: string) => void;
 }
 
@@ -117,6 +118,8 @@ export default function AdminUsersTab({
   const [formServicos, setFormServicos] = useState<ChamadoCategoria[]>([]);
   const [formStatus, setFormStatus] = useState<'ativo' | 'inativo' | 'bloqueado'>('ativo');
   const [formSenha, setFormSenha] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [erroForm, setErroForm] = useState<string | null>(null);
 
   // Delete Confirmation State
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -160,6 +163,7 @@ export default function AdminUsersTab({
     setFormServicos([]);
     setFormStatus('ativo');
     setFormSenha('');
+    setErroForm(null);
     setIsModalOpen(true);
   };
 
@@ -175,6 +179,7 @@ export default function AdminUsersTab({
     setFormServicos(profile.servicos || []);
     setFormStatus(profile.status || 'ativo');
     setFormSenha('');
+    setErroForm(null);
     setIsModalOpen(true);
   };
 
@@ -188,10 +193,15 @@ export default function AdminUsersTab({
     setFormServicos((atual) => (atual.includes(id) ? atual.filter((s) => s !== id) : [...atual, id]));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErroForm(null);
     if (!formNome.trim() || !formEmail.trim()) return;
     if (faltaServico || faltaTelefone) return;
+    if (!editingProfile && formSenha.length < 8) {
+      setErroForm('Defina uma senha com pelo menos 8 caracteres.');
+      return;
+    }
 
     const profileToSave: Profile = {
       id: editingProfile?.id || `user-manual-${Date.now()}`,
@@ -208,11 +218,14 @@ export default function AdminUsersTab({
       updated_at: new Date().toISOString(),
     };
 
-    onSaveProfile(profileToSave);
-    setIsModalOpen(false);
+    setSalvando(true);
+    const falha = await onSaveProfile(profileToSave, editingProfile ? undefined : formSenha);
+    setSalvando(false);
+    if (falha) setErroForm(falha);
+    else setIsModalOpen(false);
   };
 
-  const handleToggleStatus = (p: Profile) => {
+  const handleToggleStatus = async (p: Profile) => {
     const nextStatus = p.status === 'bloqueado' ? 'ativo' : 'bloqueado';
     onSaveProfile({
       ...p,
@@ -543,6 +556,8 @@ export default function AdminUsersTab({
                   required
                   type="email"
                   placeholder="usuario@trindade.go.gov.br"
+                  // O e-mail é o login: não muda depois de criada a conta
+                  disabled={Boolean(editingProfile)}
                   value={formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
                   className="h-9 text-xs mt-1"
@@ -682,16 +697,28 @@ export default function AdminUsersTab({
 
             {!editingProfile && (
               <div>
-                <Label className="text-xs font-semibold text-gray-700">Senha Inicial Temporária</Label>
+                <Label className="text-xs font-semibold text-gray-700">Senha de acesso *</Label>
                 <Input
                   type="text"
-                  placeholder="Defina uma senha padrão (ex: Trindade@2026)"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
                   value={formSenha}
                   onChange={(e) => setFormSenha(e.target.value)}
                   className="h-9 text-xs mt-1"
                 />
-                <p className="text-[10px] text-gray-400 mt-0.5">O usuário poderá alterar no primeiro acesso.</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Passe a senha para a pessoa por um canal seguro. Ela entra com este e-mail e senha.
+                </p>
               </div>
+            )}
+
+            {erroForm && (
+              <p className="flex items-start gap-1.5 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                {erroForm}
+              </p>
             )}
 
             <DialogFooter className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
@@ -705,10 +732,10 @@ export default function AdminUsersTab({
               </Button>
               <Button
                 type="submit"
-                disabled={faltaServico || faltaTelefone}
+                disabled={faltaServico || faltaTelefone || salvando}
                 className="bg-[#006653] hover:bg-[#004d3e] text-white text-xs h-9 font-semibold"
               >
-                {editingProfile ? 'Salvar Alterações' : 'Concluir Cadastro'}
+                {salvando ? 'Salvando...' : editingProfile ? 'Salvar Alterações' : 'Criar conta'}
               </Button>
             </DialogFooter>
           </form>
