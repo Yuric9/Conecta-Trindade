@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, ClipboardList, LayoutDashboard, LogIn, LogOut, Phone, Mail, MapPin, Info, User, HardHat, KeyRound } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-
-const PAPEIS_EQUIPE = ['admin', 'gestor', 'fiscal', 'atendente'];
+import { papelOS } from '@/lib/os-status';
 
 function Linha({ href, icon: Icon, children }: { href: string; icon: typeof User; children: React.ReactNode }) {
   return (
@@ -20,7 +19,8 @@ function Linha({ href, icon: Icon, children }: { href: string; icon: typeof User
 export default function PerfilPage() {
   const { profile, loading, signOut } = useAuth();
   const router = useRouter();
-  const daEquipe = PAPEIS_EQUIPE.includes(profile?.role || '');
+  const papel = papelOS(profile);
+  const daEquipe = papel === 'admin' || papel === 'central' || papel === 'secretaria';
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
