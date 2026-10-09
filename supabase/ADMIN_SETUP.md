@@ -37,6 +37,21 @@ função `papel_os()`): não deixa encaminhar sem coordenador, exige motivo para
 cancelar, devolver, recusar ou tirar do coordenador, grava a data de cada
 etapa e registra tudo em `chamado_historico`, que só pode ser lido.
 
+## Proteção de dados pessoais (LGPD)
+
+Migration `20261009000006`:
+
+| Dado | Quem lê |
+|---|---|
+| Cadastro completo (`profiles`: CPF, e-mail, telefone) | o próprio usuário e o admin |
+| Nome, telefone e serviços dos coordenadores | equipe, pela função `equipe_coordenadores()` |
+| CPF do cidadão na O.S. | ninguém pela API; o admin pela função `cpf_cidadao_os()` |
+| Nome e telefone do cidadão na O.S. | equipe e o coordenador da O.S. (para contato) |
+
+O CPF fica de fora com permissão por coluna em `chamados`. **Coluna nova em
+`chamados` precisa entrar no `GRANT SELECT (...)` dessa migration** (e na lista
+`COLUNAS_PAINEL` de `app/api/chamados/route.ts`), senão a equipe não consegue ler.
+
 ## Tela do coordenador (`/coordenador`)
 
 O coordenador entra pelo login normal e cai em "Minhas O.S.". Ele não lê a

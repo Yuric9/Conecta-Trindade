@@ -450,6 +450,42 @@ export default function AdminPage() {
     setFilaInicialAplicada(true);
   }, [papel, filaInicialAplicada]);
 
+  // Cadastros: o admin vê todos; o resto da equipe só recebe dos
+  // coordenadores o necessário para encaminhar (proteção de dados).
+  useEffect(() => {
+    if (!isSupabaseConfigured || !papel) return;
+    const carregarTodos = () =>
+      (supabase.from('profiles') as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .then(({ data, error }: { data: Profile[] | null; error: any }) => {
+          if (error) console.error('Erro ao carregar usuários:', error);
+          setProfiles(data || []);
+        });
+    if (papel === 'admin') {
+      carregarTodos();
+      return;
+    }
+    (supabase as any).rpc('equipe_coordenadores').then(({ data, error }: { data: any[] | null; error: any }) => {
+      if (error) {
+        console.error('Erro ao carregar coordenadores:', error);
+        return;
+      }
+      setProfiles(
+        (data || []).map((c) => ({
+          id: c.id,
+          nome: c.nome,
+          telefone: c.telefone ?? undefined,
+          servicos: c.servicos || [],
+          status: c.status || 'ativo',
+          role: 'coordenador',
+          email: '',
+          created_at: '',
+        }))
+      );
+    });
+  }, [papel]);
+
   // Coordenador não usa o painel: tem a tela própria com as O.S. dele
   useEffect(() => {
     if (profile?.role === 'coordenador') router.replace('/coordenador');
@@ -536,17 +572,7 @@ export default function AdminPage() {
   useEffect(() => {
     fetchChamadosFromDatabase();
 
-    if (isSupabaseConfigured) {
-      (supabase.from('profiles') as any)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .then(({ data, error }: { data: Profile[] | null; error: any }) => {
-          if (error) console.error('Erro ao carregar usuários:', error);
-          setProfiles(data || []);
-        });
-    } else {
-      setProfiles(getStoredProfiles());
-    }
+    if (!isSupabaseConfigured) setProfiles(getStoredProfiles());
 
     const loadedOrgaos = getStoredOrgaos();
     setOrgaos(loadedOrgaos);

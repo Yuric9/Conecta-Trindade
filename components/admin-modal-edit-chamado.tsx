@@ -117,6 +117,8 @@ export default function AdminModalEditChamado({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [historico, setHistorico] = useState<ItemHistorico[] | null>(null);
+  // CPF do cidadão: só o admin consulta, e só quando pede (proteção de dados)
+  const [cpf, setCpf] = useState<string | null>(null);
   const [prioridade, setPrioridade] = useState<'BAIXA' | 'MEDIA' | 'ALTA' | 'URGENTE'>('MEDIA');
   const [enderecoTexto, setEnderecoTexto] = useState('');
   const [descricao, setDescricao] = useState('');
@@ -137,6 +139,7 @@ export default function AdminModalEditChamado({
       setMotivo('');
       setErro(null);
       setSalvando(false);
+      setCpf(null);
       setPrioridade(chamado.prioridade || 'MEDIA');
       setEnderecoTexto(chamado.endereco_texto || '');
       setDescricao(chamado.descricao || '');
@@ -433,6 +436,27 @@ export default function AdminModalEditChamado({
                 />
               </div>
             </div>
+            {papel === 'admin' && isSupabaseConfigured && (
+              <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-600">
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                {cpf ? (
+                  <span>
+                    CPF: <strong className="font-mono">{cpf}</strong>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="font-semibold text-[#006653] hover:underline"
+                    onClick={async () => {
+                      const { data, error } = await (supabase as any).rpc('cpf_cidadao_os', { p_chamado: chamado.id });
+                      setCpf(error ? 'não foi possível consultar' : data || 'não informado');
+                    }}
+                  >
+                    Ver CPF (só administrador)
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Despacho Técnico e Resposta ao Cidadão */}

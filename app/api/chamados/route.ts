@@ -17,6 +17,16 @@ const STATUS_VALIDOS: StatusChamado[] = [
   'Cancelado',
 ];
 
+// Colunas que a equipe lê. O CPF do cidadão fica de fora: pela API ninguém
+// lê (só o admin, pela função cpf_cidadao_os). Ver migration 20261009000006.
+const COLUNAS_PAINEL = [
+  'id', 'protocolo', 'nome_cidadao', 'telefone_cidadao', 'categoria_servico', 'descricao',
+  'endereco', 'foto_url', 'status', 'secretaria', 'prioridade', 'sla_limite',
+  'observacoes_internas', 'resposta_cidadao', 'latitude', 'longitude', 'cidadao_id',
+  'coordenador_id', 'na_secretaria_em', 'encaminhado_em', 'iniciado_em', 'executado_em',
+  'concluido_em', 'visualizado_em', 'foto_execucao_url', 'created_at', 'updated_at',
+].join(',');
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -288,7 +298,7 @@ export async function GET(req: NextRequest) {
 
     if (auth.client) {
       const { data, error } = await (auth.client.from('chamados') as any)
-        .select('*')
+        .select(COLUNAS_PAINEL)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -409,7 +419,7 @@ export async function PATCH(req: NextRequest) {
       let query = (auth.client.from('chamados') as any).update(alteracoes);
       query = id ? query.eq('id', id) : query.eq('protocolo', protocolo);
 
-      const { data, error } = await query.select().maybeSingle();
+      const { data, error } = await query.select(COLUNAS_PAINEL).maybeSingle();
 
       if (error) {
         // Regras do fluxo recusadas pelo gatilho (RAISE EXCEPTION → P0001):
