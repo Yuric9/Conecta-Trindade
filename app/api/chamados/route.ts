@@ -24,7 +24,8 @@ const COLUNAS_PAINEL = [
   'endereco', 'foto_url', 'status', 'secretaria', 'prioridade', 'sla_limite',
   'observacoes_internas', 'resposta_cidadao', 'latitude', 'longitude', 'cidadao_id',
   'coordenador_id', 'na_secretaria_em', 'encaminhado_em', 'iniciado_em', 'executado_em',
-  'concluido_em', 'visualizado_em', 'foto_execucao_url', 'created_at', 'updated_at',
+  'concluido_em', 'visualizado_em', 'foto_execucao_url', 'respondido_em', 'cobrado_em', 'cobrancas',
+  'created_at', 'updated_at',
 ].join(',');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

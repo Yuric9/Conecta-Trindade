@@ -37,6 +37,16 @@ função `papel_os()`): não deixa encaminhar sem coordenador, exige motivo para
 cancelar, devolver, recusar ou tirar do coordenador, grava a data de cada
 etapa e registra tudo em `chamado_historico`, que só pode ser lido.
 
+### A central fala com o cidadão (migration `20261009000007`)
+
+- **Resposta ao cidadão** (`resposta_cidadao`): só a central e o admin
+  escrevem; aparece para o cidadão em "Acompanhar". Fica a data
+  (`respondido_em`) e o registro no histórico. Fila "Responder ao cidadão":
+  O.S. concluídas ou canceladas sem resposta.
+- **Cobrança**: quando o cidadão cobra, a central registra pela função
+  `registrar_cobranca()` (só O.S. que já estão com a Secretaria). Vai para o
+  histórico e a Secretaria vê o selo "Cobrada" (`cobrado_em`, `cobrancas`).
+
 ## Proteção de dados pessoais (LGPD)
 
 Migration `20261009000006`:

@@ -477,9 +477,14 @@ export default function AdminModalEditChamado({
             <div>
               <Label className="text-xs font-semibold text-gray-700">
                 Resposta para o cidadão
+                {papel !== 'central' && papel !== 'admin' && (
+                  <span className="font-normal text-gray-400"> (escrita pela central)</span>
+                )}
               </Label>
               <Textarea
                 rows={3}
+                // Quem fala com o cidadão é a central (regra também no banco)
+                disabled={papel !== 'central' && papel !== 'admin'}
                 placeholder="Ex: Equipe de pavimentação esteve no local e executou o reparo da via pública..."
                 value={respostaCidadao}
                 onChange={(e) => setRespostaCidadao(e.target.value)}

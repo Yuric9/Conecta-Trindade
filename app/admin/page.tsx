@@ -150,6 +150,7 @@ import {
   type StatusOS,
 } from '@/lib/os-status';
 import AdminDialogoMotivo, { type PedidoMotivo } from '@/components/admin-dialogo-motivo';
+import AdminDialogoResposta from '@/components/admin-dialogo-resposta';
 
 type NormalizedStatus = StatusOS;
 const normalizeStatus = normalizarStatusOS;
@@ -256,16 +257,50 @@ interface AcoesOS {
   avancar: (status: StatusOS) => void;
   pedirMotivo: (tipo: TipoMotivo) => void;
   avisar: () => void;
+  responder: () => void;
+  cobrar: () => void;
   copiarEndereco: () => void;
   abrir: () => void;
 }
 
+/** Concluída ou cancelada e a central ainda não respondeu ao cidadão */
+const faltaResponder = (c: Chamado) => !osEmAberto(c.status) && !c.resposta_cidadao;
+/** Está com a Secretaria (pode ser cobrada pela central) */
+const comSecretaria = (c: Chamado) =>
+  ['Na Secretaria', 'Encaminhada', 'Em Andamento', 'Aguardando Confirmação'].includes(normalizarStatusOS(c.status));
+
 const ehSecretaria = (papel: PapelOS | null) => papel === 'secretaria' || papel === 'admin';
 const ehCentral = (papel: PapelOS | null) => papel === 'central' || papel === 'admin';
+
+/** "Cobrada pelo cidadão" (O.S. em aberto) e "Falta responder" (O.S. encerrada) */
+function SinaisCentral({ chamado }: { chamado: Chamado }) {
+  if (osEmAberto(chamado.status) && (chamado.cobrancas || 0) > 0) {
+    return (
+      <span
+        className="mt-1 flex w-fit items-center gap-1 text-[10px] font-semibold text-amber-800"
+        title={chamado.cobrado_em ? `Última cobrança: ${formatData(chamado.cobrado_em)}` : undefined}
+      >
+        🔔 Cobrada{(chamado.cobrancas || 0) > 1 ? ` (${chamado.cobrancas}x)` : ''}
+      </span>
+    );
+  }
+  if (faltaResponder(chamado)) {
+    return <span className="mt-1 block text-[10px] font-semibold text-amber-700">Falta responder ao cidadão</span>;
+  }
+  return null;
+}
 
 /** Botão do próximo passo da O.S. na linha, de acordo com quem está logado. */
 function AcaoPrincipalOS({ chamado, papel, ocupado, acoes }: { chamado: Chamado; papel: PapelOS | null; ocupado: boolean; acoes: AcoesOS }) {
   const status = normalizarStatusOS(chamado.status);
+  if (faltaResponder(chamado) && ehCentral(papel)) {
+    return (
+      <Button size="sm" onClick={acoes.responder} disabled={ocupado} className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 px-3 gap-1.5 font-semibold">
+        <MessageCircle className="w-3.5 h-3.5" />
+        Responder
+      </Button>
+    );
+  }
   if (status === 'Pendente' && ehCentral(papel)) {
     return (
       <Button size="sm" onClick={acoes.enviarSecretaria} disabled={ocupado} className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-8 px-3 gap-1.5 font-semibold">
@@ -369,6 +404,18 @@ function OSContextMenu({ chamado, papel, enabled, acoes }: { chamado: Chamado; p
             </DropdownMenuItem>
           </>
         )}
+        {comSecretaria(chamado) && ehCentral(papel) && (
+          <DropdownMenuItem onSelect={acoes.cobrar}>
+            <AlertTriangle className="w-4 h-4 mr-2 text-amber-600" />
+            Registrar cobrança do cidadão…
+          </DropdownMenuItem>
+        )}
+        {!osEmAberto(status) && ehCentral(papel) && (
+          <DropdownMenuItem onSelect={acoes.responder}>
+            <MessageCircle className="w-4 h-4 mr-2 text-[#006653]" />
+            {chamado.resposta_cidadao ? 'Ver / editar resposta ao cidadão' : 'Responder ao cidadão'}
+          </DropdownMenuItem>
+        )}
         {podeCancelar && (
           <DropdownMenuItem onSelect={() => acoes.pedirMotivo('cancelar')} className="text-red-700">
             <X className="w-4 h-4 mr-2" />
@@ -421,6 +468,7 @@ export default function AdminPage() {
   // Janela de encaminhar: a central envia à Secretaria; a Secretaria escolhe o coordenador
   const [encaminhar, setEncaminhar] = useState<{ chamado: Chamado; destino: 'secretaria' | 'coordenador' } | null>(null);
   const [pedidoMotivo, setPedidoMotivo] = useState<PedidoMotivo | null>(null);
+  const [respondendo, setRespondendo] = useState<Chamado | null>(null);
   const [adminTab, setAdminTab] = useState<
     'dashboard' | 'chamados' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes'
   >('chamados');
@@ -550,6 +598,9 @@ export default function AdminPage() {
           concluido_em: c.concluido_em ?? existing?.concluido_em ?? null,
           visualizado_em: c.visualizado_em ?? existing?.visualizado_em ?? null,
           foto_execucao_url: c.foto_execucao_url ?? existing?.foto_execucao_url ?? null,
+          respondido_em: c.respondido_em ?? existing?.respondido_em ?? null,
+          cobrado_em: c.cobrado_em ?? existing?.cobrado_em ?? null,
+          cobrancas: c.cobrancas ?? existing?.cobrancas ?? 0,
           created_at: c.created_at || existing?.created_at || new Date().toISOString(),
           updated_at: c.updated_at || existing?.updated_at || new Date().toISOString(),
         });
@@ -650,6 +701,7 @@ export default function AdminPage() {
             iniciado_em: data.chamado.iniciado_em ?? atualizado.iniciado_em,
             executado_em: data.chamado.executado_em ?? atualizado.executado_em,
             concluido_em: data.chamado.concluido_em ?? null,
+            respondido_em: data.chamado.respondido_em ?? atualizado.respondido_em ?? null,
             updated_at: data.chamado.updated_at ?? agora,
           }
         : atualizado;
@@ -716,12 +768,47 @@ export default function AdminPage() {
     });
   };
 
+  // A central responde ao cidadão (aparece em "Acompanhar")
+  const handleSalvarResposta = async (chamado: Chamado, resposta: string) => {
+    const erro = await atualizarOS(chamado, { resposta_cidadao: resposta, respondido_em: new Date().toISOString() });
+    if (!erro) avisoTemporario('success', `Resposta da O.S. ${chamado.protocolo} salva.`);
+    return erro;
+  };
+
+  // A central registra que o cidadão cobrou; a Secretaria vê "Cobrada"
+  const pedirCobranca = (chamado: Chamado) => {
+    setPedidoMotivo({
+      titulo: 'Registrar cobrança do cidadão',
+      explicacao: 'Fica no histórico e a O.S. aparece como "Cobrada" para a Secretaria de Infraestrutura.',
+      rotulo: 'O que o cidadão cobrou (e como: ligação, WhatsApp, balcão)',
+      botao: 'Registrar cobrança',
+      protocolo: chamado.protocolo,
+      confirmar: async (texto) => {
+        if (isSupabaseConfigured) {
+          const { error } = await (supabase as any).rpc('registrar_cobranca', { p_chamado: chamado.id, p_texto: texto });
+          if (error) return error.message || 'Não foi possível registrar a cobrança.';
+        }
+        const atualizado: Chamado = {
+          ...chamado,
+          cobrancas: (chamado.cobrancas || 0) + 1,
+          cobrado_em: new Date().toISOString(),
+        };
+        setChamados((prev) => prev.map((c) => (c.id === chamado.id ? atualizado : c)));
+        if (!isSupabaseConfigured) saveStoredChamadoItem(atualizado);
+        avisoTemporario('success', `Cobrança da O.S. ${chamado.protocolo} registrada.`);
+        return null;
+      },
+    });
+  };
+
   const acoesDaOS = (c: Chamado): AcoesOS => ({
     enviarSecretaria: () => setEncaminhar({ chamado: c, destino: 'secretaria' }),
     encaminhar: () => setEncaminhar({ chamado: c, destino: 'coordenador' }),
     avancar: (st) => handleQuickStatusChange(c, st),
     pedirMotivo: (tipo) => pedirMotivo(c, tipo),
     avisar: () => handleAvisarCoordenador(c),
+    responder: () => setRespondendo(c),
+    cobrar: () => pedirCobranca(c),
     copiarEndereco: () => handleCopyAddress(c),
     abrir: () => openDetail(c),
   });
@@ -750,7 +837,12 @@ export default function AdminPage() {
 
   const filteredChamados = useMemo(() => {
     return chamados.filter((c) => {
-      if (filterStatus !== 'TODOS') {
+      // Filas especiais: além das etapas, "Responder ao cidadão" e "Cobradas"
+      if (filterStatus === 'RESPONDER') {
+        if (!faltaResponder(c)) return false;
+      } else if (filterStatus === 'COBRADAS') {
+        if (!osEmAberto(c.status) || !(c.cobrancas || 0)) return false;
+      } else if (filterStatus !== 'TODOS') {
         const norm = normalizeStatus(c.status);
         if (norm !== filterStatus) return false;
       }
@@ -1704,6 +1796,15 @@ export default function AdminPage() {
                   </span>
                   {[
                     { id: 'TODOS', label: 'Todas', count: stats.total, dot: '' },
+                    ...(ehCentral(papel)
+                      ? [{ id: 'RESPONDER', label: 'Responder ao cidadão', count: chamados.filter(faltaResponder).length, dot: 'bg-amber-600' }]
+                      : []),
+                    {
+                      id: 'COBRADAS',
+                      label: '🔔 Cobradas',
+                      count: chamados.filter((c) => osEmAberto(c.status) && (c.cobrancas || 0) > 0).length,
+                      dot: '',
+                    },
                     ...STATUS_OS.map((st) => ({
                       id: st,
                       label: STATUS_OS_INFO[st].label,
@@ -1872,7 +1973,9 @@ export default function AdminPage() {
                                     <span className={`text-[11px] font-medium ${vencido ? 'text-red-700' : 'text-gray-700'}`} title={formatData(c.sla_limite)}>
                                       {vencido && <AlertTriangle className="inline w-3 h-3 mr-0.5 -mt-0.5" />}
                                       {formatData(c.sla_limite).split(' ')[0]}
-                                      <span className="block text-[10px] font-normal text-gray-500">{vencido ? 'vencido' : prazoRestante(c.sla_limite)}</span>
+                                      <span className="block text-[10px] font-normal text-gray-500">
+                                        {vencido ? 'vencido' : osEmAberto(c.status) ? prazoRestante(c.sla_limite) : 'encerrada'}
+                                      </span>
                                     </span>
                                   ) : (
                                     <span className="text-[11px] text-gray-400">—</span>
@@ -1880,6 +1983,7 @@ export default function AdminPage() {
                                 </div>
                                 <div className="px-3 py-3">
                                   <StatusBadge status={c.status} />
+                                  <SinaisCentral chamado={c} />
                                 </div>
                                 <div className="px-3 py-3 flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                                   <AcaoPrincipalOS chamado={c} papel={papel} ocupado={updatingId === (c.id || c.protocolo)} acoes={acoesDaOS(c)} />
@@ -1909,7 +2013,10 @@ export default function AdminPage() {
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between gap-2">
                                 <Badge className="font-mono bg-emerald-50 text-[#006653] border border-emerald-200">{c.protocolo}</Badge>
-                                <StatusBadge status={c.status} />
+                                <div className="flex flex-col items-end">
+                                  <StatusBadge status={c.status} />
+                                  <SinaisCentral chamado={c} />
+                                </div>
                               </div>
                               <div className="mt-3 flex items-center gap-2 font-semibold text-gray-800">
                                 <CategoriaIcone categoria={catInfo.id} className="w-4 h-4" />
@@ -1933,7 +2040,8 @@ export default function AdminPage() {
                                   <div className={`flex gap-2 ${vencido ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
                                     <Clock className="w-3.5 h-3.5 shrink-0" />
                                     <span>
-                                      Prazo {formatData(c.sla_limite)} · {vencido ? 'vencido' : prazoRestante(c.sla_limite)}
+                                      Prazo {formatData(c.sla_limite)}
+                                      {osEmAberto(c.status) && ` · ${vencido ? 'vencido' : prazoRestante(c.sla_limite)}`}
                                     </span>
                                   </div>
                                 )}
@@ -2118,6 +2226,9 @@ export default function AdminPage() {
 
       {/* Passos que pedem motivo (cancelar, devolver, recusar) */}
       <AdminDialogoMotivo pedido={pedidoMotivo} onFechar={() => setPedidoMotivo(null)} />
+
+      {/* Central: resposta ao cidadão */}
+      <AdminDialogoResposta chamado={respondendo} onFechar={() => setRespondendo(null)} onSalvar={handleSalvarResposta} />
 
       {/* Modal de Criação de Nova Ordem de Serviço Manual (Administrador) */}
       <AdminModalNovoChamado
