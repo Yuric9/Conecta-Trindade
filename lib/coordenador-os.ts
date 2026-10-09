@@ -142,3 +142,24 @@ export async function acaoCoordenador(
   saveStoredChamadoItem(mudancas);
   return null;
 }
+
+/** Link do Google Maps para o local da O.S. (coordenadas ou endereço). */
+export function linkMapaOS(os: Pick<MinhaOS, 'latitude' | 'longitude' | 'endereco'>): string {
+  if (Number.isFinite(os.latitude) && Number.isFinite(os.longitude)) {
+    return `https://www.google.com/maps/search/?api=1&query=${os.latitude},${os.longitude}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${os.endereco}, Trindade - GO`)}`;
+}
+
+/** "Vence em 2 dias", "Atrasada há 5 h"... */
+export function textoPrazoOS(os: Pick<MinhaOS, 'sla_limite'>): string | null {
+  if (!os.sla_limite) return null;
+  const horas = (new Date(os.sla_limite).getTime() - Date.now()) / 3600000;
+  if (horas < 0) {
+    const atraso = Math.abs(horas);
+    return atraso < 24 ? `Atrasada há ${Math.ceil(atraso)} h` : `Atrasada há ${Math.floor(atraso / 24)} dia(s)`;
+  }
+  if (horas < 24) return `Vence em ${Math.max(1, Math.floor(horas))} h`;
+  const dias = Math.floor(horas / 24);
+  return dias === 1 ? 'Vence amanhã' : `Vence em ${dias} dias`;
+}

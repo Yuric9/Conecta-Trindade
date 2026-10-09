@@ -19,7 +19,7 @@ export function modeloResposta(c: Chamado): string {
   if (normalizarStatusOS(c.status) === 'Cancelado') {
     return `${ola} Sua solicitação ${c.protocolo} (${servico}) foi encerrada sem execução pelo seguinte motivo: . Em caso de dúvida, fale com a Central de Atendimento da Prefeitura de Trindade: (62) 3506-7000.`;
   }
-  const quando = c.concluido_em ? ` em ${formatData(c.concluido_em).split(' ')[0]}` : '';
+  const quando = c.concluido_em ? ` em ${formatData(c.concluido_em).slice(0, 10)}` : '';
   return `${ola} Sua solicitação ${c.protocolo} (${servico}) foi atendida pela Secretaria de Infraestrutura${quando}. Obrigado por ajudar a cuidar de Trindade!`;
 }
 

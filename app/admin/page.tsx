@@ -1989,7 +1989,7 @@ export default function AdminPage() {
                                   {c.sla_limite ? (
                                     <span className={`text-[11px] font-medium ${vencido ? 'text-red-700' : 'text-gray-700'}`} title={formatData(c.sla_limite)}>
                                       {vencido && <AlertTriangle className="inline w-3 h-3 mr-0.5 -mt-0.5" />}
-                                      {formatData(c.sla_limite).split(' ')[0]}
+                                      {formatData(c.sla_limite).slice(0, 10)}
                                       <span className="block text-[10px] font-normal text-gray-500">
                                         {vencido ? 'vencido' : osEmAberto(c.status) ? prazoRestante(c.sla_limite) : 'encerrada'}
                                       </span>

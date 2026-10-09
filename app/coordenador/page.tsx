@@ -10,11 +10,14 @@ import { STATUS_OS_INFO, prazoVencido } from '@/lib/os-status';
 import {
   carregarMinhasOS,
   acaoCoordenador,
+  linkMapaOS as linkMapa,
+  textoPrazoOS as textoPrazo,
   type MinhaOS,
   type AcaoCoordenador,
 } from '@/lib/coordenador-os';
 import { compressImage } from '@/lib/image-compress';
 import { CategoriaIcone } from '@/components/categoria-icone';
+import { FolhaOS, FolhaListaOS, AreaImpressao, gerarQrCodesOS } from '@/components/ficha-os';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -37,6 +40,11 @@ import {
   ChevronUp,
   MessageSquare,
   Hourglass,
+  FileText,
+  Printer,
+  LayoutList,
+  LayoutGrid,
+  ChevronRight,
 } from 'lucide-react';
 
 type Aba = 'fazer' | 'atrasadas' | 'aguardando' | 'concluidas';
@@ -46,24 +54,8 @@ const PRIORIDADE: Record<string, { label: string; cls: string } | undefined> = {
   URGENTE: { label: 'Urgente', cls: 'bg-red-100 text-red-800 border-red-300' },
 };
 
-function linkMapa(os: MinhaOS): string {
-  if (Number.isFinite(os.latitude) && Number.isFinite(os.longitude)) {
-    return `https://www.google.com/maps/search/?api=1&query=${os.latitude},${os.longitude}`;
-  }
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${os.endereco}, Trindade - GO`)}`;
-}
-
-function textoPrazo(os: MinhaOS): string | null {
-  if (!os.sla_limite) return null;
-  const horas = (new Date(os.sla_limite).getTime() - Date.now()) / 3600000;
-  if (horas < 0) {
-    const atraso = Math.abs(horas);
-    return atraso < 24 ? `Atrasada há ${Math.ceil(atraso)} h` : `Atrasada há ${Math.floor(atraso / 24)} dia(s)`;
-  }
-  if (horas < 24) return `Vence em ${Math.max(1, Math.floor(horas))} h`;
-  const dias = Math.floor(horas / 24);
-  return dias === 1 ? 'Vence amanhã' : `Vence em ${dias} dias`;
-}
+type ModoVer = 'cartoes' | 'lista';
+const CHAVE_MODO = 'ct-coordenador-modo';
 
 export default function CoordenadorPage() {
   const router = useRouter();
@@ -77,6 +69,29 @@ export default function CoordenadorPage() {
   const [aviso, setAviso] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   // Janela de "Executei" ou "Devolver"
   const [dialogo, setDialogo] = useState<{ os: MinhaOS; acao: 'executar' | 'devolver' } | null>(null);
+  // Janela "Ficha" (O.S. completa) e folha que está indo para a impressora
+  const [ficha, setFicha] = useState<MinhaOS | null>(null);
+  const [impressao, setImpressao] = useState<{
+    chave: number;
+    modo: 'ficha' | 'lista';
+    itens: MinhaOS[];
+    qrs: Record<string, string>;
+  } | null>(null);
+  const [preparandoImpressao, setPreparandoImpressao] = useState(false);
+  const [modoVer, setModoVer] = useState<ModoVer>('cartoes');
+
+  // Lembra se o coordenador prefere cartões ou lista (só neste aparelho)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(CHAVE_MODO) === 'lista') setModoVer('lista');
+    } catch {}
+  }, []);
+  const trocarModo = (modo: ModoVer) => {
+    setModoVer(modo);
+    try {
+      localStorage.setItem(CHAVE_MODO, modo);
+    } catch {}
+  };
 
   const ehCoordenador = !isSupabaseConfigured || profile?.role === 'coordenador';
 
@@ -131,6 +146,31 @@ export default function CoordenadorPage() {
     // "Ciente": registra que o coordenador abriu a O.S. (uma vez só)
     if (abrindo && !os.visualizado_em && (os.status === 'Encaminhada' || os.status === 'Em Andamento')) {
       executarAcao(os, 'visualizar');
+    }
+  };
+
+  // Lista recarregada: a ficha aberta mostra os dados novos (ex.: "Vista")
+  useEffect(() => {
+    setFicha((atual) => (atual ? lista.find((o) => o.id === atual.id) ?? atual : atual));
+  }, [lista]);
+
+  const abrirFicha = (os: MinhaOS) => {
+    setFicha(os);
+    if (!os.visualizado_em && (os.status === 'Encaminhada' || os.status === 'Em Andamento')) {
+      executarAcao(os, 'visualizar');
+    }
+  };
+
+  const imprimir = async (modo: 'ficha' | 'lista', itens: MinhaOS[]) => {
+    if (itens.length === 0 || preparandoImpressao) return;
+    setPreparandoImpressao(true);
+    try {
+      const qrs = await gerarQrCodesOS(itens, modo === 'ficha' ? 240 : 128);
+      setImpressao({ chave: Date.now(), modo, itens, qrs });
+    } catch {
+      mostrarAviso('erro', 'Não foi possível preparar a impressão.');
+    } finally {
+      setPreparandoImpressao(false);
     }
   };
 
@@ -245,6 +285,40 @@ export default function CoordenadorPage() {
           <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2.5 text-sm text-red-900">{erroCarga}</div>
         )}
 
+        {/* Jeito de ver + imprimir a lista da aba */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex rounded-lg border border-gray-300 bg-white p-0.5" role="group" aria-label="Jeito de ver">
+            {(
+              [
+                ['cartoes', 'Cartões', LayoutGrid],
+                ['lista', 'Lista', LayoutList],
+              ] as const
+            ).map(([id, rotulo, Icone]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => trocarModo(id)}
+                aria-pressed={modoVer === id}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 h-8 text-xs font-semibold ${
+                  modoVer === id ? 'bg-[#006653] text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Icone className="w-4 h-4" />
+                {rotulo}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => imprimir('lista', itens)}
+            disabled={itens.length === 0 || preparandoImpressao}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 h-9 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {preparandoImpressao ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+            Imprimir lista ({itens.length})
+          </button>
+        </div>
+
         {carregando && lista.length === 0 ? (
           <div className="py-16 flex justify-center">
             <Loader2 className="w-7 h-7 text-[#006653] animate-spin" />
@@ -259,6 +333,47 @@ export default function CoordenadorPage() {
               {aba === 'concluidas' && 'Nenhuma O.S. concluída nos últimos 30 dias.'}
             </p>
           </div>
+        ) : modoVer === 'lista' ? (
+          <ul className="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100 overflow-hidden">
+            {itens.map((os) => {
+              const cat = getCategoriaInfo(normalizeCategoria(os.categoria));
+              const vencida = prazoVencido(os) && os.status !== 'Aguardando Confirmação';
+              const prazo = textoPrazo(os);
+              const prio = PRIORIDADE[os.prioridade];
+              const nova = !os.visualizado_em && os.status === 'Encaminhada';
+              return (
+                <li key={os.id}>
+                  <button
+                    type="button"
+                    onClick={() => abrirFicha(os)}
+                    className={`w-full text-left flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 ${
+                      vencida ? 'border-l-4 border-l-red-500' : ''
+                    }`}
+                  >
+                    <CategoriaIcone categoria={cat.id} className="w-5 h-5" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                        <span className="truncate">{cat.label}</span>
+                        {nova && <span className="rounded bg-[#FFC20E] px-1 text-[10px] font-bold text-[#173b32]">NOVA</span>}
+                        {prio && <span className={`rounded border px-1 text-[10px] font-bold ${prio.cls}`}>{prio.label}</span>}
+                      </span>
+                      <span className="block truncate text-xs text-gray-600">{os.endereco || 'Sem endereço'}</span>
+                      <span className="block text-[11px] text-gray-500">
+                        <span className="font-mono">{os.protocolo}</span>
+                        {prazo && os.status !== 'Concluído' && (
+                          <span className={vencida ? 'text-red-700 font-semibold' : ''}> · {prazo}</span>
+                        )}
+                      </span>
+                    </span>
+                    <span className={`hidden sm:inline rounded-full border px-2 py-0.5 text-[11px] font-semibold ${STATUS_OS_INFO[os.status].badge}`}>
+                      {STATUS_OS_INFO[os.status].label}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
           itens.map((os) => {
             const cat = getCategoriaInfo(normalizeCategoria(os.categoria));
@@ -366,6 +481,14 @@ export default function CoordenadorPage() {
                       Ligar
                     </a>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => abrirFicha(os)}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 h-10 text-sm font-semibold text-gray-700 active:bg-gray-50"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Ficha
+                  </button>
 
                   <div className="ml-auto flex items-center gap-2">
                     {(os.status === 'Encaminhada' || os.status === 'Em Andamento') && (
@@ -412,6 +535,28 @@ export default function CoordenadorPage() {
         )}
       </div>
 
+      <DialogoFicha
+        os={ficha}
+        onFechar={() => setFicha(null)}
+        onImprimir={(os) => imprimir('ficha', [os])}
+        imprimindo={preparandoImpressao}
+      />
+
+      {impressao && (
+        <AreaImpressao key={impressao.chave} onFim={() => setImpressao(null)}>
+          {impressao.modo === 'ficha' ? (
+            <FolhaOS os={impressao.itens[0]} qr={impressao.qrs[impressao.itens[0].id] ?? null} />
+          ) : (
+            <FolhaListaOS
+              titulo={`Roteiro de O.S. · ${abas.find((a) => a.id === aba)?.label ?? ''}`}
+              responsavel={profile?.nome || 'Coordenador'}
+              itens={impressao.itens}
+              qrs={impressao.qrs}
+            />
+          )}
+        </AreaImpressao>
+      )}
+
       <DialogoAcao
         dados={dialogo}
         onFechar={() => setDialogo(null)}
@@ -423,6 +568,76 @@ export default function CoordenadorPage() {
         ocupado={Boolean(dialogo && ocupado === dialogo.os.id)}
       />
     </div>
+  );
+}
+
+/** A O.S. completa na tela, com Imprimir e Mapa. */
+function DialogoFicha({
+  os,
+  onFechar,
+  onImprimir,
+  imprimindo,
+}: {
+  os: MinhaOS | null;
+  onFechar: () => void;
+  onImprimir: (os: MinhaOS) => void;
+  imprimindo: boolean;
+}) {
+  const [qr, setQr] = useState<string | null>(null);
+
+  useEffect(() => {
+    setQr(null);
+    if (!os) return;
+    let ativo = true;
+    gerarQrCodesOS([os])
+      .then((qrs) => ativo && setQr(qrs[os.id] ?? null))
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [os]);
+
+  if (!os) return null;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onFechar()}>
+      <DialogContent className="max-w-2xl bg-white max-h-[92dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-[#006653]" />
+            Ficha da O.S.
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="rounded-lg border border-gray-200 p-3 sm:p-5">
+          <FolhaOS os={os} qr={qr} />
+        </div>
+
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+          <Button type="button" variant="outline" onClick={onFechar} className="h-11">
+            Fechar
+          </Button>
+          <a
+            href={linkMapa(os)}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-md border border-gray-300 px-4 h-11 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            <Navigation className="w-4 h-4" />
+            Abrir no mapa
+          </a>
+          <Button
+            type="button"
+            onClick={() => onImprimir(os)}
+            disabled={imprimindo}
+            className="h-11 bg-[#006653] hover:bg-[#005242] text-white font-semibold gap-1.5"
+          >
+            {imprimindo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+            Imprimir / PDF
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
