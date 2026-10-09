@@ -227,7 +227,7 @@ function LoginContent() {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Criar conta
+                  Cadastro cidadão
                 </button>
               </div>
             ) : (
