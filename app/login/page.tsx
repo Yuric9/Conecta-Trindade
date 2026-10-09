@@ -366,6 +366,11 @@ function LoginContent() {
                   <Label htmlFor="password" className="text-xs font-semibold text-gray-700">
                     Senha
                   </Label>
+                  {mode === 'login' && (
+                    <Link href="/esqueci-senha" className="text-[11px] font-semibold text-[#006653] hover:underline">
+                      Esqueci minha senha
+                    </Link>
+                  )}
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

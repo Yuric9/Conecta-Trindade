@@ -134,3 +134,25 @@ exige a chave secreta do Supabase, que fica **só no servidor**:
 Nunca coloque essa chave no código, no `.env` versionado nem com o prefixo
 `NEXT_PUBLIC_` (que a enviaria para o navegador). Ela ignora todas as regras
 de segurança do banco.
+
+## Senhas
+
+Ninguém vê senha, nem o admin: o Supabase guarda só o hash (um "embaralhado"
+que não dá para desfazer).
+
+- **Esqueci minha senha** (`/esqueci-senha`, link na tela de login): qualquer
+  pessoa recebe no e-mail um link que abre `/redefinir-senha`.
+- **Trocar minha senha**: no Perfil, para quem já está logado.
+- **Definir nova senha** (aba Usuários, ícone de chave): o admin define uma
+  senha nova para contas da **equipe** (rota `POST /api/usuarios/senha`, usa a
+  mesma `SUPABASE_SERVICE_ROLE_KEY`). Conta de cidadão é recusada: o cidadão
+  usa "Esqueci minha senha".
+
+Para o link do e-mail funcionar, no Supabase → **Authentication → URL
+Configuration**:
+
+1. **Site URL**: `https://conecta-trindade.vercel.app`
+2. **Redirect URLs**: adicione `https://conecta-trindade.vercel.app/redefinir-senha`
+
+O e-mail padrão do Supabase tem limite baixo de envios por hora. Com muitos
+usuários, configure um SMTP próprio em **Authentication → SMTP Settings**.
