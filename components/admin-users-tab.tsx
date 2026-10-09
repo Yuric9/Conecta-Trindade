@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import type { Profile, UserRole, ChamadoSecretaria } from '@/lib/types';
-import { SECRETARIAS } from '@/lib/types';
+import type { Profile, UserRole, ChamadoSecretaria, ChamadoCategoria } from '@/lib/types';
+import { SECRETARIAS, CATEGORIAS, getCategoriaInfo } from '@/lib/types';
+import { CategoriaIcone } from '@/components/categoria-icone';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileBadge,
+  HardHat,
 } from 'lucide-react';
 
 interface AdminUsersTabProps {
@@ -75,6 +77,12 @@ const ROLES_INFO: Record<
     icon: UserPlus,
     desc: 'Triagem, cadastro de chamados de balcão e atendimento ao cidadão.',
   },
+  coordenador: {
+    label: 'Coordenador de Serviço',
+    badge: 'bg-orange-100 text-orange-800 border-orange-300',
+    icon: HardHat,
+    desc: 'Recebe as O.S. dos serviços que coordena e executa em campo.',
+  },
   cidadao: {
     label: 'Cidadão',
     badge: 'bg-slate-100 text-slate-800 border-slate-300',
@@ -105,6 +113,7 @@ export default function AdminUsersTab({
   const [formRole, setFormRole] = useState<UserRole>('cidadao');
   const [formSecretaria, setFormSecretaria] = useState<ChamadoSecretaria | 'TODAS' | 'NONE'>('NONE');
   const [formCargo, setFormCargo] = useState('');
+  const [formServicos, setFormServicos] = useState<ChamadoCategoria[]>([]);
   const [formStatus, setFormStatus] = useState<'ativo' | 'inativo' | 'bloqueado'>('ativo');
   const [formSenha, setFormSenha] = useState('');
 
@@ -115,7 +124,7 @@ export default function AdminUsersTab({
   const metrics = useMemo(() => {
     const total = profiles.length;
     const admins = profiles.filter((p) => p.role === 'admin').length;
-    const gestores = profiles.filter((p) => p.role === 'gestor' || p.role === 'fiscal').length;
+    const gestores = profiles.filter((p) => p.role === 'gestor' || p.role === 'fiscal' || p.role === 'coordenador').length;
     const atendentes = profiles.filter((p) => p.role === 'atendente').length;
     const cidadaos = profiles.filter((p) => p.role === 'cidadao').length;
     return { total, admins, gestores, atendentes, cidadaos };
@@ -147,6 +156,7 @@ export default function AdminUsersTab({
     setFormRole('atendente');
     setFormSecretaria('NONE');
     setFormCargo('');
+    setFormServicos([]);
     setFormStatus('ativo');
     setFormSenha('');
     setIsModalOpen(true);
@@ -161,14 +171,26 @@ export default function AdminUsersTab({
     setFormRole(profile.role || 'cidadao');
     setFormSecretaria(profile.secretaria || 'NONE');
     setFormCargo(profile.cargo || '');
+    setFormServicos(profile.servicos || []);
     setFormStatus(profile.status || 'ativo');
     setFormSenha('');
     setIsModalOpen(true);
   };
 
+  const isCoordenador = formRole === 'coordenador';
+  // Coordenador precisa de ao menos um serviço (para receber O.S.) e de
+  // telefone (para ser avisado no WhatsApp).
+  const faltaServico = isCoordenador && formServicos.length === 0;
+  const faltaTelefone = isCoordenador && !formTelefone.trim();
+
+  const alternarServico = (id: ChamadoCategoria) => {
+    setFormServicos((atual) => (atual.includes(id) ? atual.filter((s) => s !== id) : [...atual, id]));
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formNome.trim() || !formEmail.trim()) return;
+    if (faltaServico || faltaTelefone) return;
 
     const profileToSave: Profile = {
       id: editingProfile?.id || `user-manual-${Date.now()}`,
@@ -179,6 +201,7 @@ export default function AdminUsersTab({
       role: formRole,
       secretaria: formSecretaria === 'NONE' ? null : formSecretaria,
       cargo: formCargo.trim() || undefined,
+      servicos: isCoordenador ? formServicos : [],
       status: formStatus,
       created_at: editingProfile?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -238,7 +261,7 @@ export default function AdminUsersTab({
         </Card>
         <Card className="border-blue-200 bg-blue-50/40 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-[11px] font-medium text-blue-800">Gestores & Fiscais</p>
+            <p className="text-[11px] font-medium text-blue-800">Gestores & Coordenadores</p>
             <p className="text-2xl font-bold text-blue-700 mt-1">{metrics.gestores}</p>
             <p className="text-[10px] text-blue-600 mt-0.5">Atuação em campo</p>
           </CardContent>
@@ -284,6 +307,7 @@ export default function AdminUsersTab({
               <SelectItem value="gestor">Gestor de Secretaria</SelectItem>
               <SelectItem value="fiscal">Fiscal de Campo</SelectItem>
               <SelectItem value="atendente">Atendente de Protocolo</SelectItem>
+              <SelectItem value="coordenador">Coordenador de Serviço</SelectItem>
               <SelectItem value="cidadao">Cidadão</SelectItem>
             </SelectContent>
           </Select>
@@ -381,6 +405,19 @@ export default function AdminUsersTab({
                           <p className="text-[10px] text-gray-500 mt-1 font-medium italic truncate max-w-[160px]">
                             {p.cargo}
                           </p>
+                        )}
+                        {p.role === 'coordenador' && (
+                          <div className="flex flex-wrap gap-1 mt-1 max-w-[220px]">
+                            {(p.servicos || []).length === 0 ? (
+                              <span className="text-[10px] text-red-600">Sem serviços definidos</span>
+                            ) : (
+                              (p.servicos || []).map((sv) => (
+                                <span key={sv} className="text-[10px] bg-orange-50 text-orange-800 border border-orange-200 rounded px-1.5 py-0.5">
+                                  {getCategoriaInfo(sv).label}
+                                </span>
+                              ))
+                            )}
+                          </div>
                         )}
                       </td>
 
@@ -539,7 +576,14 @@ export default function AdminUsersTab({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-semibold text-gray-700">Perfil de Acesso *</Label>
-                <Select value={formRole} onValueChange={(v) => setFormRole(v as any)}>
+                <Select
+                  value={formRole}
+                  onValueChange={(v) => {
+                    setFormRole(v as UserRole);
+                    // Hoje todos os serviços são da Infraestrutura
+                    if (v === 'coordenador' && formSecretaria === 'NONE') setFormSecretaria('INFRAESTRUTURA');
+                  }}
+                >
                   <SelectTrigger className="h-9 text-xs mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -548,6 +592,7 @@ export default function AdminUsersTab({
                     <SelectItem value="gestor">Gestor de Secretaria</SelectItem>
                     <SelectItem value="fiscal">Fiscal de Campo</SelectItem>
                     <SelectItem value="atendente">Atendente de Protocolo</SelectItem>
+                    <SelectItem value="coordenador">Coordenador de Serviço</SelectItem>
                     <SelectItem value="cidadao">Cidadão</SelectItem>
                   </SelectContent>
                 </Select>
@@ -571,6 +616,43 @@ export default function AdminUsersTab({
                 </Select>
               </div>
             </div>
+
+            {isCoordenador && (
+              <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-3">
+                <Label className="text-xs font-semibold text-gray-800">Serviços que coordena *</Label>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-2">
+                  Ao encaminhar uma O.S. desses serviços, ele aparece como sugestão.
+                </p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {CATEGORIAS.map((cat) => {
+                    const marcado = formServicos.includes(cat.id);
+                    return (
+                      <label
+                        key={cat.id}
+                        className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs cursor-pointer transition-colors ${
+                          marcado ? 'border-[#006653] bg-white text-gray-900' : 'border-gray-200 bg-white/70 text-gray-600'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={marcado}
+                          onChange={() => alternarServico(cat.id)}
+                          className="accent-[#006653]"
+                        />
+                        <CategoriaIcone categoria={cat.id} className="w-3.5 h-3.5" />
+                        <span className="truncate">{cat.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {(faltaServico || faltaTelefone) && (
+                  <p className="text-[11px] text-red-600 mt-2">
+                    {faltaServico && 'Marque ao menos um serviço. '}
+                    {faltaTelefone && 'Informe o telefone/WhatsApp: é por ele que o coordenador é avisado.'}
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <Label className="text-xs font-semibold text-gray-700">Cargo / Função Municipal</Label>
@@ -608,6 +690,7 @@ export default function AdminUsersTab({
               </Button>
               <Button
                 type="submit"
+                disabled={faltaServico || faltaTelefone}
                 className="bg-[#006653] hover:bg-[#004d3e] text-white text-xs h-9 font-semibold"
               >
                 {editingProfile ? 'Salvar Alterações' : 'Concluir Cadastro'}

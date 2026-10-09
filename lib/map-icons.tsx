@@ -6,6 +6,7 @@
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { LucideIcon } from 'lucide-react';
+import { infoStatusOS, STATUS_OS, STATUS_OS_INFO } from '@/lib/os-status';
 import {
   Lightbulb,
   Construction,
@@ -67,33 +68,16 @@ function svgDoIcone(Icone: LucideIcon, tamanho: number, cor = '#ffffff'): string
 // Cores por status (aceita os nomes novos e os legados)
 // ---------------------------------------------------------------------
 
-const COR_STATUS: Record<string, { cor: string; label: string }> = {
-  PENDENTE: { cor: '#d97706', label: 'Pendente' },
-  ABERTO: { cor: '#d97706', label: 'Pendente' },
-  'EM ANÁLISE': { cor: '#ea580c', label: 'Em análise' },
-  EM_ANALISE: { cor: '#ea580c', label: 'Em análise' },
-  TRIADO: { cor: '#ea580c', label: 'Em análise' },
-  'EM ANDAMENTO': { cor: '#2563eb', label: 'Em andamento' },
-  EM_ANDAMENTO: { cor: '#2563eb', label: 'Em andamento' },
-  'CONCLUÍDO': { cor: '#059669', label: 'Concluído' },
-  CONCLUIDO: { cor: '#059669', label: 'Concluído' },
-  RESOLVIDO: { cor: '#059669', label: 'Concluído' },
-  AVALIADO: { cor: '#059669', label: 'Concluído' },
-  CANCELADO: { cor: '#6b7280', label: 'Cancelado' },
-  REJEITADO: { cor: '#6b7280', label: 'Cancelado' },
-};
-
 export function corDoStatus(status: string | null | undefined): { cor: string; label: string } {
-  return COR_STATUS[(status || '').toUpperCase()] || COR_STATUS.PENDENTE;
+  const { cor, label } = infoStatusOS(status);
+  return { cor, label };
 }
 
 // Legenda única para o mapa e para a tela de chamados
-export const LEGENDA_STATUS = [
-  COR_STATUS.PENDENTE,
-  COR_STATUS.EM_ANALISE,
-  COR_STATUS.EM_ANDAMENTO,
-  COR_STATUS.CONCLUIDO,
-];
+export const LEGENDA_STATUS = STATUS_OS.filter((s) => s !== 'Cancelado').map((s) => ({
+  cor: STATUS_OS_INFO[s].cor,
+  label: STATUS_OS_INFO[s].label,
+}));
 
 // ---------------------------------------------------------------------
 // HTML dos marcadores (usado em L.divIcon)

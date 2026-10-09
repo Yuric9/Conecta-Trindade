@@ -6,7 +6,17 @@ import { normalizarTermoBusca, buscarChamadosPublico } from '@/lib/chamados-publ
 import { requireStaff, usuarioOpcional } from '@/lib/supabase/server-auth';
 import { isWithinTrindade } from '@/lib/geo';
 
-const STATUS_VALIDOS: StatusChamado[] = ['Pendente', 'Em Análise', 'Em Andamento', 'Concluído', 'Cancelado'];
+// "Em Análise" saiu do fluxo da O.S. (ver lib/os-status.ts)
+const STATUS_VALIDOS: StatusChamado[] = [
+  'Pendente',
+  'Encaminhada',
+  'Em Andamento',
+  'Aguardando Confirmação',
+  'Concluído',
+  'Cancelado',
+];
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Gera um protocolo único no formato TRIN-<ano>-XXXXXX (ex: TRIN-2026-7B4K9X).
@@ -366,6 +376,29 @@ export async function PATCH(req: NextRequest) {
     const resposta = textoOpcional(body.resposta_cidadao, 2000);
     if (resposta !== undefined) alteracoes.resposta_cidadao = resposta;
 
+    // Coordenador responsável. O banco confere se é mesmo um coordenador ativo.
+    if (body.coordenador_id !== undefined) {
+      if (body.coordenador_id === null || body.coordenador_id === '') {
+        alteracoes.coordenador_id = null;
+      } else if (
+        typeof body.coordenador_id === 'string' &&
+        // Banco real: id do Supabase (UUID). Demonstração: ids de exemplo.
+        (isSupabaseConfigured ? UUID_RE.test(body.coordenador_id) : /^[\w-]{1,64}$/.test(body.coordenador_id))
+      ) {
+        alteracoes.coordenador_id = body.coordenador_id;
+      } else {
+        return NextResponse.json({ success: false, error: 'Coordenador inválido.' }, { status: 400 });
+      }
+    }
+
+    // Motivo/observação desta ação (ex.: motivo do cancelamento). Vai para o
+    // histórico da O.S.; o gatilho do banco limpa o campo depois.
+    const motivo = textoOpcional(body.motivo, 500);
+    if (motivo) alteracoes.motivo_acao = motivo;
+    if (alteracoes.status === 'Cancelado' && !motivo) {
+      return NextResponse.json({ success: false, error: 'Informe o motivo do cancelamento.' }, { status: 400 });
+    }
+
     if (Object.keys(alteracoes).length === 0) {
       return NextResponse.json({ success: false, error: 'Nenhuma alteração enviada.' }, { status: 400 });
     }
@@ -378,6 +411,11 @@ export async function PATCH(req: NextRequest) {
       const { data, error } = await query.select().maybeSingle();
 
       if (error) {
+        // Regras do fluxo recusadas pelo gatilho (RAISE EXCEPTION → P0001):
+        // a mensagem já é escrita para a equipe ler.
+        if (error.code === 'P0001') {
+          return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+        }
         console.error('[API Chamados] Erro ao atualizar chamado no Supabase:', error);
         return NextResponse.json(
           { success: false, error: 'Erro ao atualizar o chamado no banco de dados.' },

@@ -8,6 +8,7 @@ import {
 } from '@/lib/geo';
 import { TRINDADE_GEOJSON } from '@/lib/trindade-geojson';
 import { getCategoriaInfo } from '@/lib/types';
+import { prazoVencido } from '@/lib/os-status';
 import {
   iconeCategoria,
   corDoStatus,
@@ -148,11 +149,7 @@ export default function AdminMap({ chamados, onSelect }: AdminMapProps) {
 
       chamadosNoMapa.forEach((c) => {
         const catInfo = getCategoriaInfo(c.categoria);
-        const isAtrasado =
-          c.sla_limite &&
-          new Date(c.sla_limite) < new Date() &&
-          c.status !== 'RESOLVIDO' &&
-          c.status !== 'REJEITADO';
+        const isAtrasado = prazoVencido(c);
 
         const IconeCategoria = iconeCategoria(catInfo?.id || 'OUTROS');
         const status = corDoStatus(c.status);

@@ -7,7 +7,23 @@ O cadastro público nunca cria administradores. Toda conta criada pela tela
 **somente** da coluna `role` da tabela `public.profiles`, nunca do e-mail.
 
 Papéis existentes: `admin`, `gestor`, `fiscal`, `atendente` (servidores
-municipais) e `cidadao`.
+municipais), `coordenador` e `cidadao`.
+
+O `coordenador` recebe as O.S. dos serviços marcados no cadastro dele
+(coluna `profiles.servicos`). Ele não é "servidor" para as regras de leitura
+(`is_staff()`): não enxerga todas as O.S. nem os dados pessoais completos.
+
+## Fluxo da O.S.
+
+`Pendente` (nova) → `Encaminhada` (atendente/secretário escolhe o coordenador)
+→ `Em Andamento` (em execução) → `Aguardando Confirmação` (coordenador terminou)
+→ `Concluído` (atendente/secretário confirmou). `Cancelado` em qualquer etapa,
+sempre com motivo.
+
+As regras ficam no gatilho `chamado_fluxo_os` (migration
+`20261009000002`): não deixa encaminhar sem coordenador, exige motivo para
+cancelar, grava a data de cada etapa e registra tudo em
+`chamado_historico`, que só pode ser lido (ninguém edita ou apaga).
 
 ## Aplicar as migrations
 
