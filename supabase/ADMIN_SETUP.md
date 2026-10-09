@@ -88,7 +88,8 @@ Para a central, a Secretaria e o admin (migration `20261009000008`):
   execução, atrasadas, esperando confirmação, concluídas em 30 dias e tempo
   médio entre encaminhar e executar. Conta direto no banco (todas as O.S.,
   não só as 100 que o painel carrega).
-- Botão **Cobrar no WhatsApp**: abre a conversa com a lista das O.S. em
+- Botão **Cobrar no WhatsApp** (só a Secretaria: secretário ou atendente
+  da pasta, e o admin; a central só vê os números): abre a conversa com a lista das O.S. em
   aberto e chama `registrar_cobranca_coordenador()`, que guarda quem cobrou
   (tabela `cobrancas_coordenador`, sem acesso direto) e põe "Coordenador
   cobrado pelo WhatsApp" no histórico de cada O.S. aberta.

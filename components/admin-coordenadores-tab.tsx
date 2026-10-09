@@ -75,10 +75,12 @@ export default function AdminCoordenadoresTab({ papel, nomeUsuario, onVerOS, cha
 
   const visiveis = soComPendencia ? linhas.filter((l) => l.abertas > 0 || l.aguardando > 0) : linhas;
 
+  // Quem cobra o coordenador é a Secretaria (secretário ou atendente da pasta).
+  // A central só acompanha os números.
+  const podeCobrar = papel === 'secretaria' || papel === 'admin';
   // "Bruna (Secretaria de Infraestrutura)" ou, sem nome, "a Secretaria de Infraestrutura"
-  const setor = papel === 'central' ? NOME_PAPEL.central : NOME_PAPEL.secretaria;
   const primeiroNome = (nomeUsuario || '').trim().split(' ')[0];
-  const quemCobra = primeiroNome ? `${primeiroNome} (${setor})` : `a ${setor}`;
+  const quemCobra = primeiroNome ? `${primeiroNome} (${NOME_PAPEL.secretaria})` : `a ${NOME_PAPEL.secretaria}`;
 
   const cobrar = async (linha: LinhaCoordenador) => {
     // Abre o WhatsApp já no clique (o navegador bloqueia janela aberta depois)
@@ -104,6 +106,11 @@ export default function AdminCoordenadoresTab({ papel, nomeUsuario, onVerOS, cha
           <p className="text-sm text-gray-600">
             Quem está com O.S. parada ou atrasada. Concluídas e tempo médio: últimos 30 dias.
           </p>
+          {!podeCobrar && (
+            <p className="text-xs text-gray-500 mt-0.5">
+              Só acompanhamento: quem cobra o coordenador é a Secretaria de Infraestrutura.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-xs text-gray-700">
@@ -232,15 +239,17 @@ export default function AdminCoordenadoresTab({ papel, nomeUsuario, onVerOS, cha
                         Abrir na lista de O.S.
                       </button>
                     )}
-                    <Button
-                      onClick={() => cobrar(l)}
-                      disabled={l.abertas === 0}
-                      className="ml-auto h-9 bg-[#25D366] hover:bg-[#1ebe5b] text-white text-xs font-semibold gap-1.5"
-                      title={temTelefone ? undefined : 'Sem telefone: o WhatsApp vai pedir para escolher o contato'}
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Cobrar no WhatsApp
-                    </Button>
+                    {podeCobrar && (
+                      <Button
+                        onClick={() => cobrar(l)}
+                        disabled={l.abertas === 0}
+                        className="ml-auto h-9 bg-[#25D366] hover:bg-[#1ebe5b] text-white text-xs font-semibold gap-1.5"
+                        title={temTelefone ? undefined : 'Sem telefone: o WhatsApp vai pedir para escolher o contato'}
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Cobrar no WhatsApp
+                      </Button>
+                    )}
                   </div>
                 </div>
 

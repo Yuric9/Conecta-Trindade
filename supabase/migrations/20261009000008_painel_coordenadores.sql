@@ -9,7 +9,9 @@
 -- 2. registrar_cobranca_coordenador(): guarda quem cobrou e quando. Cada
 --    O.S. aberta do coordenador ganha uma linha no histórico.
 --
--- Só a equipe (admin, central, secretaria) usa. Sem CPF.
+-- Ver o painel: equipe (admin, central, secretaria). Sem CPF.
+-- Cobrar o coordenador: só a Secretaria de Infraestrutura (secretário ou
+-- atendente da pasta) e o admin. A central só acompanha.
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS public.cobrancas_coordenador (
@@ -149,8 +151,8 @@ DECLARE
   nome_coord TEXT;
   qtd INTEGER;
 BEGIN
-  IF papel IS NULL OR papel NOT IN ('admin', 'central', 'secretaria') THEN
-    RAISE EXCEPTION 'Só a equipe da central ou da Secretaria registra cobrança';
+  IF papel IS NULL OR papel NOT IN ('admin', 'secretaria') THEN
+    RAISE EXCEPTION 'Só a Secretaria de Infraestrutura cobra o coordenador';
   END IF;
 
   SELECT nome INTO nome_coord FROM public.profiles WHERE id = p_coordenador AND role = 'coordenador';
