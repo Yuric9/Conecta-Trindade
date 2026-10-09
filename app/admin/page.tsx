@@ -40,6 +40,7 @@ import {
   formatData,
   tempoRelativo,
   SECRETARIAS,
+  SECRETARIAS_ATIVAS,
   CATEGORIAS,
   normalizeCategoria,
 } from '@/lib/types';
@@ -143,8 +144,12 @@ import {
   normalizarStatusOS,
   osEmAberto,
   prazoVencido,
+  papelOS,
+  NOME_PAPEL,
+  type PapelOS,
   type StatusOS,
 } from '@/lib/os-status';
+import AdminDialogoMotivo, { type PedidoMotivo } from '@/components/admin-dialogo-motivo';
 
 type NormalizedStatus = StatusOS;
 const normalizeStatus = normalizarStatusOS;
@@ -162,9 +167,9 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-const KANBAN_COLUMNS: StatusOS[] = ['Pendente', 'Encaminhada', 'Em Andamento', 'Aguardando Confirmação', 'Concluído'];
+const KANBAN_COLUMNS: StatusOS[] = ['Pendente', 'Na Secretaria', 'Encaminhada', 'Em Andamento', 'Aguardando Confirmação', 'Concluído'];
 
-/** Próxima etapa que a equipe marca à mão (até a tela do coordenador existir). */
+/** Próxima etapa que a Secretaria marca à mão (quando o coordenador avisa por fora do sistema). */
 const PROXIMA_ETAPA: Partial<Record<StatusOS, { status: StatusOS; label: string }>> = {
   Encaminhada: { status: 'Em Andamento', label: 'Marcar em execução' },
   'Em Andamento': { status: 'Aguardando Confirmação', label: 'Coordenador informou que terminou' },
@@ -173,7 +178,7 @@ const PROXIMA_ETAPA: Partial<Record<StatusOS, { status: StatusOS; label: string 
 
 // Colunas da tabela de O.S. (cabeçalho e linhas usam a mesma grade)
 const GRADE_TABELA_OS =
-  'grid-cols-[150px_minmax(130px,1fr)_minmax(170px,1.2fr)_minmax(170px,1.2fr)_150px_100px_200px_165px]';
+  'grid-cols-[150px_minmax(130px,1fr)_minmax(170px,1.2fr)_minmax(170px,1.2fr)_150px_100px_200px_215px]';
 
 /** "faltam 2 dias", "faltam 5 h", "vence em minutos" */
 function prazoRestante(sla: string): string {
@@ -202,35 +207,89 @@ const BOTAO_ETAPA: Partial<Record<StatusOS, { label: string; title: string; cls:
   },
 };
 
-/** Botão do próximo passo da O.S. na linha (Encaminhar, Iniciou, Executada, Confirmar). */
-function AcaoPrincipalOS({
-  chamado,
-  ocupado,
-  onEncaminhar,
-  onAvancar,
-}: {
-  chamado: Chamado;
-  ocupado: boolean;
-  onEncaminhar: () => void;
-  onAvancar: (status: StatusOS) => void;
-}) {
+/** Passos que pedem motivo antes de gravar */
+type TipoMotivo = 'cancelar' | 'devolver_central' | 'retirar' | 'recusar';
+
+const PEDIDOS_MOTIVO: Record<
+  TipoMotivo,
+  { status: StatusOS; titulo: string; explicacao: string; rotulo: string; botao: string; sucesso: string; perigo?: boolean }
+> = {
+  cancelar: {
+    status: 'Cancelado',
+    titulo: 'Cancelar O.S.',
+    explicacao: 'A O.S. é encerrada sem execução e o cidadão passa a ver como cancelada.',
+    rotulo: 'Motivo do cancelamento',
+    botao: 'Cancelar O.S.',
+    sucesso: 'cancelada',
+    perigo: true,
+  },
+  devolver_central: {
+    status: 'Pendente',
+    titulo: 'Devolver à central',
+    explicacao: 'Use quando o pedido não é da Infraestrutura ou falta informação. A central analisa de novo.',
+    rotulo: 'Por que está voltando',
+    botao: 'Devolver à central',
+    sucesso: 'devolvida à central',
+  },
+  retirar: {
+    status: 'Na Secretaria',
+    titulo: 'Tirar do coordenador',
+    explicacao: 'A O.S. volta para a fila da Secretaria, sem coordenador, para ser encaminhada de novo.',
+    rotulo: 'Por que está saindo do coordenador',
+    botao: 'Tirar do coordenador',
+    sucesso: 'voltou para a fila da Secretaria',
+  },
+  recusar: {
+    status: 'Em Andamento',
+    titulo: 'Não aceitar a execução',
+    explicacao: 'A O.S. volta para o coordenador, em execução.',
+    rotulo: 'O que ainda falta fazer',
+    botao: 'Devolver ao coordenador',
+    sucesso: 'devolvida ao coordenador',
+  },
+};
+
+/** O que cada botão/menu da O.S. faz (montado pela página) */
+interface AcoesOS {
+  enviarSecretaria: () => void;
+  encaminhar: () => void;
+  avancar: (status: StatusOS) => void;
+  pedirMotivo: (tipo: TipoMotivo) => void;
+  avisar: () => void;
+  copiarEndereco: () => void;
+  abrir: () => void;
+}
+
+const ehSecretaria = (papel: PapelOS | null) => papel === 'secretaria' || papel === 'admin';
+const ehCentral = (papel: PapelOS | null) => papel === 'central' || papel === 'admin';
+
+/** Botão do próximo passo da O.S. na linha, de acordo com quem está logado. */
+function AcaoPrincipalOS({ chamado, papel, ocupado, acoes }: { chamado: Chamado; papel: PapelOS | null; ocupado: boolean; acoes: AcoesOS }) {
   const status = normalizarStatusOS(chamado.status);
-  if (status === 'Pendente') {
+  if (status === 'Pendente' && ehCentral(papel)) {
     return (
-      <Button size="sm" onClick={onEncaminhar} disabled={ocupado} className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-8 px-3 gap-1.5 font-semibold">
+      <Button size="sm" onClick={acoes.enviarSecretaria} disabled={ocupado} className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-8 px-3 gap-1.5 font-semibold">
         <Send className="w-3.5 h-3.5" />
+        Enviar à Secretaria
+      </Button>
+    );
+  }
+  if (status === 'Na Secretaria' && ehSecretaria(papel)) {
+    return (
+      <Button size="sm" onClick={acoes.encaminhar} disabled={ocupado} className="bg-violet-700 hover:bg-violet-800 text-white text-xs h-8 px-3 gap-1.5 font-semibold">
+        <HardHat className="w-3.5 h-3.5" />
         Encaminhar
       </Button>
     );
   }
   const proxima = PROXIMA_ETAPA[status];
   const botao = BOTAO_ETAPA[status];
-  if (!proxima || !botao) return null;
+  if (!proxima || !botao || !ehSecretaria(papel)) return null;
   return (
     <Button
       size="sm"
       variant="outline"
-      onClick={() => onAvancar(proxima.status)}
+      onClick={() => acoes.avancar(proxima.status)}
       disabled={ocupado}
       title={botao.title}
       className={`text-xs h-8 px-3 gap-1 font-semibold bg-white ${botao.cls}`}
@@ -241,20 +300,10 @@ function AcaoPrincipalOS({
   );
 }
 
-interface OSContextMenuProps {
-  chamado: Chamado;
-  enabled: boolean;
-  onEncaminhar: () => void;
-  onAvancar: (status: StatusOS) => void;
-  onAvisar: () => void;
-  onCopyAddress: () => void;
-  onEdit: () => void;
-}
-
-function OSContextMenu({ chamado, enabled, onEncaminhar, onAvancar, onAvisar, onCopyAddress, onEdit }: OSContextMenuProps) {
+function OSContextMenu({ chamado, papel, enabled, acoes }: { chamado: Chamado; papel: PapelOS | null; enabled: boolean; acoes: AcoesOS }) {
   if (!enabled) {
     return (
-      <Button size="sm" variant="outline" onClick={onEdit} className="text-xs h-8 px-2.5 gap-1 border-gray-300 bg-white" title="Abrir O.S.">
+      <Button size="sm" variant="outline" onClick={acoes.abrir} className="text-xs h-8 px-2.5 gap-1 border-gray-300 bg-white" title="Abrir O.S.">
         <Eye className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Abrir</span>
       </Button>
@@ -262,7 +311,8 @@ function OSContextMenu({ chamado, enabled, onEncaminhar, onAvancar, onAvisar, on
   }
   const status = normalizarStatusOS(chamado.status);
   const proxima = PROXIMA_ETAPA[status];
-  const emAberto = osEmAberto(status);
+  const comCoordenador = status === 'Encaminhada' || status === 'Em Andamento';
+  const podeCancelar = (papel === 'central' && status === 'Pendente') || (papel === 'admin' && osEmAberto(status));
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -271,30 +321,66 @@ function OSContextMenu({ chamado, enabled, onEncaminhar, onAvancar, onAvisar, on
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        {emAberto && (
-          <DropdownMenuItem onSelect={onEncaminhar}>
-            <Send className="w-4 h-4 mr-2 text-violet-600" />
-            {chamado.coordenador_id ? 'Trocar coordenador' : 'Encaminhar ao coordenador'}
+        {status === 'Pendente' && ehCentral(papel) && (
+          <DropdownMenuItem onSelect={acoes.enviarSecretaria}>
+            <Send className="w-4 h-4 mr-2 text-indigo-600" />
+            Enviar à Secretaria
           </DropdownMenuItem>
         )}
-        {proxima && (
-          <DropdownMenuItem onSelect={() => onAvancar(proxima.status)}>
+        {status === 'Na Secretaria' && ehSecretaria(papel) && (
+          <>
+            <DropdownMenuItem onSelect={acoes.encaminhar}>
+              <HardHat className="w-4 h-4 mr-2 text-violet-600" />
+              Encaminhar ao coordenador
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => acoes.pedirMotivo('devolver_central')}>
+              <RotateCcw className="w-4 h-4 mr-2 text-gray-600" />
+              Devolver à central…
+            </DropdownMenuItem>
+          </>
+        )}
+        {comCoordenador && ehSecretaria(papel) && (
+          <DropdownMenuItem onSelect={acoes.encaminhar}>
+            <HardHat className="w-4 h-4 mr-2 text-violet-600" />
+            Trocar coordenador
+          </DropdownMenuItem>
+        )}
+        {proxima && ehSecretaria(papel) && (
+          <DropdownMenuItem onSelect={() => acoes.avancar(proxima.status)}>
             <ArrowRight className="w-4 h-4 mr-2 text-blue-600" />
             {proxima.label}
           </DropdownMenuItem>
         )}
-        {chamado.coordenador_id && emAberto && (
-          <DropdownMenuItem onSelect={onAvisar}>
-            <MessageCircle className="w-4 h-4 mr-2 text-[#25D366]" />
-            Avisar coordenador no WhatsApp
+        {status === 'Aguardando Confirmação' && ehSecretaria(papel) && (
+          <DropdownMenuItem onSelect={() => acoes.pedirMotivo('recusar')}>
+            <RotateCcw className="w-4 h-4 mr-2 text-orange-600" />
+            Não aceitar a execução…
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onSelect={onCopyAddress}>
+        {comCoordenador && ehSecretaria(papel) && (
+          <>
+            <DropdownMenuItem onSelect={acoes.avisar}>
+              <MessageCircle className="w-4 h-4 mr-2 text-[#25D366]" />
+              Avisar coordenador no WhatsApp
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => acoes.pedirMotivo('retirar')}>
+              <RotateCcw className="w-4 h-4 mr-2 text-gray-600" />
+              Tirar do coordenador…
+            </DropdownMenuItem>
+          </>
+        )}
+        {podeCancelar && (
+          <DropdownMenuItem onSelect={() => acoes.pedirMotivo('cancelar')} className="text-red-700">
+            <X className="w-4 h-4 mr-2" />
+            Cancelar O.S.…
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={acoes.copiarEndereco}>
           <Copy className="w-4 h-4 mr-2" />
           Copiar endereço
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onEdit}>
+        <DropdownMenuItem onSelect={acoes.abrir}>
           <Eye className="w-4 h-4 mr-2 text-[#006653]" />
           Abrir O.S. completa
         </DropdownMenuItem>
@@ -332,7 +418,9 @@ export default function AdminPage() {
   const [selectedChamado, setSelectedChamado] = useState<Chamado | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isNewChamadoOpen, setIsNewChamadoOpen] = useState(false);
-  const [encaminharChamado, setEncaminharChamado] = useState<Chamado | null>(null);
+  // Janela de encaminhar: a central envia à Secretaria; a Secretaria escolhe o coordenador
+  const [encaminhar, setEncaminhar] = useState<{ chamado: Chamado; destino: 'secretaria' | 'coordenador' } | null>(null);
+  const [pedidoMotivo, setPedidoMotivo] = useState<PedidoMotivo | null>(null);
   const [adminTab, setAdminTab] = useState<
     'dashboard' | 'chamados' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes'
   >('chamados');
@@ -344,6 +432,59 @@ export default function AdminPage() {
     profile?.role === 'gestor' ||
     profile?.role === 'atendente'
   );
+
+  // Papel no fluxo da O.S. Sem banco (demonstração) a tela mostra tudo, como admin.
+  const papel: PapelOS | null = !isSupabaseConfigured ? 'admin' : isAdmin ? 'admin' : papelOS(profile);
+  // Usuários, prédios, coleta e configurações são só do administrador
+  const abasPermitidas: AbaAdmin[] =
+    papel === 'admin'
+      ? ['dashboard', 'chamados', 'usuarios', 'orgaos', 'mapa', 'rsu', 'relatorios', 'configuracoes']
+      : ['dashboard', 'chamados', 'mapa', 'relatorios'];
+
+  // Cada um começa vendo a própria fila
+  const [filaInicialAplicada, setFilaInicialAplicada] = useState(false);
+  useEffect(() => {
+    if (filaInicialAplicada || !papel) return;
+    if (papel === 'central') setFilterStatus('Pendente');
+    if (papel === 'secretaria') setFilterStatus('Na Secretaria');
+    setFilaInicialAplicada(true);
+  }, [papel, filaInicialAplicada]);
+
+  // Cadastros: o admin vê todos; o resto da equipe só recebe dos
+  // coordenadores o necessário para encaminhar (proteção de dados).
+  useEffect(() => {
+    if (!isSupabaseConfigured || !papel) return;
+    const carregarTodos = () =>
+      (supabase.from('profiles') as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .then(({ data, error }: { data: Profile[] | null; error: any }) => {
+          if (error) console.error('Erro ao carregar usuários:', error);
+          setProfiles(data || []);
+        });
+    if (papel === 'admin') {
+      carregarTodos();
+      return;
+    }
+    (supabase as any).rpc('equipe_coordenadores').then(({ data, error }: { data: any[] | null; error: any }) => {
+      if (error) {
+        console.error('Erro ao carregar coordenadores:', error);
+        return;
+      }
+      setProfiles(
+        (data || []).map((c) => ({
+          id: c.id,
+          nome: c.nome,
+          telefone: c.telefone ?? undefined,
+          servicos: c.servicos || [],
+          status: c.status || 'ativo',
+          role: 'coordenador',
+          email: '',
+          created_at: '',
+        }))
+      );
+    });
+  }, [papel]);
 
   // Coordenador não usa o painel: tem a tela própria com as O.S. dele
   useEffect(() => {
@@ -431,17 +572,7 @@ export default function AdminPage() {
   useEffect(() => {
     fetchChamadosFromDatabase();
 
-    if (isSupabaseConfigured) {
-      (supabase.from('profiles') as any)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .then(({ data, error }: { data: Profile[] | null; error: any }) => {
-          if (error) console.error('Erro ao carregar usuários:', error);
-          setProfiles(data || []);
-        });
-    } else {
-      setProfiles(getStoredProfiles());
-    }
+    if (!isSupabaseConfigured) setProfiles(getStoredProfiles());
 
     const loadedOrgaos = getStoredOrgaos();
     setOrgaos(loadedOrgaos);
@@ -544,8 +675,8 @@ export default function AdminPage() {
     return atualizarOS(
       chamado,
       {
-        // Já em execução e só trocando o coordenador: a etapa continua a mesma
-        ...(status === 'Pendente' ? { status: 'Encaminhada' as ChamadoStatus } : {}),
+        // Já com coordenador e só trocando: a etapa continua a mesma
+        ...(status === 'Pendente' || status === 'Na Secretaria' ? { status: 'Encaminhada' as ChamadoStatus } : {}),
         coordenador_id: dados.coordenador_id,
         secretaria: 'INFRAESTRUTURA',
         prioridade: dados.prioridade,
@@ -554,6 +685,46 @@ export default function AdminPage() {
       dados.observacao
     );
   };
+
+  // Central → Secretaria de Infraestrutura
+  const handleEnviarSecretaria = async (chamado: Chamado, dados: DadosEncaminhamento) =>
+    atualizarOS(
+      chamado,
+      {
+        status: 'Na Secretaria' as ChamadoStatus,
+        secretaria: 'INFRAESTRUTURA',
+        prioridade: dados.prioridade,
+        sla_limite: dados.sla_limite,
+      },
+      dados.observacao
+    );
+
+  const pedirMotivo = (chamado: Chamado, tipo: TipoMotivo) => {
+    const cfg = PEDIDOS_MOTIVO[tipo];
+    setPedidoMotivo({
+      titulo: cfg.titulo,
+      explicacao: cfg.explicacao,
+      rotulo: cfg.rotulo,
+      botao: cfg.botao,
+      perigo: cfg.perigo,
+      protocolo: chamado.protocolo,
+      confirmar: async (motivo) => {
+        const erro = await atualizarOS(chamado, { status: cfg.status as ChamadoStatus }, motivo);
+        if (!erro) avisoTemporario('success', `O.S. ${chamado.protocolo} ${cfg.sucesso}.`);
+        return erro;
+      },
+    });
+  };
+
+  const acoesDaOS = (c: Chamado): AcoesOS => ({
+    enviarSecretaria: () => setEncaminhar({ chamado: c, destino: 'secretaria' }),
+    encaminhar: () => setEncaminhar({ chamado: c, destino: 'coordenador' }),
+    avancar: (st) => handleQuickStatusChange(c, st),
+    pedirMotivo: (tipo) => pedirMotivo(c, tipo),
+    avisar: () => handleAvisarCoordenador(c),
+    copiarEndereco: () => handleCopyAddress(c),
+    abrir: () => openDetail(c),
+  });
 
   const handleAvisarCoordenador = (chamado: Chamado) => {
     const coord = profiles.find((p) => p.id === chamado.coordenador_id);
@@ -608,6 +779,7 @@ export default function AdminPage() {
       total,
       pendentes,
       abertos: pendentes,
+      naSecretaria: porStatus('Na Secretaria'),
       encaminhadas: porStatus('Encaminhada'),
       andamento: porStatus('Em Andamento'),
       aguardando: porStatus('Aguardando Confirmação'),
@@ -635,7 +807,7 @@ export default function AdminPage() {
   const recentChamados = useMemo(() => chamados.slice(0, 5), [chamados]);
 
   const secretariaStats = useMemo(() => {
-    return (Object.entries(SECRETARIAS) as [ChamadoSecretaria, string][]).map(([id, label]) => {
+    return (Object.entries(SECRETARIAS_ATIVAS) as [ChamadoSecretaria, string][]).map(([id, label]) => {
       const items = chamados.filter((c) => c.secretaria === id);
       return {
         id,
@@ -889,7 +1061,9 @@ export default function AdminPage() {
       <div className="ct-malha-urbana text-white">
         <div className="w-full px-4 sm:px-6 lg:px-8 pt-5 pb-5 md:pb-0 md:pt-6 flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold font-heading">Painel de gestão</h1>
+            <h1 className="text-xl sm:text-2xl font-bold font-heading">
+              {papel === 'central' || papel === 'secretaria' ? NOME_PAPEL[papel] : 'Painel de gestão'}
+            </h1>
             <p className="text-emerald-50/90 text-sm mt-0.5">
               {profile?.nome ? `Olá, ${profile.nome.split(' ')[0]}` : 'Conecta Trindade'}
             </p>
@@ -907,7 +1081,9 @@ export default function AdminPage() {
             { id: 'rsu' as const, label: 'Coleta de lixo', icon: Truck },
             { id: 'relatorios' as const, label: 'Relatórios', icon: BarChart3 },
             { id: 'configuracoes' as const, label: 'Configurações', icon: Settings },
-          ].map((item) => {
+          ]
+            .filter((item) => abasPermitidas.includes(item.id))
+            .map((item) => {
             const Icon = item.icon;
             const active = adminTab === item.id;
             return (
@@ -937,8 +1113,8 @@ export default function AdminPage() {
         {/* Números: clicar filtra a lista de O.S. */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {[
-            { label: 'Total de chamados', value: stats.total, icon: LayoutDashboard, color: 'text-[#006653]', bg: 'bg-emerald-50', status: 'TODOS', atrasado: false },
-            { label: 'Novas (a encaminhar)', value: stats.pendentes, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', status: 'Pendente', atrasado: false },
+            { label: 'Novas (central)', value: stats.pendentes, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', status: 'Pendente', atrasado: false },
+            { label: 'Na Secretaria', value: stats.naSecretaria, icon: Building2, color: 'text-indigo-600', bg: 'bg-indigo-50', status: 'Na Secretaria', atrasado: false },
             { label: 'Em execução', value: stats.andamento, icon: Timer, color: 'text-blue-600', bg: 'bg-blue-50', status: 'Em Andamento', atrasado: false },
             { label: 'Aguardando confirmação', value: stats.aguardando, icon: CheckCircle2, color: 'text-cyan-700', bg: 'bg-cyan-50', status: 'Aguardando Confirmação', atrasado: false },
             { label: 'Prazo vencido', value: stats.atrasados, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', status: 'TODOS', atrasado: true },
@@ -1593,7 +1769,7 @@ export default function AdminPage() {
                 <>
                   {osViewMode === 'table' && (
                     <div className="overflow-x-auto scrollbar-thin">
-                      <div id="admin-page-chamados-list" className="min-w-[1215px] text-left text-xs">
+                      <div id="admin-page-chamados-list" className="min-w-[1240px] text-left text-xs">
                         <div className={`sticky top-0 z-10 grid ${GRADE_TABELA_OS} bg-gray-50/95 backdrop-blur border-b border-gray-200 uppercase font-semibold text-[10px] tracking-wider text-gray-600`}>
                           <div className="px-3 py-3">Protocolo</div>
                           <div className="px-3 py-3">Cidadão</div>
@@ -1678,21 +1854,8 @@ export default function AdminPage() {
                                   <StatusBadge status={c.status} />
                                 </div>
                                 <div className="px-3 py-3 flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                  <AcaoPrincipalOS
-                                    chamado={c}
-                                    ocupado={updatingId === (c.id || c.protocolo)}
-                                    onEncaminhar={() => setEncaminharChamado(c)}
-                                    onAvancar={(st) => handleQuickStatusChange(c, st)}
-                                  />
-                                  <OSContextMenu
-                                    chamado={c}
-                                    enabled={menuContextoAtivo}
-                                    onEncaminhar={() => setEncaminharChamado(c)}
-                                    onAvancar={(st) => handleQuickStatusChange(c, st)}
-                                    onAvisar={() => handleAvisarCoordenador(c)}
-                                    onCopyAddress={() => handleCopyAddress(c)}
-                                    onEdit={() => openDetail(c)}
-                                  />
+                                  <AcaoPrincipalOS chamado={c} papel={papel} ocupado={updatingId === (c.id || c.protocolo)} acoes={acoesDaOS(c)} />
+                                  <OSContextMenu chamado={c} papel={papel} enabled={menuContextoAtivo} acoes={acoesDaOS(c)} />
                                 </div>
                               </div>
                             );
@@ -1748,21 +1911,8 @@ export default function AdminPage() {
                                 )}
                               </div>
                               <div className="mt-4 pt-3 border-t flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                <AcaoPrincipalOS
-                                  chamado={c}
-                                  ocupado={updatingId === (c.id || c.protocolo)}
-                                  onEncaminhar={() => setEncaminharChamado(c)}
-                                  onAvancar={(st) => handleQuickStatusChange(c, st)}
-                                />
-                                <OSContextMenu
-                                  chamado={c}
-                                  enabled={menuContextoAtivo}
-                                  onEncaminhar={() => setEncaminharChamado(c)}
-                                  onAvancar={(st) => handleQuickStatusChange(c, st)}
-                                  onAvisar={() => handleAvisarCoordenador(c)}
-                                  onCopyAddress={() => handleCopyAddress(c)}
-                                  onEdit={() => openDetail(c)}
-                                />
+                                <AcaoPrincipalOS chamado={c} papel={papel} ocupado={updatingId === (c.id || c.protocolo)} acoes={acoesDaOS(c)} />
+                                <OSContextMenu chamado={c} papel={papel} enabled={menuContextoAtivo} acoes={acoesDaOS(c)} />
                               </div>
                             </CardContent>
                           </Card>
@@ -1779,7 +1929,7 @@ export default function AdminPage() {
 
         {/* Quadro Kanban (Alternativa visual organizada por etapas) */}
         {view === 'kanban' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
             {KANBAN_COLUMNS.map((col) => {
               const colChamados = filteredChamados.filter((c) => normalizeStatus(c.status) === col);
               return (
@@ -1918,6 +2068,7 @@ export default function AdminPage() {
         chamado={selectedChamado}
         open={isEditModalOpen}
         coordenadores={coordenadores}
+        papel={papel}
         podeExcluir={isAdmin || profile?.role === 'admin' || !isSupabaseConfigured}
         onClose={() => {
           setIsEditModalOpen(false);
@@ -1929,12 +2080,16 @@ export default function AdminPage() {
 
       {/* Encaminhar a O.S. ao coordenador */}
       <AdminModalEncaminhar
-        chamado={encaminharChamado}
+        chamado={encaminhar?.chamado ?? null}
+        destino={encaminhar?.destino ?? 'coordenador'}
         coordenadores={coordenadores}
-        open={Boolean(encaminharChamado)}
-        onClose={() => setEncaminharChamado(null)}
-        onConfirmar={handleEncaminhar}
+        open={Boolean(encaminhar)}
+        onClose={() => setEncaminhar(null)}
+        onConfirmar={encaminhar?.destino === 'secretaria' ? handleEnviarSecretaria : handleEncaminhar}
       />
+
+      {/* Passos que pedem motivo (cancelar, devolver, recusar) */}
+      <AdminDialogoMotivo pedido={pedidoMotivo} onFechar={() => setPedidoMotivo(null)} />
 
       {/* Modal de Criação de Nova Ordem de Serviço Manual (Administrador) */}
       <AdminModalNovoChamado
@@ -1945,7 +2100,7 @@ export default function AdminPage() {
 
       {/* Celular: navegação do painel na barra inferior */}
       {isFiscalOrAdmin && (
-        <AdminMobileNav aba={adminTab} onSelecionar={selecionarAba} totalChamados={chamados.length} />
+        <AdminMobileNav aba={adminTab} onSelecionar={selecionarAba} totalChamados={chamados.length} abasPermitidas={abasPermitidas} />
       )}
     </div>
   );

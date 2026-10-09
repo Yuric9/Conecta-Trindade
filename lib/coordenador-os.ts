@@ -137,7 +137,7 @@ export async function acaoCoordenador(
     });
   } else if (acao === 'devolver') {
     if (!observacao?.trim()) return 'Informe o motivo da devolução';
-    Object.assign(mudancas, { status: 'Pendente', coordenador_id: null });
+    Object.assign(mudancas, { status: 'Na Secretaria', coordenador_id: null });
   }
   saveStoredChamadoItem(mudancas);
   return null;

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Send, MessageCircle, CheckCircle2, AlertTriangle, MapPin, HardHat, Loader2 } from 'lucide-react';
 
 export interface DadosEncaminhamento {
+  /** Vazio quando a central envia à Secretaria (quem escolhe o coordenador é ela) */
   coordenador_id: string;
   prioridade: 'BAIXA' | 'MEDIA' | 'ALTA' | 'URGENTE';
   sla_limite: string;
@@ -23,6 +24,8 @@ export interface DadosEncaminhamento {
 
 interface Props {
   chamado: Chamado | null;
+  /** 'secretaria': a central envia à Secretaria · 'coordenador': a Secretaria escolhe quem executa */
+  destino: 'secretaria' | 'coordenador';
   coordenadores: Profile[];
   open: boolean;
   onClose: () => void;
@@ -36,7 +39,8 @@ function paraInputLocal(data: Date): string {
   return local.toISOString().slice(0, 16);
 }
 
-export default function AdminModalEncaminhar({ chamado, coordenadores, open, onClose, onConfirmar }: Props) {
+export default function AdminModalEncaminhar({ chamado, destino, coordenadores, open, onClose, onConfirmar }: Props) {
+  const paraSecretaria = destino === 'secretaria';
   const [coordenadorId, setCoordenadorId] = useState('');
   const [mostrarTodos, setMostrarTodos] = useState(false);
   const [prioridade, setPrioridade] = useState<DadosEncaminhamento['prioridade']>('MEDIA');
@@ -80,7 +84,7 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
   const coordenador = ativos.find((p) => p.id === coordenadorId);
 
   const confirmar = async () => {
-    if (!coordenadorId) {
+    if (!paraSecretaria && !coordenadorId) {
       setErro('Escolha o coordenador responsável.');
       return;
     }
@@ -91,7 +95,7 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
     setSalvando(true);
     setErro(null);
     const falha = await onConfirmar(chamado, {
-      coordenador_id: coordenadorId,
+      coordenador_id: paraSecretaria ? '' : coordenadorId,
       prioridade,
       sla_limite: new Date(prazo).toISOString(),
       observacao: observacao.trim(),
@@ -120,7 +124,11 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
     abrirWhatsAppPara(coordenador.telefone, texto);
   };
 
-  const titulo = jaTemCoordenador && normalizarStatusOS(chamado.status) !== 'Pendente' ? 'Trocar coordenador' : 'Encaminhar O.S.';
+  const titulo = paraSecretaria
+    ? 'Enviar à Secretaria de Infraestrutura'
+    : jaTemCoordenador && normalizarStatusOS(chamado.status) !== 'Na Secretaria'
+      ? 'Trocar coordenador'
+      : 'Encaminhar ao coordenador';
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !salvando && onClose()}>
@@ -128,7 +136,7 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
         <DialogHeader className="border-b border-gray-100 pb-3">
           <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
             <Send className="w-4 h-4 text-[#006653]" />
-            {enviado ? 'O.S. encaminhada' : titulo}
+            {enviado ? (paraSecretaria ? 'O.S. enviada à Secretaria' : 'O.S. encaminhada') : titulo}
           </DialogTitle>
           <p className="text-xs text-gray-500 font-mono">{chamado.protocolo}</p>
         </DialogHeader>
@@ -146,7 +154,22 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
           </p>
         </div>
 
-        {enviado ? (
+        {enviado && paraSecretaria ? (
+          <div className="space-y-4">
+            <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                A O.S. está na fila da <strong>Secretaria de Infraestrutura</strong>, que vai escolher o coordenador.
+                Ficou registrada no histórico.
+              </span>
+            </div>
+            <DialogFooter>
+              <Button type="button" onClick={onClose} className="bg-[#006653] hover:bg-[#004d3e] text-white text-xs h-9">
+                Fechar
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : enviado ? (
           <div className="space-y-4">
             <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -171,6 +194,11 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
           </div>
         ) : (
           <div className="space-y-4">
+            {paraSecretaria ? (
+              <p className="text-xs text-gray-600">
+                Confira o pedido e defina a prioridade e o prazo. A Secretaria recebe a O.S. e escolhe o coordenador.
+              </p>
+            ) : (
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-gray-700">Coordenador responsável *</Label>
@@ -220,6 +248,7 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
                 </>
               )}
             </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -249,16 +278,20 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
             </div>
 
             <div>
-              <Label className="text-xs font-semibold text-gray-700">Observação para o coordenador</Label>
+              <Label className="text-xs font-semibold text-gray-700">
+                {paraSecretaria ? 'Observação para a Secretaria' : 'Observação para o coordenador'}
+              </Label>
               <Textarea
                 rows={2}
                 value={observacao}
                 onChange={(e) => setObservacao(e.target.value)}
-                placeholder="Ex.: levar escada; morador pede contato antes"
+                placeholder={paraSecretaria ? 'Ex.: pedido conferido; morador pede urgência' : 'Ex.: levar escada; morador pede contato antes'}
                 maxLength={500}
                 className="text-xs mt-1 bg-white"
               />
-              <p className="text-[10px] text-gray-400 mt-0.5">Vai na mensagem e fica no histórico da O.S.</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                {paraSecretaria ? 'Fica no histórico da O.S.' : 'Vai na mensagem e fica no histórico da O.S.'}
+              </p>
             </div>
 
             {erro && (
@@ -275,11 +308,11 @@ export default function AdminModalEncaminhar({ chamado, coordenadores, open, onC
               <Button
                 type="button"
                 onClick={confirmar}
-                disabled={salvando || ativos.length === 0}
+                disabled={salvando || (!paraSecretaria && ativos.length === 0)}
                 className="bg-[#006653] hover:bg-[#004d3e] text-white text-xs h-9 gap-1.5 font-semibold"
               >
                 {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {titulo === 'Trocar coordenador' ? 'Trocar coordenador' : 'Encaminhar'}
+                {paraSecretaria ? 'Enviar à Secretaria' : titulo === 'Trocar coordenador' ? 'Trocar coordenador' : 'Encaminhar'}
               </Button>
             </DialogFooter>
           </div>

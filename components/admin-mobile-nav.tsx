@@ -38,13 +38,19 @@ export function AdminMobileNav({
   aba,
   onSelecionar,
   totalChamados,
+  abasPermitidas,
 }: {
   aba: AbaAdmin;
   onSelecionar: (aba: AbaAdmin) => void;
   totalChamados: number;
+  /** Abas que este usuário pode ver (as de administração ficam só para o admin) */
+  abasPermitidas?: AbaAdmin[];
 }) {
   const [maisAberto, setMaisAberto] = useState(false);
-  const emOutra = OUTRAS.some((o) => o.id === aba);
+  const permitida = (id: AbaAdmin) => !abasPermitidas || abasPermitidas.includes(id);
+  const principais = PRINCIPAIS.filter((a) => permitida(a.id));
+  const outras = OUTRAS.filter((a) => permitida(a.id));
+  const emOutra = outras.some((o) => o.id === aba);
 
   return (
     <>
@@ -52,8 +58,8 @@ export function AdminMobileNav({
         aria-label="Seções do painel"
         className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]"
       >
-        <ul className="grid grid-cols-5 h-16">
-          {PRINCIPAIS.map(({ id, label, icon: Icon }) => {
+        <ul className="grid h-16" style={{ gridTemplateColumns: `repeat(${principais.length + 1}, minmax(0, 1fr))` }}>
+          {principais.map(({ id, label, icon: Icon }) => {
             const ativo = aba === id;
             return (
               <li key={id}>
@@ -104,7 +110,7 @@ export function AdminMobileNav({
             <DialogTitle className="text-base text-left">Mais seções</DialogTitle>
           </DialogHeader>
           <ul className="divide-y divide-gray-100">
-            {OUTRAS.map(({ id, label, icon: Icon }) => (
+            {outras.map(({ id, label, icon: Icon }) => (
               <li key={id}>
                 <button
                   type="button"
