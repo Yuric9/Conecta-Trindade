@@ -1562,12 +1562,9 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="font-semibold text-emerald-100">Mapa de Trindade - GO</span>
-                    <span className="text-emerald-300/70 hidden md:inline">| Prédios Públicos e Chamados Georreferenciados</span>
+                    <span className="text-emerald-300/70 hidden md:inline">| Chamados georreferenciados</span>
                   </div>
                   <div className="flex items-center gap-2 text-emerald-200 text-[11px]">
-                    <span className="bg-emerald-800/80 px-2.5 py-0.5 rounded text-emerald-100 font-medium">
-                      {orgaos.length} Prédios Públicos
-                    </span>
                     <span className="bg-amber-600/90 px-2.5 py-0.5 rounded text-white font-mono font-bold">
                       {filteredChamados.length} chamado(s)
                     </span>
@@ -1576,10 +1573,7 @@ export default function AdminPage() {
                 <div style={{ height: '620px' }}>
                   <AdminMap
                     chamados={filteredChamados}
-                    orgaos={orgaos}
                     onSelect={openDetail}
-                    onEditOrgao={handleSaveOrgao}
-                    onDeleteOrgao={handleDeleteOrgao}
                   />
                 </div>
               </Card>
@@ -1593,22 +1587,13 @@ export default function AdminPage() {
             <div className="border-b border-gray-200 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div>
                 <h3 className="font-semibold text-gray-900 text-base font-heading">
-                  Mapa de chamados e prédios públicos
+                  Mapa de chamados
                 </h3>
                 <p className="text-gray-500 text-sm">
                   Clique em um pino para ver o chamado.
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setAdminTab('orgaos')}
-                  className="text-xs h-8 gap-1.5"
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Prédios públicos</span>
-                </Button>
                 <Button
                   size="sm"
                   onClick={() => setIsNewChamadoOpen(true)}
@@ -1622,10 +1607,7 @@ export default function AdminPage() {
             <div style={{ height: '650px' }}>
               <AdminMap
                 chamados={filteredChamados}
-                orgaos={orgaos}
                 onSelect={openDetail}
-                onEditOrgao={handleSaveOrgao}
-                onDeleteOrgao={handleDeleteOrgao}
               />
             </div>
           </Card>
