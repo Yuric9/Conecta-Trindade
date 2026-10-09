@@ -136,6 +136,7 @@ import { CRONOGRAMA_OFICIAL_TRINDADE, getBairrosHoje, DIAS_SEMANA_LABELS } from 
 import { getPortalConfig, savePortalConfig } from '@/lib/config-portal';
 import { authHeaders } from '@/lib/auth-headers';
 import { AdminMobileNav, type AbaAdmin } from '@/components/admin-mobile-nav';
+import AdminCoordenadoresTab from '@/components/admin-coordenadores-tab';
 import AdminModalEncaminhar, { type DadosEncaminhamento } from '@/components/admin-modal-encaminhar';
 import {
   STATUS_OS,
@@ -470,7 +471,7 @@ export default function AdminPage() {
   const [pedidoMotivo, setPedidoMotivo] = useState<PedidoMotivo | null>(null);
   const [respondendo, setRespondendo] = useState<Chamado | null>(null);
   const [adminTab, setAdminTab] = useState<
-    'dashboard' | 'chamados' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes'
+    'dashboard' | 'chamados' | 'coordenadores' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes'
   >('chamados');
 
   const isFiscalOrAdmin = Boolean(
@@ -486,8 +487,8 @@ export default function AdminPage() {
   // Usuários, prédios, coleta e configurações são só do administrador
   const abasPermitidas: AbaAdmin[] =
     papel === 'admin'
-      ? ['dashboard', 'chamados', 'usuarios', 'orgaos', 'mapa', 'rsu', 'relatorios', 'configuracoes']
-      : ['dashboard', 'chamados', 'mapa', 'relatorios'];
+      ? ['dashboard', 'chamados', 'coordenadores', 'usuarios', 'orgaos', 'mapa', 'rsu', 'relatorios', 'configuracoes']
+      : ['dashboard', 'chamados', 'coordenadores', 'mapa', 'relatorios'];
 
   // Cada um começa vendo a própria fila
   const [filaInicialAplicada, setFilaInicialAplicada] = useState(false);
@@ -1211,6 +1212,7 @@ export default function AdminPage() {
           {[
             { id: 'dashboard' as const, label: 'Visão geral', icon: LayoutDashboard },
             { id: 'chamados' as const, label: 'Ordens de Serviço', icon: ClipboardList, badge: chamados.length },
+            { id: 'coordenadores' as const, label: 'Coordenadores', icon: HardHat },
             { id: 'usuarios' as const, label: 'Usuários', icon: UsersRound, badge: profiles.length },
             { id: 'orgaos' as const, label: 'Prédios públicos', icon: Building2, badge: orgaos.length },
             { id: 'mapa' as const, label: 'Mapa', icon: MapPinned },
@@ -1452,6 +1454,23 @@ export default function AdminPage() {
               </Card>
             </div>
           </>
+        )}
+
+        {/* Tab: Coordenadores (números e cobrança) */}
+        {adminTab === 'coordenadores' && (
+          <div className="mb-6">
+            <AdminCoordenadoresTab
+              papel={papel}
+              nomeUsuario={profile?.nome}
+              chamadosDemo={isSupabaseConfigured ? undefined : chamados}
+              onVerOS={(id) => {
+                setFilterCoordenador(id);
+                setFilterStatus('TODOS');
+                setFilterAtrasado(false);
+                selecionarAba('chamados');
+              }}
+            />
+          </div>
         )}
 
         {/* Tab: Usuários & Servidores */}

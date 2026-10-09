@@ -14,10 +14,11 @@ import {
   Settings,
   ArrowLeft,
   ChevronRight,
+  HardHat,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-export type AbaAdmin = 'dashboard' | 'chamados' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes';
+export type AbaAdmin = 'dashboard' | 'chamados' | 'coordenadores' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes';
 
 const PRINCIPAIS: { id: AbaAdmin; label: string; icon: typeof Menu }[] = [
   { id: 'dashboard', label: 'Visão geral', icon: LayoutDashboard },
@@ -27,6 +28,7 @@ const PRINCIPAIS: { id: AbaAdmin; label: string; icon: typeof Menu }[] = [
 ];
 
 const OUTRAS: { id: AbaAdmin; label: string; icon: typeof Menu }[] = [
+  { id: 'coordenadores', label: 'Coordenadores', icon: HardHat },
   { id: 'orgaos', label: 'Prédios públicos', icon: Building2 },
   { id: 'rsu', label: 'Coleta de lixo', icon: Truck },
   { id: 'relatorios', label: 'Relatórios', icon: BarChart3 },
