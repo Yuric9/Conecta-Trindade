@@ -15,12 +15,14 @@ import {
   ArrowLeft,
   ChevronRight,
   HardHat,
+  Inbox,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-export type AbaAdmin = 'dashboard' | 'chamados' | 'coordenadores' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes';
+export type AbaAdmin = 'fila' | 'dashboard' | 'chamados' | 'coordenadores' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes';
 
 const PRINCIPAIS: { id: AbaAdmin; label: string; icon: typeof Menu }[] = [
+  { id: 'fila', label: 'Minha fila', icon: Inbox },
   { id: 'dashboard', label: 'Visão geral', icon: LayoutDashboard },
   { id: 'chamados', label: 'O.S.', icon: ClipboardList },
   { id: 'mapa', label: 'Mapa', icon: MapPinned },

@@ -126,6 +126,7 @@ import {
   LogIn,
   Send,
   HardHat,
+  Inbox,
 } from 'lucide-react';
 import {
   copyToClipboard,
@@ -137,6 +138,7 @@ import { getPortalConfig, savePortalConfig } from '@/lib/config-portal';
 import { authHeaders } from '@/lib/auth-headers';
 import { AdminMobileNav, type AbaAdmin } from '@/components/admin-mobile-nav';
 import AdminCoordenadoresTab from '@/components/admin-coordenadores-tab';
+import AdminFilaTrabalho from '@/components/admin-fila-trabalho';
 import AdminModalEncaminhar, { type DadosEncaminhamento } from '@/components/admin-modal-encaminhar';
 import {
   STATUS_OS,
@@ -471,7 +473,7 @@ export default function AdminPage() {
   const [pedidoMotivo, setPedidoMotivo] = useState<PedidoMotivo | null>(null);
   const [respondendo, setRespondendo] = useState<Chamado | null>(null);
   const [adminTab, setAdminTab] = useState<
-    'dashboard' | 'chamados' | 'coordenadores' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes'
+    'fila' | 'dashboard' | 'chamados' | 'coordenadores' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes'
   >('chamados');
 
   const isFiscalOrAdmin = Boolean(
@@ -488,12 +490,14 @@ export default function AdminPage() {
   const abasPermitidas: AbaAdmin[] =
     papel === 'admin'
       ? ['dashboard', 'chamados', 'coordenadores', 'usuarios', 'orgaos', 'mapa', 'rsu', 'relatorios', 'configuracoes']
-      : ['dashboard', 'chamados', 'coordenadores', 'mapa', 'relatorios'];
+      : ['fila', 'chamados', 'coordenadores', 'mapa', 'relatorios'];
 
   // Cada um começa vendo a própria fila
   const [filaInicialAplicada, setFilaInicialAplicada] = useState(false);
   useEffect(() => {
     if (filaInicialAplicada || !papel) return;
+    // Central e Secretaria começam na própria fila de trabalho
+    if (papel === 'central' || papel === 'secretaria') setAdminTab('fila');
     if (papel === 'central') setFilterStatus('Pendente');
     if (papel === 'secretaria') setFilterStatus('Na Secretaria');
     setFilaInicialAplicada(true);
@@ -1210,6 +1214,7 @@ export default function AdminPage() {
 
         <nav className="hidden md:flex w-full px-4 sm:px-6 lg:px-8 mt-4 gap-1 overflow-x-auto" aria-label="Seções do painel">
           {[
+            { id: 'fila' as const, label: 'Minha fila', icon: Inbox },
             { id: 'dashboard' as const, label: 'Visão geral', icon: LayoutDashboard },
             { id: 'chamados' as const, label: 'Ordens de Serviço', icon: ClipboardList, badge: chamados.length },
             { id: 'coordenadores' as const, label: 'Coordenadores', icon: HardHat },
@@ -1248,7 +1253,8 @@ export default function AdminPage() {
 
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
 
-        {/* Números: clicar filtra a lista de O.S. */}
+        {/* Números: clicar filtra a lista de O.S. (a fila tem os números dela) */}
+        <div className={adminTab === 'fila' ? 'hidden' : undefined}>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {[
             { label: 'Novas (central)', value: stats.pendentes, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', status: 'Pendente', atrasado: false },
@@ -1286,6 +1292,32 @@ export default function AdminPage() {
             );
           })}
         </div>
+
+        </div>
+
+        {/* Minha fila: o painel de trabalho da central ou da Secretaria */}
+        {adminTab === 'fila' && (
+          <div className="mb-6">
+            <AdminFilaTrabalho
+              papel={papel}
+              nomeUsuario={profile?.nome}
+              chamados={chamados}
+              nomeCoordenador={(id) => profiles.find((p) => p.id === id)?.nome ?? null}
+              renderAcoes={(c) => (
+                <>
+                  <AcaoPrincipalOS chamado={c} papel={papel} ocupado={updatingId === (c.id || c.protocolo)} acoes={acoesDaOS(c)} />
+                  <OSContextMenu chamado={c} papel={papel} enabled acoes={acoesDaOS(c)} />
+                </>
+              )}
+              onAbrir={(c) => acoesDaOS(c).abrir()}
+              onVerTodas={() => {
+                setFilterStatus('TODOS');
+                setFilterAtrasado(false);
+                selecionarAba('chamados');
+              }}
+            />
+          </div>
+        )}
 
         {/* Dashboard Operational Widgets */}
         {adminTab === 'dashboard' && (
