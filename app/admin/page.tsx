@@ -173,7 +173,7 @@ const PROXIMA_ETAPA: Partial<Record<StatusOS, { status: StatusOS; label: string 
 
 // Colunas da tabela de O.S. (cabeçalho e linhas usam a mesma grade)
 const GRADE_TABELA_OS =
-  'grid-cols-[150px_minmax(130px,1fr)_minmax(170px,1.2fr)_minmax(170px,1.2fr)_150px_100px_185px_165px]';
+  'grid-cols-[150px_minmax(130px,1fr)_minmax(170px,1.2fr)_minmax(170px,1.2fr)_150px_100px_200px_165px]';
 
 /** "faltam 2 dias", "faltam 5 h", "vence em minutos" */
 function prazoRestante(sla: string): string {
@@ -345,6 +345,11 @@ export default function AdminPage() {
     profile?.role === 'atendente'
   );
 
+  // Coordenador não usa o painel: tem a tela própria com as O.S. dele
+  useEffect(() => {
+    if (profile?.role === 'coordenador') router.replace('/coordenador');
+  }, [profile?.role, router]);
+
   const fetchChamadosFromDatabase = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -402,6 +407,8 @@ export default function AdminPage() {
           iniciado_em: c.iniciado_em ?? existing?.iniciado_em ?? null,
           executado_em: c.executado_em ?? existing?.executado_em ?? null,
           concluido_em: c.concluido_em ?? existing?.concluido_em ?? null,
+          visualizado_em: c.visualizado_em ?? existing?.visualizado_em ?? null,
+          foto_execucao_url: c.foto_execucao_url ?? existing?.foto_execucao_url ?? null,
           created_at: c.created_at || existing?.created_at || new Date().toISOString(),
           updated_at: c.updated_at || existing?.updated_at || new Date().toISOString(),
         });
@@ -1586,7 +1593,7 @@ export default function AdminPage() {
                 <>
                   {osViewMode === 'table' && (
                     <div className="overflow-x-auto scrollbar-thin">
-                      <div id="admin-page-chamados-list" className="min-w-[1200px] text-left text-xs">
+                      <div id="admin-page-chamados-list" className="min-w-[1215px] text-left text-xs">
                         <div className={`sticky top-0 z-10 grid ${GRADE_TABELA_OS} bg-gray-50/95 backdrop-blur border-b border-gray-200 uppercase font-semibold text-[10px] tracking-wider text-gray-600`}>
                           <div className="px-3 py-3">Protocolo</div>
                           <div className="px-3 py-3">Cidadão</div>
@@ -1637,10 +1644,21 @@ export default function AdminPage() {
                                 </div>
                                 <div className="px-3 py-3 min-w-0">
                                   {coord ? (
-                                    <span className="flex items-center gap-1 text-[11px] font-medium text-gray-800 truncate" title={coord}>
-                                      <HardHat className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-                                      <span className="truncate">{coord}</span>
-                                    </span>
+                                    <>
+                                      <span className="flex items-center gap-1 text-[11px] font-medium text-gray-800 truncate" title={coord}>
+                                        <HardHat className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                                        <span className="truncate">{coord}</span>
+                                      </span>
+                                      {osEmAberto(c.status) && (
+                                        <span
+                                          className={`flex items-center gap-1 text-[10px] mt-0.5 ${c.visualizado_em ? 'text-emerald-700' : 'text-amber-700'}`}
+                                          title={c.visualizado_em ? `Visualizou em ${formatData(c.visualizado_em)}` : 'O coordenador ainda não abriu esta O.S.'}
+                                        >
+                                          <Eye className="w-3 h-3" />
+                                          {c.visualizado_em ? 'visualizou' : 'não visualizou'}
+                                        </span>
+                                      )}
+                                    </>
                                   ) : (
                                     <span className="text-[11px] text-gray-400 italic">Não encaminhada</span>
                                   )}

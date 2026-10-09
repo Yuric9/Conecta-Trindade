@@ -125,6 +125,7 @@ export function formatarOSParaCoordenador(data: WhatsAppOSCoordenadorData): stri
       : '',
     data.observacao ? `💬 *Observação:* ${data.observacao}` : '',
     ``,
+    typeof window !== 'undefined' ? `📲 *Suas O.S.:* ${window.location.origin}/coordenador` : '',
     `_Prefeitura de Trindade – Secretaria de Infraestrutura_`,
   ];
 

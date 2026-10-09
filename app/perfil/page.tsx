@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, ClipboardList, LayoutDashboard, LogIn, LogOut, Phone, Mail, MapPin, Info, User } from 'lucide-react';
+import { ChevronRight, ClipboardList, LayoutDashboard, LogIn, LogOut, Phone, Mail, MapPin, Info, User, HardHat } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 const PAPEIS_EQUIPE = ['admin', 'gestor', 'fiscal', 'atendente'];
@@ -52,6 +52,7 @@ export default function PerfilPage() {
           <>
             <Linha href="/meus-chamados" icon={ClipboardList}>Meus chamados</Linha>
             {daEquipe && <Linha href="/admin" icon={LayoutDashboard}>Painel de gestão</Linha>}
+            {profile?.role === 'coordenador' && <Linha href="/coordenador" icon={HardHat}>Minhas O.S. (coordenador)</Linha>}
             <button
               type="button"
               onClick={async () => {

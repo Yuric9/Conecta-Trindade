@@ -25,6 +25,24 @@ As regras ficam no gatilho `chamado_fluxo_os` (migration
 cancelar, grava a data de cada etapa e registra tudo em
 `chamado_historico`, que só pode ser lido (ninguém edita ou apaga).
 
+## Tela do coordenador (`/coordenador`)
+
+O coordenador entra pelo login normal e cai em "Minhas O.S.". Ele não lê a
+tabela `chamados`: usa as funções `minhas_os()` (só as O.S. dele, com nome e
+telefone do cidadão, sem CPF nem observações internas) e
+`coordenador_atualizar_os()` (migration `20261009000003`), que permite:
+
+- `visualizar`: registra no histórico que ele abriu a O.S. (uma vez)
+- `iniciar`: Encaminhada → Em Andamento
+- `executar`: → Aguardando Confirmação, com observação e foto opcionais
+- `devolver`: volta para a central sem coordenador (motivo obrigatório)
+
+Concluir continua sendo da atendente ou do secretário.
+
+Para transformar uma conta em coordenador: a pessoa cria a conta em
+"Cadastro cidadão"; um admin muda a função na aba Usuários para
+"Coordenador de Serviço" e marca os serviços.
+
 ## Aplicar as migrations
 
 No Supabase, rode os arquivos de `supabase/migrations/` em ordem (pelo
