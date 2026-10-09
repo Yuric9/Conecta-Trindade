@@ -63,6 +63,10 @@ export interface Chamado {
   iniciado_em?: string | null;
   executado_em?: string | null;
   concluido_em?: string | null;
+  /** Quando o coordenador abriu a O.S. pela primeira vez */
+  visualizado_em?: string | null;
+  /** Foto do serviço executado, enviada pelo coordenador */
+  foto_execucao_url?: string | null;
 }
 
 export interface Profile {

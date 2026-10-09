@@ -469,6 +469,16 @@ export default function AdminModalEditChamado({
             </div>
           )}
 
+          {/* Foto enviada pelo coordenador ao terminar o serviço */}
+          {chamado.foto_execucao_url && /^(https:\/\/|data:image\/)/.test(chamado.foto_execucao_url) && (
+            <div>
+              <Label className="text-xs font-semibold text-gray-700 mb-1 block">Foto do serviço executado (coordenador)</Label>
+              <a href={chamado.foto_execucao_url} target="_blank" rel="noreferrer" className="block w-40 h-28 rounded-lg overflow-hidden border border-gray-200 hover:opacity-90">
+                <img src={chamado.foto_execucao_url} alt="Foto do serviço executado" className="w-full h-full object-cover" />
+              </a>
+            </div>
+          )}
+
           {/* Histórico da O.S. */}
           <div className="rounded-lg border border-gray-200 p-3">
             <Label className="text-xs font-bold text-gray-800 flex items-center gap-1 mb-2">
@@ -497,10 +507,11 @@ export default function AdminModalEditChamado({
                             {st ? ' · ' : ''}coordenador: <strong>{h.coordenador_nome}</strong>
                           </span>
                         )}
-                        {!st && !h.coordenador_nome && h.detalhe && <strong>Observação</strong>}
+                        {/* Registro sem troca de etapa (ex.: "Visualizou a O.S.") */}
+                        {!st && !h.coordenador_nome && h.detalhe && <strong>{h.detalhe}</strong>}
                         {h.autor_nome && <span className="text-gray-500"> — por {h.autor_nome}</span>}
                       </p>
-                      {h.detalhe && h.detalhe !== 'Chamado aberto' && (
+                      {h.detalhe && h.detalhe !== 'Chamado aberto' && (st || h.coordenador_nome) && (
                         <p className="text-gray-600 italic">&ldquo;{h.detalhe}&rdquo;</p>
                       )}
                     </li>

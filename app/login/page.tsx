@@ -112,6 +112,11 @@ function LoginContent() {
 
         // A permissão vem somente do perfil no banco, nunca do e-mail.
         const isUserAdmin = ['admin', 'gestor', 'fiscal', 'atendente'].includes(profileData?.role);
+        // Coordenador de serviço vai direto para as O.S. dele
+        if (profileData?.role === 'coordenador') {
+          router.push('/coordenador');
+          return;
+        }
 
         // Validação de Regra de Segurança:
         // Se tentou entrar pelo portal do Servidor Municipal, exige permissão de admin

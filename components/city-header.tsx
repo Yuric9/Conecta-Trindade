@@ -69,6 +69,19 @@ export function CityHeader() {
                 );
               })}
 
+              {profile?.role === 'coordenador' && (
+                <Link
+                  href="/coordenador"
+                  className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
+                    pathname?.startsWith('/coordenador')
+                      ? 'text-white border-[#FFC20E]'
+                      : 'text-emerald-50/90 border-transparent hover:text-white'
+                  }`}
+                >
+                  Minhas O.S.
+                </Link>
+              )}
+
               {isAdmin && (
                 <Link
                   href="/admin"
