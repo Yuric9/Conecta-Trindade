@@ -351,3 +351,30 @@
     background: #d1d5db;
   }
 }
+
+/* ── Impressão da O.S. (components/ficha-os.tsx) ──
+   A folha fica escondida na tela; na impressão só ela aparece. */
+.ct-area-impressao {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  body:has(> .ct-area-impressao) > *:not(.ct-area-impressao) {
+    display: none !important;
+  }
+  .ct-area-impressao {
+    display: block;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .ct-folha {
+    font-size: 12px;
+  }
+}
