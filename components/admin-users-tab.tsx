@@ -36,6 +36,7 @@ import {
   Edit2,
   Trash2,
   Lock,
+  KeyRound,
   Unlock,
   CheckCircle2,
   AlertTriangle,
@@ -49,6 +50,8 @@ interface AdminUsersTabProps {
   /** Grava. Com `senha`, cria a conta de login. Devolve null se deu certo ou a mensagem de erro. */
   onSaveProfile: (profile: Profile, senha?: string) => Promise<string | null>;
   onDeleteProfile: (id: string) => void;
+  /** Define senha nova para conta da equipe. Devolve null se deu certo ou a mensagem de erro. */
+  onDefinirSenha: (profile: Profile, senha: string) => Promise<string | null>;
 }
 
 const ROLES_INFO: Record<
@@ -98,6 +101,7 @@ export default function AdminUsersTab({
   currentUserId,
   onSaveProfile,
   onDeleteProfile,
+  onDefinirSenha,
 }: AdminUsersTabProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'TODOS'>('TODOS');
@@ -119,6 +123,35 @@ export default function AdminUsersTab({
   const [formStatus, setFormStatus] = useState<'ativo' | 'inativo' | 'bloqueado'>('ativo');
   const [formSenha, setFormSenha] = useState('');
   const [salvando, setSalvando] = useState(false);
+  // "Definir nova senha" (só contas da equipe)
+  const [senhaDe, setSenhaDe] = useState<Profile | null>(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [erroSenha, setErroSenha] = useState<string | null>(null);
+  const [senhaDefinida, setSenhaDefinida] = useState(false);
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
+
+  const abrirSenha = (p: Profile) => {
+    setSenhaDe(p);
+    setNovaSenha('');
+    setErroSenha(null);
+    setSenhaDefinida(false);
+  };
+
+  const confirmarSenha = async () => {
+    if (!senhaDe) return;
+    if (novaSenha.length < 8) {
+      setErroSenha('A senha precisa ter pelo menos 8 caracteres.');
+      return;
+    }
+    setTrocandoSenha(true);
+    const falha = await onDefinirSenha(senhaDe, novaSenha);
+    setTrocandoSenha(false);
+    if (falha) setErroSenha(falha);
+    else {
+      setSenhaDefinida(true);
+      setNovaSenha('');
+    }
+  };
   const [erroForm, setErroForm] = useState<string | null>(null);
 
   // Delete Confirmation State
@@ -480,6 +513,17 @@ export default function AdminUsersTab({
                       {/* Ações */}
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {p.role !== 'cidadao' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => abrirSenha(p)}
+                              className="h-8 w-8 p-0 text-gray-600 hover:text-[#006653] hover:bg-emerald-50"
+                              title="Definir nova senha (conta da equipe)"
+                            >
+                              <KeyRound className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -739,6 +783,63 @@ export default function AdminUsersTab({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Definir nova senha (contas da equipe) */}
+      <Dialog open={Boolean(senhaDe)} onOpenChange={(open) => !open && !trocandoSenha && setSenhaDe(null)}>
+        <DialogContent className="max-w-sm bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-[#006653]" />
+              <span>Definir nova senha</span>
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-gray-600">
+            Para <strong>{senhaDe?.nome}</strong> ({senhaDe?.email}). Use quando o servidor não consegue receber o
+            link de &quot;Esqueci minha senha&quot;. Passe a senha por um canal seguro e peça para a pessoa trocar em
+            Perfil → Trocar minha senha.
+          </p>
+          {senhaDefinida ? (
+            <p className="flex items-start gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-px" />
+              Senha definida. A senha antiga deixou de funcionar.
+            </p>
+          ) : (
+            <div>
+              <Label className="text-xs font-semibold text-gray-700">Senha nova *</Label>
+              <Input
+                type="text"
+                autoComplete="new-password"
+                placeholder="Mínimo 8 caracteres"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                className="h-9 text-xs mt-1"
+              />
+            </div>
+          )}
+          {erroSenha && (
+            <p className="flex items-start gap-1.5 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+              {erroSenha}
+            </p>
+          )}
+          <DialogFooter className="pt-2 flex items-center justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setSenhaDe(null)} disabled={trocandoSenha} className="h-8 text-xs">
+              {senhaDefinida ? 'Fechar' : 'Cancelar'}
+            </Button>
+            {!senhaDefinida && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={confirmarSenha}
+                disabled={trocandoSenha}
+                className="bg-[#006653] hover:bg-[#004d3e] text-white text-xs h-8"
+              >
+                {trocandoSenha ? 'Salvando...' : 'Definir senha'}
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

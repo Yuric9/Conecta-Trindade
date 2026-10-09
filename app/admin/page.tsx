@@ -1089,6 +1089,22 @@ export default function AdminPage() {
     return null;
   };
 
+  /** Admin define senha nova para conta da equipe (a senha vai direto ao Supabase). */
+  const handleDefinirSenha = async (perfil: Profile, senha: string): Promise<string | null> => {
+    if (!isSupabaseConfigured) return null;
+    try {
+      const res = await fetch('/api/usuarios/senha', {
+        method: 'POST',
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ id: perfil.id, senha }),
+      });
+      const data = await res.json().catch(() => ({}));
+      return res.ok && data.success ? null : data.error || 'Não foi possível trocar a senha.';
+    } catch {
+      return 'Sem conexão com o servidor. Tente novamente.';
+    }
+  };
+
   const handleDeleteProfile = async (id: string) => {
     if (isSupabaseConfigured) {
       const { error } = await (supabase.from('profiles') as any).delete().eq('id', id);
@@ -1445,6 +1461,7 @@ export default function AdminPage() {
               profiles={profiles}
               currentUserId={profile?.id}
               onSaveProfile={handleSaveProfile}
+              onDefinirSenha={handleDefinirSenha}
               onDeleteProfile={handleDeleteProfile}
             />
           </div>
