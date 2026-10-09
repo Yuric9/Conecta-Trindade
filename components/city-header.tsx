@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn, Truck, Search } from 'lucide-react';
+import { ChevronDown, User, LogOut, Home, PlusCircle, LayoutDashboard, ClipboardList, LogIn, Truck, Search, HardHat } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { papelOS } from '@/lib/os-status';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,7 +16,17 @@ import {
 export function CityHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, signOut, isAdmin } = useAuth();
+  const { profile, signOut } = useAuth();
+  // Equipe (admin, central, Secretaria) volta ao painel por aqui
+  const papel = papelOS(profile);
+  const painel =
+    papel === 'admin'
+      ? 'Painel Admin'
+      : papel === 'central'
+        ? 'Painel da Central'
+        : papel === 'secretaria'
+          ? 'Painel da Secretaria'
+          : null;
 
   const navItems = [
     { href: '/', label: 'Início', icon: Home },
@@ -82,7 +93,7 @@ export function CityHeader() {
                 </Link>
               )}
 
-              {isAdmin && (
+              {painel && (
                 <Link
                   href="/admin"
                   className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
@@ -91,7 +102,7 @@ export function CityHeader() {
                       : 'text-emerald-50/90 border-transparent hover:text-white'
                   }`}
                 >
-                  Painel Admin
+                  {painel}
                 </Link>
               )}
 
@@ -117,7 +128,23 @@ export function CityHeader() {
                       <ChevronDown className="w-4 h-4 text-emerald-200" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-52">
+                    {painel && (
+                      <DropdownMenuItem onClick={() => router.push('/admin')} className="cursor-pointer">
+                        <LayoutDashboard className="w-4 h-4 mr-2" />
+                        {painel}
+                      </DropdownMenuItem>
+                    )}
+                    {papel === 'coordenador' && (
+                      <DropdownMenuItem onClick={() => router.push('/coordenador')} className="cursor-pointer">
+                        <HardHat className="w-4 h-4 mr-2" />
+                        Minhas O.S.
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => router.push('/perfil')} className="cursor-pointer">
+                      <User className="w-4 h-4 mr-2" />
+                      Meu perfil e senha
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleSignOut} className="text-red-600 cursor-pointer">
                       <LogOut className="w-4 h-4 mr-2" />
                       Sair

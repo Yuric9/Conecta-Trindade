@@ -109,6 +109,10 @@ export default function AdminModalEditChamado({
   onSave,
   onDelete,
 }: AdminModalEditChamadoProps) {
+  // Quem fala com quem: a central (e o admin) com o cidadão;
+  // a Secretaria (e o admin) com o coordenador
+  const falaComCidadao = papel === 'central' || papel === 'admin';
+  const falaComCoordenador = papel === 'secretaria' || papel === 'admin';
   const [categoria, setCategoria] = useState<ChamadoCategoria>('ILUMINACAO');
   const [secretaria, setSecretaria] = useState<ChamadoSecretaria | 'NONE'>('NONE');
   const [status, setStatus] = useState<StatusOS>('Pendente');
@@ -565,92 +569,98 @@ export default function AdminModalEditChamado({
             )}
           </div>
 
-          {/* WhatsApp: coordenador e cidadão */}
-          <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 flex flex-wrap items-center justify-between gap-2">
-            <div className="text-xs text-gray-600">
-              <span className="font-semibold text-emerald-900">WhatsApp:</span> abre a conversa já com a mensagem pronta.
+          {/* WhatsApp: a Secretaria fala com o coordenador; a central, com o cidadão */}
+          {((coordenadorEscolhido && falaComCoordenador) || falaComCidadao) && (
+            <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-gray-600">
+                <span className="font-semibold text-emerald-900">WhatsApp:</span> abre a conversa já com a mensagem pronta.
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {coordenadorEscolhido && falaComCoordenador && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() =>
+                      abrirWhatsAppPara(
+                        coordenadorEscolhido.telefone,
+                        formatarOSParaCoordenador({
+                          protocolo: chamado.protocolo,
+                          categoria,
+                          coordenadorNome: coordenadorEscolhido.nome,
+                          prioridade,
+                          sla_limite: slaLimite ? new Date(slaLimite).toISOString() : null,
+                          endereco: enderecoTexto,
+                          descricao,
+                          cidadao_nome: cidadaoNome,
+                          cidadao_telefone: cidadaoTelefone,
+                          latitude: chamado.latitude,
+                          longitude: chamado.longitude,
+                        })
+                      )
+                    }
+                    className="bg-[#25D366] hover:bg-[#1ebe5b] text-white text-xs h-8 px-3 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                    <span>Coordenador</span>
+                  </Button>
+                )}
+                {falaComCidadao && (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        abrirWhatsAppPara(
+                          cidadaoTelefone,
+                          formatChamadoWhatsAppText({
+                            protocolo: chamado.protocolo,
+                            categoria,
+                            status,
+                            secretariaNome: secretaria !== 'NONE' ? SECRETARIAS[secretaria] : undefined,
+                            endereco: enderecoTexto,
+                            descricao,
+                            created_at: chamado.created_at,
+                            resposta_cidadao: respostaCidadao,
+                          })
+                        )
+                      }
+                      className="text-xs h-8 px-3 border-[#25D366] text-[#128C7E] bg-white flex items-center gap-1.5"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Cidadão</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const text = formatChamadoWhatsAppText({
+                          protocolo: chamado.protocolo,
+                          categoria,
+                          status,
+                          secretariaNome: secretaria !== 'NONE' ? SECRETARIAS[secretaria] : undefined,
+                          endereco: enderecoTexto,
+                          descricao,
+                          created_at: chamado.created_at,
+                          resposta_cidadao: respostaCidadao,
+                        });
+                        const ok = await copyToClipboard(text);
+                        if (ok) {
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }
+                      }}
+                      className="text-xs h-8 px-3 border-gray-200 bg-white"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-gray-500" />}
+                      <span>{copied ? 'Copiado!' : 'Copiar texto'}</span>
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {coordenadorEscolhido && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() =>
-                    abrirWhatsAppPara(
-                      coordenadorEscolhido.telefone,
-                      formatarOSParaCoordenador({
-                        protocolo: chamado.protocolo,
-                        categoria,
-                        coordenadorNome: coordenadorEscolhido.nome,
-                        prioridade,
-                        sla_limite: slaLimite ? new Date(slaLimite).toISOString() : null,
-                        endereco: enderecoTexto,
-                        descricao,
-                        cidadao_nome: cidadaoNome,
-                        cidadao_telefone: cidadaoTelefone,
-                        latitude: chamado.latitude,
-                        longitude: chamado.longitude,
-                      })
-                    )
-                  }
-                  className="bg-[#25D366] hover:bg-[#1ebe5b] text-white text-xs h-8 px-3 flex items-center gap-1.5 shadow-sm"
-                >
-                  <MessageCircle className="w-3.5 h-3.5 fill-current" />
-                  <span>Coordenador</span>
-                </Button>
-              )}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  abrirWhatsAppPara(
-                    cidadaoTelefone,
-                    formatChamadoWhatsAppText({
-                      protocolo: chamado.protocolo,
-                      categoria,
-                      status,
-                      secretariaNome: secretaria !== 'NONE' ? SECRETARIAS[secretaria] : undefined,
-                      endereco: enderecoTexto,
-                      descricao,
-                      created_at: chamado.created_at,
-                      resposta_cidadao: respostaCidadao,
-                    })
-                  )
-                }
-                className="text-xs h-8 px-3 border-[#25D366] text-[#128C7E] bg-white flex items-center gap-1.5"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                <span>Cidadão</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  const text = formatChamadoWhatsAppText({
-                    protocolo: chamado.protocolo,
-                    categoria,
-                    status,
-                    secretariaNome: secretaria !== 'NONE' ? SECRETARIAS[secretaria] : undefined,
-                    endereco: enderecoTexto,
-                    descricao,
-                    created_at: chamado.created_at,
-                    resposta_cidadao: respostaCidadao,
-                  });
-                  const ok = await copyToClipboard(text);
-                  if (ok) {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }
-                }}
-                className="text-xs h-8 px-3 border-gray-200 bg-white"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-gray-500" />}
-                <span>{copied ? 'Copiado!' : 'Copiar texto'}</span>
-              </Button>
-            </div>
-          </div>
+          )}
 
           {erro && (
             <p className="flex items-start gap-1.5 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
