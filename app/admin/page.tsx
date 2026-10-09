@@ -936,8 +936,34 @@ export default function AdminPage() {
     setChamados((prev) => [fullChamado, ...prev]);
   };
 
-  const handleSaveProfile = async (updated: Profile) => {
-    if (isSupabaseConfigured) {
+  /** Salva um usuário. Com `senha`, cria a conta de login (rota do servidor, só admin). */
+  const handleSaveProfile = async (updated: Profile, senha?: string): Promise<string | null> => {
+    let salvo: Profile = updated;
+
+    if (isSupabaseConfigured && senha) {
+      try {
+        const res = await fetch('/api/usuarios', {
+          method: 'POST',
+          headers: await authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            nome: updated.nome,
+            email: updated.email,
+            senha,
+            cpf: updated.cpf ?? null,
+            telefone: updated.telefone ?? null,
+            role: updated.role,
+            secretaria: updated.secretaria ?? null,
+            cargo: updated.cargo ?? null,
+            servicos: updated.servicos ?? [],
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) return data.error || 'Não foi possível criar a conta.';
+        salvo = data.profile as Profile;
+      } catch {
+        return 'Sem conexão com o servidor. Tente novamente.';
+      }
+    } else if (isSupabaseConfigured) {
       const { error } = await (supabase.from('profiles') as any)
         .update({
           nome: updated.nome,
@@ -952,21 +978,23 @@ export default function AdminPage() {
         .eq('id', updated.id);
       if (error) {
         console.error('Erro ao salvar usuário:', error);
-        setFeedbackMessage({ type: 'error', text: 'Não foi possível salvar o usuário. Novas contas são criadas pela tela de cadastro.' });
-        return;
+        return 'Não foi possível salvar o usuário.';
       }
     } else {
       saveStoredProfile(updated);
     }
+
     setProfiles((prev) => {
-      const idx = prev.findIndex((p) => p.id === updated.id);
+      const idx = prev.findIndex((p) => p.id === salvo.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = updated;
+        next[idx] = salvo;
         return next;
       }
-      return [updated, ...prev];
+      return [salvo, ...prev];
     });
+    avisoTemporario('success', senha ? `Conta de ${salvo.nome} criada.` : `Usuário ${salvo.nome} salvo.`);
+    return null;
   };
 
   const handleDeleteProfile = async (id: string) => {

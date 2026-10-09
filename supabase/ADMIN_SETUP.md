@@ -108,3 +108,19 @@ alguém: o gatilho `protect_profile_role` bloqueia a autopromoção.
 - Não criar política RLS que permita ao próprio cidadão alterar `role`.
 - Não colocar a chave `service_role` no frontend nem no repositório.
 - Não colocar senhas no código.
+
+## Cadastrar servidores pelo painel (aba Usuários)
+
+O botão "Cadastrar Novo Usuário" cria a conta de login pela rota
+`POST /api/usuarios`, que só o admin pode usar. Criar conta para outra pessoa
+exige a chave secreta do Supabase, que fica **só no servidor**:
+
+1. Supabase → **Project Settings → API Keys** → copie a chave **secret**
+   (ou a antiga `service_role`).
+2. Vercel → projeto → **Settings → Environment Variables** → adicione
+   `SUPABASE_SERVICE_ROLE_KEY` com essa chave (ambiente Production e Preview).
+3. Faça um novo deploy (Deployments → ⋯ → Redeploy) para a variável valer.
+
+Nunca coloque essa chave no código, no `.env` versionado nem com o prefixo
+`NEXT_PUBLIC_` (que a enviaria para o navegador). Ela ignora todas as regras
+de segurança do banco.
