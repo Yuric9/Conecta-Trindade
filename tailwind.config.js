@@ -6,6 +6,8 @@ module.exports = {
     './components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
+    // Classes de cor dos status da O.S. ficam em lib/os-status.ts
+    './lib/**/*.{ts,tsx}',
   ],
   theme: {
     container: {

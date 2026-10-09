@@ -41,6 +41,7 @@ export interface ConectaProfile {
   role: string;
   secretaria?: string;
   cargo?: string;
+  servicos?: string[];
   status?: string;
   created_at: string;
 }
@@ -105,6 +106,32 @@ const SEED_PROFILES: ConectaProfile[] = [
     cargo: 'Diretor de Pavimentação e Drenagem',
     status: 'ativo',
     created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
+  },
+  {
+    id: 'demo-coord-001',
+    email: 'joao.iluminacao@trindade.go.gov.br',
+    nome: 'João Batista Ferreira',
+    cpf: '567.890.123-45',
+    telefone: '(62) 99345-6789',
+    role: 'coordenador',
+    secretaria: 'INFRAESTRUTURA',
+    cargo: 'Coordenador de Iluminação e Pavimentação',
+    servicos: ['ILUMINACAO', 'BURACO'],
+    status: 'ativo',
+    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+  },
+  {
+    id: 'demo-coord-002',
+    email: 'pedro.limpeza@trindade.go.gov.br',
+    nome: 'Pedro Henrique Lima',
+    cpf: '678.901.234-56',
+    telefone: '(62) 99456-7890',
+    role: 'coordenador',
+    secretaria: 'INFRAESTRUTURA',
+    cargo: 'Coordenador de Limpeza Urbana',
+    servicos: ['ROCAGEM', 'PODA', 'LIXO', 'VAZAMENTO', 'OUTROS'],
+    status: 'ativo',
+    created_at: new Date(Date.now() - 28 * 86400000).toISOString(),
   },
   {
     id: DEMO_CITIZEN_ID,

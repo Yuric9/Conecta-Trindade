@@ -123,91 +123,184 @@ import {
   User,
   Shield,
   LogIn,
+  Send,
+  HardHat,
 } from 'lucide-react';
 import {
-  formatChamadoWhatsAppText,
-  shareViaWhatsApp,
   copyToClipboard,
+  formatarOSParaCoordenador,
+  abrirWhatsAppPara,
 } from '@/lib/whatsapp-share';
 import { CRONOGRAMA_OFICIAL_TRINDADE, getBairrosHoje, DIAS_SEMANA_LABELS } from '@/lib/rsu-schedule';
 import { getPortalConfig, savePortalConfig } from '@/lib/config-portal';
 import { authHeaders } from '@/lib/auth-headers';
 import { AdminMobileNav, type AbaAdmin } from '@/components/admin-mobile-nav';
+import AdminModalEncaminhar, { type DadosEncaminhamento } from '@/components/admin-modal-encaminhar';
+import {
+  STATUS_OS,
+  STATUS_OS_INFO,
+  infoStatusOS,
+  normalizarStatusOS,
+  osEmAberto,
+  prazoVencido,
+  type StatusOS,
+} from '@/lib/os-status';
 
-type NormalizedStatus = 'Pendente' | 'Em Análise' | 'Em Andamento' | 'Concluído' | 'Cancelado';
-
-function normalizeStatus(status: string | undefined): NormalizedStatus {
-  if (!status) return 'Pendente';
-  const s = status.toUpperCase().trim();
-  if (s === 'ABERTO' || s === 'PENDENTE') return 'Pendente';
-  if (s === 'EM_ANALISE' || s === 'EM ANÁLISE' || s === 'TRIADO') return 'Em Análise';
-  if (s === 'EM_ANDAMENTO' || s === 'EM ANDAMENTO') return 'Em Andamento';
-  if (s === 'RESOLVIDO' || s === 'CONCLUÍDO' || s === 'CONCLUIDO' || s === 'AVALIADO') return 'Concluído';
-  if (s === 'CANCELADO' || s === 'REJEITADO') return 'Cancelado';
-  return 'Pendente';
-}
+type NormalizedStatus = StatusOS;
+const normalizeStatus = normalizarStatusOS;
 
 function StatusBadge({ status }: { status: string }) {
-  const norm = normalizeStatus(status);
-  switch (norm) {
-    case 'Pendente':
-      return (
-        <Badge
-          variant="outline"
-          className="bg-yellow-50 text-yellow-900 border-yellow-300 hover:bg-yellow-100 font-semibold px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs"
-        >
-          <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-          Pendente
-        </Badge>
-      );
-    case 'Em Análise':
-      return (
-        <Badge variant="outline" className="bg-orange-50 text-orange-900 border-orange-300 font-semibold px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-orange-500"/>{'Em Análise'}</Badge>
-      );
-    case 'Em Andamento':
-      return (
-        <Badge
-          variant="outline"
-          className="bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100 font-semibold px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs whitespace-nowrap"
-        >
-          <span className="w-2 h-2 rounded-full bg-blue-500" />
-          Em Andamento
-        </Badge>
-      );
-    case 'Concluído':
-      return (
-        <Badge
-          variant="outline"
-          className="bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 font-semibold px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs"
-        >
-          <span className="w-2 h-2 rounded-full bg-emerald-600" />
-          Concluído
-        </Badge>
-      );
-    case 'Cancelado':
-    default:
-      return (
-        <Badge
-          variant="outline"
-          className="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-100 font-medium px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs whitespace-nowrap"
-        >
-          <span className="w-2 h-2 rounded-full bg-gray-400" />
-          {status || 'Pendente'}
-        </Badge>
-      );
-  }
+  const info = infoStatusOS(status);
+  return (
+    <Badge
+      variant="outline"
+      className={`${info.badge} font-semibold px-2.5 py-0.5 text-xs gap-1.5 shadow-2xs whitespace-nowrap`}
+    >
+      <span className={`w-2 h-2 rounded-full ${info.dot}`} />
+      {info.label}
+    </Badge>
+  );
 }
 
-const KANBAN_COLUMNS: { status: ChamadoStatus; label: string; color: string }[] = [
-  { status: 'ABERTO', label: 'Pendente', color: 'amber' },
-  { status: 'TRIADO', label: 'Em análise', color: 'purple' },
-  { status: 'EM_ANDAMENTO', label: 'Em Andamento', color: 'blue' },
-  { status: 'RESOLVIDO', label: 'Concluído', color: 'green' },
-];
+const KANBAN_COLUMNS: StatusOS[] = ['Pendente', 'Encaminhada', 'Em Andamento', 'Aguardando Confirmação', 'Concluído'];
 
-function OSContextMenu({ chamado, enabled, onStatus, onCopyAddress, onEdit }: { chamado: Chamado; enabled: boolean; onStatus: (status: NormalizedStatus) => void; onCopyAddress: () => void; onEdit: () => void }) {
-  if (!enabled) return <Button size="sm" onClick={onEdit} className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-8 px-2.5 gap-1 shadow-xs"><Eye className="w-3 h-3"/><span className="hidden sm:inline">Editar</span></Button>;
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 border-gray-300 bg-white" onClick={(e)=>e.stopPropagation()} title="Ações rápidas"><MoreHorizontal className="w-4 h-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-52"><DropdownMenuItem onSelect={()=>onStatus('Em Análise')}><AlertCircle className="w-4 h-4 mr-2 text-orange-500"/>Mover para Triagem</DropdownMenuItem><DropdownMenuItem onSelect={()=>onStatus('Em Andamento')}><Truck className="w-4 h-4 mr-2 text-blue-600"/>Atribuir a Mim</DropdownMenuItem><DropdownMenuItem onSelect={onCopyAddress}><Copy className="w-4 h-4 mr-2"/>Copiar Endereço</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem onSelect={onEdit}><Eye className="w-4 h-4 mr-2 text-[#006653]"/>Editar Completo</DropdownMenuItem></DropdownMenuContent></DropdownMenu>;
+/** Próxima etapa que a equipe marca à mão (até a tela do coordenador existir). */
+const PROXIMA_ETAPA: Partial<Record<StatusOS, { status: StatusOS; label: string }>> = {
+  Encaminhada: { status: 'Em Andamento', label: 'Marcar em execução' },
+  'Em Andamento': { status: 'Aguardando Confirmação', label: 'Coordenador informou que terminou' },
+  'Aguardando Confirmação': { status: 'Concluído', label: 'Confirmar conclusão' },
+};
+
+// Colunas da tabela de O.S. (cabeçalho e linhas usam a mesma grade)
+const GRADE_TABELA_OS =
+  'grid-cols-[150px_minmax(130px,1fr)_minmax(170px,1.2fr)_minmax(170px,1.2fr)_150px_100px_185px_165px]';
+
+/** "faltam 2 dias", "faltam 5 h", "vence em minutos" */
+function prazoRestante(sla: string): string {
+  const horas = (new Date(sla).getTime() - Date.now()) / 3600000;
+  if (horas < 1) return 'vence em minutos';
+  if (horas < 24) return `faltam ${Math.floor(horas)} h`;
+  const dias = Math.floor(horas / 24);
+  return dias === 1 ? 'falta 1 dia' : `faltam ${dias} dias`;
+}
+
+const BOTAO_ETAPA: Partial<Record<StatusOS, { label: string; title: string; cls: string }>> = {
+  Encaminhada: {
+    label: 'Iniciou',
+    title: 'Coordenador iniciou o serviço',
+    cls: 'border-blue-300 text-blue-800 hover:bg-blue-50',
+  },
+  'Em Andamento': {
+    label: 'Executada',
+    title: 'Coordenador informou que terminou (falta a confirmação)',
+    cls: 'border-cyan-300 text-cyan-800 hover:bg-cyan-50',
+  },
+  'Aguardando Confirmação': {
+    label: 'Confirmar',
+    title: 'Confirmar a conclusão: o cidadão passa a ver como concluída',
+    cls: 'border-emerald-400 text-emerald-800 hover:bg-emerald-50',
+  },
+};
+
+/** Botão do próximo passo da O.S. na linha (Encaminhar, Iniciou, Executada, Confirmar). */
+function AcaoPrincipalOS({
+  chamado,
+  ocupado,
+  onEncaminhar,
+  onAvancar,
+}: {
+  chamado: Chamado;
+  ocupado: boolean;
+  onEncaminhar: () => void;
+  onAvancar: (status: StatusOS) => void;
+}) {
+  const status = normalizarStatusOS(chamado.status);
+  if (status === 'Pendente') {
+    return (
+      <Button size="sm" onClick={onEncaminhar} disabled={ocupado} className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-8 px-3 gap-1.5 font-semibold">
+        <Send className="w-3.5 h-3.5" />
+        Encaminhar
+      </Button>
+    );
+  }
+  const proxima = PROXIMA_ETAPA[status];
+  const botao = BOTAO_ETAPA[status];
+  if (!proxima || !botao) return null;
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => onAvancar(proxima.status)}
+      disabled={ocupado}
+      title={botao.title}
+      className={`text-xs h-8 px-3 gap-1 font-semibold bg-white ${botao.cls}`}
+    >
+      {ocupado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+      {botao.label}
+    </Button>
+  );
+}
+
+interface OSContextMenuProps {
+  chamado: Chamado;
+  enabled: boolean;
+  onEncaminhar: () => void;
+  onAvancar: (status: StatusOS) => void;
+  onAvisar: () => void;
+  onCopyAddress: () => void;
+  onEdit: () => void;
+}
+
+function OSContextMenu({ chamado, enabled, onEncaminhar, onAvancar, onAvisar, onCopyAddress, onEdit }: OSContextMenuProps) {
+  if (!enabled) {
+    return (
+      <Button size="sm" variant="outline" onClick={onEdit} className="text-xs h-8 px-2.5 gap-1 border-gray-300 bg-white" title="Abrir O.S.">
+        <Eye className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Abrir</span>
+      </Button>
+    );
+  }
+  const status = normalizarStatusOS(chamado.status);
+  const proxima = PROXIMA_ETAPA[status];
+  const emAberto = osEmAberto(status);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="h-8 w-8 border-gray-300 bg-white" onClick={(e) => e.stopPropagation()} title="Ações da O.S.">
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        {emAberto && (
+          <DropdownMenuItem onSelect={onEncaminhar}>
+            <Send className="w-4 h-4 mr-2 text-violet-600" />
+            {chamado.coordenador_id ? 'Trocar coordenador' : 'Encaminhar ao coordenador'}
+          </DropdownMenuItem>
+        )}
+        {proxima && (
+          <DropdownMenuItem onSelect={() => onAvancar(proxima.status)}>
+            <ArrowRight className="w-4 h-4 mr-2 text-blue-600" />
+            {proxima.label}
+          </DropdownMenuItem>
+        )}
+        {chamado.coordenador_id && emAberto && (
+          <DropdownMenuItem onSelect={onAvisar}>
+            <MessageCircle className="w-4 h-4 mr-2 text-[#25D366]" />
+            Avisar coordenador no WhatsApp
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={onCopyAddress}>
+          <Copy className="w-4 h-4 mr-2" />
+          Copiar endereço
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onEdit}>
+          <Eye className="w-4 h-4 mr-2 text-[#006653]" />
+          Abrir O.S. completa
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export default function AdminPage() {
@@ -231,13 +324,15 @@ export default function AdminPage() {
   const [menuContextoAtivo, setMenuContextoAtivo] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [filterCategoria, setFilterCategoria] = useState<ChamadoCategoria | 'TODAS'>('TODAS');
-  const [filterSecretaria, setFilterSecretaria] = useState<ChamadoSecretaria | 'TODAS'>('TODAS');
+  // 'TODOS', 'SEM' (sem coordenador) ou o id do coordenador
+  const [filterCoordenador, setFilterCoordenador] = useState<string>('TODOS');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAtrasado, setFilterAtrasado] = useState(false);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [selectedChamado, setSelectedChamado] = useState<Chamado | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isNewChamadoOpen, setIsNewChamadoOpen] = useState(false);
+  const [encaminharChamado, setEncaminharChamado] = useState<Chamado | null>(null);
   const [adminTab, setAdminTab] = useState<
     'dashboard' | 'chamados' | 'usuarios' | 'orgaos' | 'mapa' | 'rsu' | 'relatorios' | 'configuracoes'
   >('chamados');
@@ -302,6 +397,11 @@ export default function AdminPage() {
           sla_limite: c.sla_limite ?? existing?.sla_limite,
           observacoes_internas: c.observacoes_internas ?? existing?.observacoes_internas,
           resposta_cidadao: c.resposta_cidadao ?? existing?.resposta_cidadao,
+          coordenador_id: c.coordenador_id ?? existing?.coordenador_id ?? null,
+          encaminhado_em: c.encaminhado_em ?? existing?.encaminhado_em ?? null,
+          iniciado_em: c.iniciado_em ?? existing?.iniciado_em ?? null,
+          executado_em: c.executado_em ?? existing?.executado_em ?? null,
+          concluido_em: c.concluido_em ?? existing?.concluido_em ?? null,
           created_at: c.created_at || existing?.created_at || new Date().toISOString(),
           updated_at: c.updated_at || existing?.updated_at || new Date().toISOString(),
         });
@@ -350,77 +450,125 @@ export default function AdminPage() {
     if (id === 'chamados' && view === 'mapa') setView('os');
   };
 
-  const handleQuickStatusChange = async (chamado: Chamado, newStatus: NormalizedStatus) => {
-    const chamadoId = chamado.id || chamado.protocolo;
-    setUpdatingId(chamadoId);
-    const oldStatus = chamado.status;
+  // Coordenadores ativos (quem pode receber O.S.)
+  const coordenadores = useMemo(
+    () => profiles.filter((p) => p.role === 'coordenador' && (p.status || 'ativo') === 'ativo'),
+    [profiles]
+  );
+  const nomeCoordenador = useCallback(
+    (id?: string | null) => (id ? profiles.find((p) => p.id === id)?.nome || 'Coordenador' : null),
+    [profiles]
+  );
 
-    // Atualização otimista imediata na interface
-    const updated: Chamado = {
-      ...chamado,
-      status: newStatus as ChamadoStatus,
-      updated_at: new Date().toISOString(),
-    };
+  const avisoTemporario = (type: 'success' | 'error', text: string, ms = 4000) => {
+    setFeedbackMessage({ type, text });
+    setTimeout(() => setFeedbackMessage(null), ms);
+  };
 
-    setChamados((prev) =>
-      prev.map((c) =>
-        c.id === chamado.id || c.protocolo === chamado.protocolo ? updated : c
-      )
-    );
+  /**
+   * Grava alterações de uma O.S. pela API (as regras do fluxo valem no banco).
+   * `motivo` vai para o histórico. Devolve null se deu certo ou a mensagem de erro.
+   */
+  const atualizarOS = async (
+    chamado: Chamado,
+    alteracoes: Partial<Chamado>,
+    motivo?: string
+  ): Promise<string | null> => {
+    const chave = chamado.id || chamado.protocolo;
+    const agora = new Date().toISOString();
+    const atualizado: Chamado = { ...chamado, ...alteracoes, updated_at: agora };
+    // Datas das etapas (o banco grava as definitivas; aqui é só para a tela)
+    if (alteracoes.status && normalizarStatusOS(alteracoes.status) !== normalizarStatusOS(chamado.status)) {
+      const st = normalizarStatusOS(alteracoes.status);
+      if (st === 'Encaminhada') atualizado.encaminhado_em = agora;
+      if (st === 'Em Andamento') atualizado.iniciado_em = chamado.iniciado_em || agora;
+      if (st === 'Aguardando Confirmação') atualizado.executado_em = agora;
+      if (st === 'Concluído') atualizado.concluido_em = agora;
+    }
 
-    // Salvar localmente no storage persistente
-    saveStoredChamadoItem(updated);
-
+    setUpdatingId(chave);
     try {
-      // 1. Chamar PATCH na API /api/chamados
       const res = await fetch('/api/chamados', {
         method: 'PATCH',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           id: chamado.id,
           protocolo: chamado.protocolo,
-          status: newStatus,
+          ...alteracoes,
+          ...(alteracoes.status ? { status: normalizarStatusOS(alteracoes.status) } : {}),
+          motivo: motivo || undefined,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) return data.error || 'Não foi possível salvar a O.S.';
 
-      // 2. Se Supabase estiver conectado, atualizar na tabela também
-      if (isSupabaseConfigured) {
-        let q = (supabase.from('chamados') as any).update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        });
-        if (chamado.id) {
-          q = q.eq('id', idMatch(chamado.id));
-        } else if (chamado.protocolo) {
-          q = q.eq('protocolo', chamado.protocolo);
-        }
-        await q;
-      }
-
-      setFeedbackMessage({
-        type: 'success',
-        text: `O.S. ${chamado.protocolo} atualizada para "${newStatus}".`,
-      });
-      setTimeout(() => setFeedbackMessage(null), 4000);
+      // Com o banco, usa o que foi gravado (datas definitivas do gatilho)
+      const gravado: Chamado = isSupabaseConfigured && data.chamado?.protocolo
+        ? {
+            ...atualizado,
+            status: data.chamado.status ?? atualizado.status,
+            coordenador_id: data.chamado.coordenador_id ?? null,
+            encaminhado_em: data.chamado.encaminhado_em ?? atualizado.encaminhado_em,
+            iniciado_em: data.chamado.iniciado_em ?? atualizado.iniciado_em,
+            executado_em: data.chamado.executado_em ?? atualizado.executado_em,
+            concluido_em: data.chamado.concluido_em ?? null,
+            updated_at: data.chamado.updated_at ?? agora,
+          }
+        : atualizado;
+      setChamados((prev) => prev.map((c) => (c.id === chamado.id || c.protocolo === chamado.protocolo ? gravado : c)));
+      if (!isSupabaseConfigured) saveStoredChamadoItem(gravado);
+      return null;
     } catch (err) {
-      console.error('Erro ao atualizar status do chamado:', err);
-      // Reverter se falhar
-      setChamados((prev) =>
-        prev.map((c) => (c.id === chamado.id ? { ...c, status: oldStatus } : c))
-      );
-      setFeedbackMessage({
-        type: 'error',
-        text: 'Não foi possível salvar a alteração de status no banco de dados.',
-      });
-      setTimeout(() => setFeedbackMessage(null), 4000);
+      console.error('Erro ao atualizar O.S.:', err);
+      return 'Sem conexão com o servidor. Tente novamente.';
     } finally {
       setUpdatingId(null);
     }
   };
 
-  function idMatch(val: string) {
-    return val;
-  }
+  const handleQuickStatusChange = async (chamado: Chamado, newStatus: NormalizedStatus) => {
+    const erro = await atualizarOS(chamado, { status: newStatus as ChamadoStatus });
+    if (erro) avisoTemporario('error', `O.S. ${chamado.protocolo}: ${erro}`, 6000);
+    else avisoTemporario('success', `O.S. ${chamado.protocolo}: ${STATUS_OS_INFO[newStatus].label}.`);
+  };
+
+  const handleEncaminhar = async (chamado: Chamado, dados: DadosEncaminhamento) => {
+    const status = normalizarStatusOS(chamado.status);
+    return atualizarOS(
+      chamado,
+      {
+        // Já em execução e só trocando o coordenador: a etapa continua a mesma
+        ...(status === 'Pendente' ? { status: 'Encaminhada' as ChamadoStatus } : {}),
+        coordenador_id: dados.coordenador_id,
+        secretaria: 'INFRAESTRUTURA',
+        prioridade: dados.prioridade,
+        sla_limite: dados.sla_limite,
+      },
+      dados.observacao
+    );
+  };
+
+  const handleAvisarCoordenador = (chamado: Chamado) => {
+    const coord = profiles.find((p) => p.id === chamado.coordenador_id);
+    if (!coord) return;
+    abrirWhatsAppPara(
+      coord.telefone,
+      formatarOSParaCoordenador({
+        protocolo: chamado.protocolo,
+        categoria: chamado.categoria,
+        coordenadorNome: coord.nome,
+        prioridade: chamado.prioridade,
+        sla_limite: chamado.sla_limite,
+        endereco: chamado.endereco_texto,
+        descricao: chamado.descricao,
+        cidadao_nome: chamado.cidadao_nome,
+        cidadao_telefone: chamado.cidadao_telefone,
+        latitude: chamado.latitude,
+        longitude: chamado.longitude,
+      })
+    );
+  };
+
 
   const filteredChamados = useMemo(() => {
     return chamados.filter((c) => {
@@ -429,15 +577,9 @@ export default function AdminPage() {
         if (norm !== filterStatus) return false;
       }
       if (filterCategoria !== 'TODAS' && normalizeCategoria(c.categoria) !== filterCategoria) return false;
-      if (filterSecretaria !== 'TODAS' && c.secretaria !== filterSecretaria) return false;
-      if (filterAtrasado) {
-        const expired =
-          c.sla_limite &&
-          new Date(c.sla_limite) < new Date() &&
-          normalizeStatus(c.status) !== 'Concluído' &&
-          normalizeStatus(c.status) !== 'Cancelado';
-        if (!expired) return false;
-      }
+      if (filterCoordenador === 'SEM' && c.coordenador_id) return false;
+      if (filterCoordenador !== 'TODOS' && filterCoordenador !== 'SEM' && c.coordenador_id !== filterCoordenador) return false;
+      if (filterAtrasado && !prazoVencido(c)) return false;
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
         const matchesProtocolo = c.protocolo?.toLowerCase().includes(term);
@@ -448,30 +590,24 @@ export default function AdminPage() {
       }
       return true;
     });
-  }, [chamados, filterStatus, filterCategoria, filterSecretaria, filterAtrasado, searchTerm]);
+  }, [chamados, filterStatus, filterCategoria, filterCoordenador, filterAtrasado, searchTerm]);
 
   const stats = useMemo(() => {
+    const porStatus = (st: StatusOS) => chamados.filter((c) => normalizeStatus(c.status) === st).length;
     const total = chamados.length;
-    const pendentes = chamados.filter((c) => normalizeStatus(c.status) === 'Pendente').length;
-    const andamento = chamados.filter((c) => normalizeStatus(c.status) === 'Em Andamento').length;
-    const concluidos = chamados.filter((c) => normalizeStatus(c.status) === 'Concluído').length;
-    const cancelados = chamados.filter((c) => normalizeStatus(c.status) === 'Cancelado').length;
-    const atrasados = chamados.filter((c) =>
-      c.sla_limite &&
-      new Date(c.sla_limite) < new Date() &&
-      normalizeStatus(c.status) !== 'Concluído' &&
-      normalizeStatus(c.status) !== 'Cancelado'
-    ).length;
+    const pendentes = porStatus('Pendente');
+    const concluidos = porStatus('Concluído');
     return {
       total,
       pendentes,
       abertos: pendentes,
-      andamento,
+      encaminhadas: porStatus('Encaminhada'),
+      andamento: porStatus('Em Andamento'),
+      aguardando: porStatus('Aguardando Confirmação'),
       resolvidos: concluidos,
       concluidos,
-      cancelados,
-      triados: 0,
-      atrasados,
+      cancelados: porStatus('Cancelado'),
+      atrasados: chamados.filter((c) => prazoVencido(c)).length,
     };
   }, [chamados]);
 
@@ -498,8 +634,8 @@ export default function AdminPage() {
         id,
         label,
         total: items.length,
-        resolvidos: items.filter((c) => c.status === 'RESOLVIDO' || c.status === 'AVALIADO').length,
-        pendentes: items.filter((c) => c.status !== 'RESOLVIDO' && c.status !== 'AVALIADO' && c.status !== 'REJEITADO').length,
+        resolvidos: items.filter((c) => normalizeStatus(c.status) === 'Concluído').length,
+        pendentes: items.filter((c) => osEmAberto(c.status)).length,
       };
     });
   }, [chamados]);
@@ -517,14 +653,18 @@ export default function AdminPage() {
   }, [chamados]);
 
   const exportCsv = () => {
-    const header = ['O.S. (Ordem de Serviço)', 'Categoria', 'Status', 'Secretaria', 'Endereço', 'Criado em'];
+    const header = ['O.S. (Ordem de Serviço)', 'Categoria', 'Status', 'Coordenador', 'Prazo', 'Prazo vencido', 'Secretaria', 'Endereço', 'Criado em', 'Concluído em'];
     const rows = chamados.map((c) => [
       c.protocolo,
       getCategoriaInfo(c.categoria)?.label || c.categoria,
-      getStatusInfo(c.status).label,
+      infoStatusOS(c.status).label,
+      nomeCoordenador(c.coordenador_id) || '',
+      c.sla_limite ? formatData(c.sla_limite) : '',
+      prazoVencido(c) ? 'Sim' : 'Não',
       c.secretaria ? SECRETARIAS[c.secretaria] : 'Não atribuída',
       c.endereco_texto || '',
       formatData(c.created_at),
+      c.concluido_em ? formatData(c.concluido_em) : '',
     ]);
     const csv = [header, ...rows].map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';')).join('\n');
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }));
@@ -540,44 +680,26 @@ export default function AdminPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveChamado = async (updated: Chamado) => {
-    const anterior = chamados.find((c) => c.id === updated.id || c.protocolo === updated.protocolo);
-    setChamados((prev) => prev.map((c) => (c.id === updated.id || c.protocolo === updated.protocolo ? updated : c)));
-
-    if (!isSupabaseConfigured) {
-      saveStoredChamadoItem(updated);
-    }
-
-    try {
-      const res = await fetch('/api/chamados', {
-        method: 'PATCH',
-        headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          id: updated.id,
-          protocolo: updated.protocolo,
-          status: normalizeStatus(updated.status),
-          secretaria: updated.secretaria ?? null,
-          prioridade: updated.prioridade || 'MEDIA',
-          sla_limite: updated.sla_limite ?? null,
-          observacoes_internas: updated.observacoes_internas ?? null,
-          resposta_cidadao: updated.resposta_cidadao ?? null,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Falha ao salvar');
-      }
-
-      setFeedbackMessage({ type: 'success', text: `O.S. ${updated.protocolo} salva.` });
-      setTimeout(() => setFeedbackMessage(null), 4000);
-    } catch (err: any) {
-      console.error('Erro ao salvar O.S.:', err);
-      // Desfaz a alteração na tela para não mostrar algo que não foi gravado
-      if (anterior) {
-        setChamados((prev) => prev.map((c) => (c.id === anterior.id ? anterior : c)));
-      }
-      setFeedbackMessage({ type: 'error', text: `Não foi possível salvar a O.S. ${updated.protocolo}: ${err?.message || 'erro desconhecido'}.` });
-    }
+  const handleSaveChamado = async (updated: Chamado, motivo?: string): Promise<string | null> => {
+    const anterior = chamados.find((c) => c.id === updated.id || c.protocolo === updated.protocolo) || updated;
+    const novoStatus = normalizeStatus(updated.status);
+    const erro = await atualizarOS(
+      anterior,
+      {
+        // Status só vai quando muda (reenviar "Cancelado" pediria motivo de novo)
+        ...(novoStatus !== normalizeStatus(anterior.status) ? { status: novoStatus as ChamadoStatus } : {}),
+        coordenador_id: updated.coordenador_id ?? null,
+        secretaria: updated.secretaria ?? null,
+        prioridade: updated.prioridade || 'MEDIA',
+        // null apaga o campo no banco (undefined não seria enviado)
+        sla_limite: updated.sla_limite ?? (null as unknown as undefined),
+        observacoes_internas: updated.observacoes_internas ?? (null as unknown as undefined),
+        resposta_cidadao: updated.resposta_cidadao ?? (null as unknown as undefined),
+      },
+      motivo
+    );
+    if (!erro) avisoTemporario('success', `O.S. ${updated.protocolo} salva.`);
+    return erro;
   };
 
   const handleDeleteChamado = async (id: string) => {
@@ -644,6 +766,7 @@ export default function AdminPage() {
           role: updated.role,
           secretaria: updated.secretaria ?? null,
           cargo: updated.cargo ?? null,
+          servicos: updated.servicos ?? [],
           status: updated.status ?? 'ativo',
           updated_at: new Date().toISOString(),
         })
@@ -721,7 +844,6 @@ export default function AdminPage() {
     catch { setMenuContextoAtivo(!next); setFeedbackMessage({ type: 'error', text: 'Não foi possível salvar a preferência do menu de contexto.' }); }
     setTimeout(() => setFeedbackMessage(null), 3000);
   };
-  const handleContextStatus = async (chamado: Chamado, status: NormalizedStatus) => { await handleQuickStatusChange(chamado, status); if (status === 'Em Andamento') { setFeedbackMessage({ type: 'success', text: `O.S. ${chamado.protocolo} atribuída a você e movida para Em Andamento.` }); setTimeout(() => setFeedbackMessage(null), 3000); } };
   const handleCopyAddress = async (chamado: Chamado) => { const ok = await copyToClipboard(chamado.endereco_texto || (chamado as any).endereco || 'Trindade - GO'); setFeedbackMessage({ type: ok ? 'success' : 'error', text: ok ? 'Endereço copiado para a área de transferência.' : 'Não foi possível copiar o endereço.' }); setTimeout(() => setFeedbackMessage(null), 2500); };
 
   if (authLoading && chamados.length === 0) {
@@ -809,9 +931,9 @@ export default function AdminPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {[
             { label: 'Total de chamados', value: stats.total, icon: LayoutDashboard, color: 'text-[#006653]', bg: 'bg-emerald-50', status: 'TODOS', atrasado: false },
-            { label: 'Pendentes', value: stats.abertos, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', status: 'Pendente', atrasado: false },
-            { label: 'Em andamento', value: stats.andamento, icon: Timer, color: 'text-blue-600', bg: 'bg-blue-50', status: 'Em Andamento', atrasado: false },
-            { label: 'Concluídos', value: stats.resolvidos, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', status: 'Concluído', atrasado: false },
+            { label: 'Novas (a encaminhar)', value: stats.pendentes, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', status: 'Pendente', atrasado: false },
+            { label: 'Em execução', value: stats.andamento, icon: Timer, color: 'text-blue-600', bg: 'bg-blue-50', status: 'Em Andamento', atrasado: false },
+            { label: 'Aguardando confirmação', value: stats.aguardando, icon: CheckCircle2, color: 'text-cyan-700', bg: 'bg-cyan-50', status: 'Aguardando Confirmação', atrasado: false },
             { label: 'Prazo vencido', value: stats.atrasados, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', status: 'TODOS', atrasado: true },
           ].map((stat) => {
             const Icon = stat.icon;
@@ -1237,9 +1359,9 @@ export default function AdminPage() {
               >
                 <Filter className="w-4 h-4" />
                 Filtros
-                {(filterCategoria !== 'TODAS' ? 1 : 0) + (filterSecretaria !== 'TODAS' ? 1 : 0) + (filterAtrasado ? 1 : 0) > 0 && (
+                {(filterCategoria !== 'TODAS' ? 1 : 0) + (filterCoordenador !== 'TODOS' ? 1 : 0) + (filterAtrasado ? 1 : 0) > 0 && (
                   <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#006653] text-white text-[10px] leading-[18px] text-center">
-                    {(filterCategoria !== 'TODAS' ? 1 : 0) + (filterSecretaria !== 'TODAS' ? 1 : 0) + (filterAtrasado ? 1 : 0)}
+                    {(filterCategoria !== 'TODAS' ? 1 : 0) + (filterCoordenador !== 'TODOS' ? 1 : 0) + (filterAtrasado ? 1 : 0)}
                   </span>
                 )}
               </button>
@@ -1266,20 +1388,21 @@ export default function AdminPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-gray-400" />
-                <Select value={filterSecretaria} onValueChange={(v) => setFilterSecretaria(v as any)}>
-                  <SelectTrigger className="w-[170px] h-9 bg-gray-50 border-gray-200 text-xs">
-                    <SelectValue placeholder="Secretaria" />
+                <HardHat className="w-4 h-4 text-gray-400" />
+                <Select value={filterCoordenador} onValueChange={setFilterCoordenador}>
+                  <SelectTrigger className="w-[190px] h-9 bg-gray-50 border-gray-200 text-xs">
+                    <SelectValue placeholder="Coordenador" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="TODAS">Todas secretarias</SelectItem>
-                    <SelectItem value="OBRAS">Sec. de Obras</SelectItem>
-                    <SelectItem value="SERVICOS_PUBLICOS">Serviços Públicos</SelectItem>
-                    <SelectItem value="MEIO_AMBIENTE">Meio Ambiente</SelectItem>
-                    <SelectItem value="TRANSITO">Trânsito</SelectItem>
-                    <SelectItem value="SAUDE">Saúde</SelectItem>
-                    <SelectItem value="EDUCACAO">Educação</SelectItem>
-                    <SelectItem value="SEGURANCA">Segurança / Defesa</SelectItem>
+                    <SelectItem value="TODOS">Todos coordenadores</SelectItem>
+                    <SelectItem value="SEM">Sem coordenador</SelectItem>
+                    {profiles
+                      .filter((p) => p.role === 'coordenador')
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.nome}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1299,12 +1422,12 @@ export default function AdminPage() {
               <button type="button" onClick={handleToggleContextMenu} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700"><span className={`relative h-4 w-7 rounded-full ${menuContextoAtivo ? 'bg-[#006653]' : 'bg-gray-300'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${menuContextoAtivo ? 'translate-x-3.5' : 'translate-x-0.5'}`}/></span>Menu rápido</button>
               </div>
 
-              {(filterCategoria !== 'TODAS' || filterSecretaria !== 'TODAS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
+              {(filterCategoria !== 'TODAS' || filterCoordenador !== 'TODOS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
                 <button
                   onClick={() => {
                     setFilterStatus('TODOS');
                     setFilterCategoria('TODAS');
-                    setFilterSecretaria('TODAS');
+                    setFilterCoordenador('TODOS');
                     setFilterAtrasado(false);
                     setSearchTerm('');
                   }}
@@ -1369,12 +1492,13 @@ export default function AdminPage() {
                     Status da O.S.:
                   </span>
                   {[
-                    { id: 'TODOS', label: 'Todas as O.S.', count: stats.total },
-                    { id: 'Pendente', label: 'Pendentes', count: stats.pendentes, dot: 'bg-yellow-400' },
-                    { id: 'Em Análise', label: 'Em análise', count: chamados.filter((c) => normalizeStatus(c.status) === 'Em Análise').length, dot: 'bg-orange-500' },
-                    { id: 'Em Andamento', label: 'Em Andamento', count: stats.andamento, dot: 'bg-blue-500' },
-                    { id: 'Concluído', label: 'Concluídas', count: stats.concluidos, dot: 'bg-emerald-500' },
-                    { id: 'Cancelado', label: 'Canceladas', count: stats.cancelados, dot: 'bg-gray-400' },
+                    { id: 'TODOS', label: 'Todas', count: stats.total, dot: '' },
+                    ...STATUS_OS.map((st) => ({
+                      id: st,
+                      label: STATUS_OS_INFO[st].label,
+                      count: chamados.filter((c) => normalizeStatus(c.status) === st).length,
+                      dot: STATUS_OS_INFO[st].dot,
+                    })),
                   ].map((st) => (
                     <button
                       key={st.id}
@@ -1425,11 +1549,12 @@ export default function AdminPage() {
 
               <div className="px-3 sm:px-4 py-2.5 border-b border-gray-100 bg-white flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-gray-600">
                 <span className="font-bold text-gray-700">Legenda:</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-yellow-400"/>Pendente</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-orange-500"/>Em Análise</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500"/>Em andamento</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Concluído</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gray-900"/>Cancelado</span>
+                {STATUS_OS.map((st) => (
+                  <span key={st} className="inline-flex items-center gap-1.5">
+                    <span className={`h-2 w-2 rounded-full ${STATUS_OS_INFO[st].dot}`} />
+                    {STATUS_OS_INFO[st].label}
+                  </span>
+                ))}
                 <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500"/>Prazo vencido</span>
               </div>
 
@@ -1440,12 +1565,12 @@ export default function AdminPage() {
                   <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
                     Ajuste os filtros de busca, categoria ou status acima para localizar outras solicitações.
                   </p>
-                  {(filterCategoria !== 'TODAS' || filterSecretaria !== 'TODAS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
+                  {(filterCategoria !== 'TODAS' || filterCoordenador !== 'TODOS' || filterAtrasado || searchTerm || filterStatus !== 'TODOS') && (
                     <Button
                       onClick={() => {
                         setFilterStatus('TODOS');
                         setFilterCategoria('TODAS');
-                        setFilterSecretaria('TODAS');
+                        setFilterCoordenador('TODOS');
                         setFilterAtrasado(false);
                         setSearchTerm('');
                       }}
@@ -1459,14 +1584,175 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <>
-                  {osViewMode === 'table' && (                <div className="overflow-x-auto scrollbar-thin">
-                  <div id="admin-page-chamados-list" className="min-w-[1205px] text-left text-xs">
-                    <div className="sticky top-0 z-10 grid grid-cols-[40px_130px_minmax(150px,1fr)_minmax(180px,1.2fr)_minmax(180px,1.2fr)_125px_150px_175px] bg-gray-50/95 backdrop-blur border-b border-gray-200 uppercase font-semibold text-[10px] tracking-wider text-gray-600"><div className="px-2 sm:px-3 py-3">#</div><div className="px-2 sm:px-3 py-3">Protocolo</div><div className="px-2 sm:px-3 py-3">Cidadão</div><div className="px-2 sm:px-3 py-3">Serviço</div><div className="px-2 sm:px-3 py-3">Bairro/Endereço</div><div className="px-2 sm:px-3 py-3">Data</div><div className="px-2 sm:px-3 py-3">Status</div><div className="px-2 sm:px-3 py-3 text-right">Ações</div></div>
-                    <div className="divide-y divide-gray-100">{filteredChamados.map((c,index)=>{const catInfo=getCategoriaInfo(c.categoria);const address=c.endereco_texto||(c as any).endereco||'Trindade - GO';const isUpdatingThis=updatingId===(c.id||c.protocolo);return <div key={c.id||c.protocolo} className="grid grid-cols-[40px_130px_minmax(150px,1fr)_minmax(180px,1.2fr)_minmax(180px,1.2fr)_125px_150px_175px] items-center hover:bg-emerald-50/30 transition-colors cursor-pointer" onClick={()=>openDetail(c)}><div className="px-2 sm:px-3 py-3 text-[10px] text-gray-400">{index+1}</div><div className="px-2 sm:px-3 py-3 min-w-0"><span className="font-mono font-bold text-[11px] text-[#006653] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80 truncate">{c.protocolo}</span></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="font-medium text-gray-900 truncate max-w-[170px] xl:max-w-xs">{c.cidadao_nome||(c as any).nome_cidadao||'Cidadão Trindadense'}</div><div className="text-[10px] text-gray-500 truncate max-w-[170px] xl:max-w-xs">{c.cidadao_telefone||(c as any).telefone_cidadao||''}</div></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="flex items-center gap-1.5 font-semibold text-gray-800 text-[11px] truncate"><CategoriaIcone categoria={catInfo.id} className="w-3.5 h-3.5"/><span className="truncate">{catInfo?.label||(c as any).categoria_servico||c.categoria}</span></div><p className="text-gray-600 text-[11px] line-clamp-1 truncate max-w-[170px] xl:max-w-xs">{c.descricao||'Sem descrição informada'}</p></div><div className="px-2 sm:px-3 py-3 min-w-0"><div className="flex items-start gap-1 text-gray-700"><MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0 mt-0.5"/><span className="truncate text-[11px] font-medium max-w-[170px] xl:max-w-xs" title={address}>{address}</span></div></div><div className="px-2 sm:px-3 py-3 whitespace-nowrap"><div className="flex items-center gap-1 text-gray-700 text-[10px]"><Calendar className="w-3 h-3 text-gray-400"/>{formatData(c.created_at)}</div><div className="text-[9px] text-gray-400">{tempoRelativo(c.created_at)}</div></div><div className="px-2 sm:px-3 py-3"><StatusBadge status={c.status}/></div><div className="px-2 sm:px-3 py-3 flex items-center justify-end gap-1" onClick={e=>e.stopPropagation()}><div className="w-[125px]"><Select value={normalizeStatus(c.status)} onValueChange={v=>handleQuickStatusChange(c,v as NormalizedStatus)} disabled={isUpdatingThis}><SelectTrigger className="h-7 text-[10px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Análise">Em Análise</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem><SelectItem value="Cancelado">Cancelado</SelectItem></SelectContent></Select></div><OSContextMenu chamado={c} enabled={menuContextoAtivo} onStatus={v=>handleContextStatus(c,v)} onCopyAddress={()=>handleCopyAddress(c)} onEdit={()=>openDetail(c)}/></div></div>})}</div>
+                  {osViewMode === 'table' && (
+                    <div className="overflow-x-auto scrollbar-thin">
+                      <div id="admin-page-chamados-list" className="min-w-[1200px] text-left text-xs">
+                        <div className={`sticky top-0 z-10 grid ${GRADE_TABELA_OS} bg-gray-50/95 backdrop-blur border-b border-gray-200 uppercase font-semibold text-[10px] tracking-wider text-gray-600`}>
+                          <div className="px-3 py-3">Protocolo</div>
+                          <div className="px-3 py-3">Cidadão</div>
+                          <div className="px-3 py-3">Serviço</div>
+                          <div className="px-3 py-3">Endereço</div>
+                          <div className="px-3 py-3">Coordenador</div>
+                          <div className="px-3 py-3">Prazo</div>
+                          <div className="px-3 py-3">Status</div>
+                          <div className="px-3 py-3 text-right">Ações</div>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {filteredChamados.map((c) => {
+                            const catInfo = getCategoriaInfo(c.categoria);
+                            const address = c.endereco_texto || (c as any).endereco || 'Trindade - GO';
+                            const vencido = prazoVencido(c);
+                            const coord = nomeCoordenador(c.coordenador_id);
+                            return (
+                              <div
+                                key={c.id || c.protocolo}
+                                className={`grid ${GRADE_TABELA_OS} items-center hover:bg-emerald-50/30 transition-colors cursor-pointer ${vencido ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-transparent'}`}
+                                onClick={() => openDetail(c)}
+                              >
+                                <div className="px-3 py-3 min-w-0">
+                                  <span className="font-mono font-bold text-[11px] text-[#006653] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80 whitespace-nowrap">
+                                    {c.protocolo}
+                                  </span>
+                                  <div className="flex items-center gap-1 text-[10px] text-gray-500 mt-1" title={formatData(c.created_at)}>
+                                    <Calendar className="w-3 h-3 text-gray-400" />
+                                    {tempoRelativo(c.created_at)}
+                                  </div>
+                                </div>
+                                <div className="px-3 py-3 min-w-0">
+                                  <div className="font-medium text-gray-900 truncate">{c.cidadao_nome || (c as any).nome_cidadao || 'Cidadão Trindadense'}</div>
+                                  <div className="text-[10px] text-gray-500 truncate">{c.cidadao_telefone || (c as any).telefone_cidadao || ''}</div>
+                                </div>
+                                <div className="px-3 py-3 min-w-0">
+                                  <div className="flex items-center gap-1.5 font-semibold text-gray-800 text-[11px] truncate">
+                                    <CategoriaIcone categoria={catInfo.id} className="w-3.5 h-3.5" />
+                                    <span className="truncate">{catInfo?.label || c.categoria}</span>
+                                  </div>
+                                  <p className="text-gray-600 text-[11px] truncate">{c.descricao || 'Sem descrição informada'}</p>
+                                </div>
+                                <div className="px-3 py-3 min-w-0">
+                                  <div className="flex items-start gap-1 text-gray-700">
+                                    <MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0 mt-0.5" />
+                                    <span className="text-[11px] font-medium line-clamp-2" title={address}>{address}</span>
+                                  </div>
+                                </div>
+                                <div className="px-3 py-3 min-w-0">
+                                  {coord ? (
+                                    <span className="flex items-center gap-1 text-[11px] font-medium text-gray-800 truncate" title={coord}>
+                                      <HardHat className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                                      <span className="truncate">{coord}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] text-gray-400 italic">Não encaminhada</span>
+                                  )}
+                                </div>
+                                <div className="px-3 py-3 whitespace-nowrap">
+                                  {c.sla_limite ? (
+                                    <span className={`text-[11px] font-medium ${vencido ? 'text-red-700' : 'text-gray-700'}`} title={formatData(c.sla_limite)}>
+                                      {vencido && <AlertTriangle className="inline w-3 h-3 mr-0.5 -mt-0.5" />}
+                                      {formatData(c.sla_limite).split(' ')[0]}
+                                      <span className="block text-[10px] font-normal text-gray-500">{vencido ? 'vencido' : prazoRestante(c.sla_limite)}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] text-gray-400">—</span>
+                                  )}
+                                </div>
+                                <div className="px-3 py-3">
+                                  <StatusBadge status={c.status} />
+                                </div>
+                                <div className="px-3 py-3 flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                  <AcaoPrincipalOS
+                                    chamado={c}
+                                    ocupado={updatingId === (c.id || c.protocolo)}
+                                    onEncaminhar={() => setEncaminharChamado(c)}
+                                    onAvancar={(st) => handleQuickStatusChange(c, st)}
+                                  />
+                                  <OSContextMenu
+                                    chamado={c}
+                                    enabled={menuContextoAtivo}
+                                    onEncaminhar={() => setEncaminharChamado(c)}
+                                    onAvancar={(st) => handleQuickStatusChange(c, st)}
+                                    onAvisar={() => handleAvisarCoordenador(c)}
+                                    onCopyAddress={() => handleCopyAddress(c)}
+                                    onEdit={() => openDetail(c)}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                {osViewMode === 'cards' && (
+                  <div className="p-3 sm:p-4">
+                    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+                      {filteredChamados.map((c) => {
+                        const catInfo = getCategoriaInfo(c.categoria);
+                        const address = c.endereco_texto || (c as any).endereco || 'Trindade - GO';
+                        const vencido = prazoVencido(c);
+                        const coord = nomeCoordenador(c.coordenador_id);
+                        return (
+                          <Card
+                            key={c.id || c.protocolo}
+                            className={`border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer ${vencido ? 'border-l-4 border-l-red-500' : ''}`}
+                            onClick={() => openDetail(c)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-2">
+                                <Badge className="font-mono bg-emerald-50 text-[#006653] border border-emerald-200">{c.protocolo}</Badge>
+                                <StatusBadge status={c.status} />
+                              </div>
+                              <div className="mt-3 flex items-center gap-2 font-semibold text-gray-800">
+                                <CategoriaIcone categoria={catInfo.id} className="w-4 h-4" />
+                                {catInfo?.label || c.categoria}
+                              </div>
+                              <p className="mt-2 text-xs text-gray-600 line-clamp-2">{c.descricao || 'Sem descrição informada'}</p>
+                              <div className="mt-3 space-y-1.5 text-xs">
+                                <div className="flex gap-2 text-gray-700">
+                                  <MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0" />
+                                  <span className="truncate">{address}</span>
+                                </div>
+                                <div className="flex gap-2 text-gray-700">
+                                  <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                  <span className="truncate">{c.cidadao_nome || (c as any).nome_cidadao || 'Cidadão Trindadense'}</span>
+                                </div>
+                                <div className="flex gap-2 text-gray-700">
+                                  <HardHat className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                                  <span className={`truncate ${coord ? '' : 'italic text-gray-400'}`}>{coord || 'Não encaminhada'}</span>
+                                </div>
+                                {c.sla_limite && (
+                                  <div className={`flex gap-2 ${vencido ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
+                                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                                    <span>
+                                      Prazo {formatData(c.sla_limite)} · {vencido ? 'vencido' : prazoRestante(c.sla_limite)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="mt-4 pt-3 border-t flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                <AcaoPrincipalOS
+                                  chamado={c}
+                                  ocupado={updatingId === (c.id || c.protocolo)}
+                                  onEncaminhar={() => setEncaminharChamado(c)}
+                                  onAvancar={(st) => handleQuickStatusChange(c, st)}
+                                />
+                                <OSContextMenu
+                                  chamado={c}
+                                  enabled={menuContextoAtivo}
+                                  onEncaminhar={() => setEncaminharChamado(c)}
+                                  onAvancar={(st) => handleQuickStatusChange(c, st)}
+                                  onAvisar={() => handleAvisarCoordenador(c)}
+                                  onCopyAddress={() => handleCopyAddress(c)}
+                                  onEdit={() => openDetail(c)}
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
                 )}
-                {osViewMode === 'cards' && <div className="p-3 sm:p-4"><div className="grid gap-3" style={{gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))'}}>{filteredChamados.map(c=>{const catInfo=getCategoriaInfo(c.categoria);const address=c.endereco_texto||(c as any).endereco||'Trindade - GO';return <Card key={c.id||c.protocolo} className="border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={()=>openDetail(c)}><CardContent className="p-4"><div className="flex items-start justify-between gap-2"><Badge className="font-mono bg-emerald-50 text-[#006653] border border-emerald-200">{c.protocolo}</Badge><div className="flex gap-1" onClick={e=>e.stopPropagation()}><Button variant="ghost" size="icon" className="h-8 w-8" onClick={()=>openDetail(c)} title="Visualização rápida"><Eye className="w-4 h-4"/></Button><OSContextMenu chamado={c} enabled={menuContextoAtivo} onStatus={v=>handleContextStatus(c,v)} onCopyAddress={()=>handleCopyAddress(c)} onEdit={()=>openDetail(c)}/></div></div><div className="mt-3 flex items-center gap-2 font-semibold text-gray-800"><CategoriaIcone categoria={catInfo.id} className="w-4 h-4"/>{catInfo?.label||c.categoria}</div><p className="mt-2 text-xs text-gray-600 line-clamp-2">{c.descricao||'Sem descrição informada'}</p><div className="mt-3 space-y-2 text-xs"><div className="flex gap-2 text-gray-700"><MapPin className="w-3.5 h-3.5 text-[#006653] shrink-0"/><span className="truncate">{address}</span></div><div className="flex gap-2 text-gray-700"><User className="w-3.5 h-3.5 text-gray-400 shrink-0"/><span className="truncate">{c.cidadao_nome||(c as any).nome_cidadao||'Cidadão Trindadense'}</span></div></div><div className="mt-4 pt-3 border-t flex items-center justify-between gap-2" onClick={e=>e.stopPropagation()}><StatusBadge status={c.status}/><Select value={normalizeStatus(c.status)} onValueChange={v=>handleQuickStatusChange(c,v as NormalizedStatus)}><SelectTrigger className="h-8 w-[145px] text-[10px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Análise">Em Análise</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem><SelectItem value="Cancelado">Cancelado</SelectItem></SelectContent></Select></div></CardContent></Card>})}</div></div>}
                 </>
               )}
             </Card>
@@ -1475,15 +1761,15 @@ export default function AdminPage() {
 
         {/* Quadro Kanban (Alternativa visual organizada por etapas) */}
         {view === 'kanban' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
             {KANBAN_COLUMNS.map((col) => {
-              const colChamados = filteredChamados.filter((c) => normalizeStatus(c.status) === normalizeStatus(col.status));
+              const colChamados = filteredChamados.filter((c) => normalizeStatus(c.status) === col);
               return (
-                <div key={col.status} className="space-y-3">
+                <div key={col} className="space-y-3">
                   <div className="flex items-center justify-between px-2 py-1 bg-white rounded-lg border border-gray-200 shadow-xs">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2.5 h-2.5 rounded-full bg-${col.color}-500`} />
-                      <span className="font-semibold text-xs text-gray-800">{col.label}</span>
+                      <div className={`w-2.5 h-2.5 rounded-full ${STATUS_OS_INFO[col].dot}`} />
+                      <span className="font-semibold text-xs text-gray-800">{STATUS_OS_INFO[col].label}</span>
                     </div>
                     <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                       {colChamados.length}
@@ -1492,12 +1778,7 @@ export default function AdminPage() {
                   <div className="space-y-2.5 min-h-[200px]">
                     {colChamados.map((c) => {
                       const catInfo = getCategoriaInfo(c.categoria);
-                      const slaExpired =
-                        c.sla_limite &&
-                        new Date(c.sla_limite) < new Date() &&
-                        c.status !== 'RESOLVIDO' &&
-                        c.status !== 'REJEITADO' &&
-                        c.status !== 'AVALIADO';
+                      const slaExpired = prazoVencido(c);
 
                       return (
                         <Card
@@ -1562,12 +1843,9 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="font-semibold text-emerald-100">Mapa de Trindade - GO</span>
-                    <span className="text-emerald-300/70 hidden md:inline">| Prédios Públicos e Chamados Georreferenciados</span>
+                    <span className="text-emerald-300/70 hidden md:inline">| Chamados georreferenciados</span>
                   </div>
                   <div className="flex items-center gap-2 text-emerald-200 text-[11px]">
-                    <span className="bg-emerald-800/80 px-2.5 py-0.5 rounded text-emerald-100 font-medium">
-                      {orgaos.length} Prédios Públicos
-                    </span>
                     <span className="bg-amber-600/90 px-2.5 py-0.5 rounded text-white font-mono font-bold">
                       {filteredChamados.length} chamado(s)
                     </span>
@@ -1576,10 +1854,7 @@ export default function AdminPage() {
                 <div style={{ height: '620px' }}>
                   <AdminMap
                     chamados={filteredChamados}
-                    orgaos={orgaos}
                     onSelect={openDetail}
-                    onEditOrgao={handleSaveOrgao}
-                    onDeleteOrgao={handleDeleteOrgao}
                   />
                 </div>
               </Card>
@@ -1593,22 +1868,13 @@ export default function AdminPage() {
             <div className="border-b border-gray-200 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div>
                 <h3 className="font-semibold text-gray-900 text-base font-heading">
-                  Mapa de chamados e prédios públicos
+                  Mapa de chamados
                 </h3>
                 <p className="text-gray-500 text-sm">
                   Clique em um pino para ver o chamado.
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setAdminTab('orgaos')}
-                  className="text-xs h-8 gap-1.5"
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Prédios públicos</span>
-                </Button>
                 <Button
                   size="sm"
                   onClick={() => setIsNewChamadoOpen(true)}
@@ -1622,10 +1888,7 @@ export default function AdminPage() {
             <div style={{ height: '650px' }}>
               <AdminMap
                 chamados={filteredChamados}
-                orgaos={orgaos}
                 onSelect={openDetail}
-                onEditOrgao={handleSaveOrgao}
-                onDeleteOrgao={handleDeleteOrgao}
               />
             </div>
           </Card>
@@ -1636,12 +1899,23 @@ export default function AdminPage() {
       <AdminModalEditChamado
         chamado={selectedChamado}
         open={isEditModalOpen}
+        coordenadores={coordenadores}
+        podeExcluir={isAdmin || profile?.role === 'admin' || !isSupabaseConfigured}
         onClose={() => {
           setIsEditModalOpen(false);
           setSelectedChamado(null);
         }}
         onSave={handleSaveChamado}
         onDelete={handleDeleteChamado}
+      />
+
+      {/* Encaminhar a O.S. ao coordenador */}
+      <AdminModalEncaminhar
+        chamado={encaminharChamado}
+        coordenadores={coordenadores}
+        open={Boolean(encaminharChamado)}
+        onClose={() => setEncaminharChamado(null)}
+        onConfirmar={handleEncaminhar}
       />
 
       {/* Modal de Criação de Nova Ordem de Serviço Manual (Administrador) */}

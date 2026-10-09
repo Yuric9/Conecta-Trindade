@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CategoriaIcone } from '@/components/categoria-icone';
-import type { Chamado, ChamadoStatus, ChamadoCategoria, ChamadoSecretaria } from '@/lib/types';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
-  SECRETARIAS,
-  CATEGORIAS,
-  getCategoriaInfo,
-  getStatusInfo,
-  formatData,
-  normalizeCategoria,
-} from '@/lib/types';
+  STATUS_OS,
+  STATUS_OS_INFO,
+  STATUS_COM_COORDENADOR,
+  normalizarStatusOS,
+  type StatusOS,
+} from '@/lib/os-status';
+import { CategoriaIcone } from '@/components/categoria-icone';
+import type { Chamado, ChamadoStatus, ChamadoCategoria, ChamadoSecretaria, Profile } from '@/lib/types';
+import { SECRETARIAS, CATEGORIAS, formatData, normalizeCategoria } from '@/lib/types';
 import {
   Dialog,
   DialogContent,
@@ -44,31 +45,72 @@ import {
   FileText,
   User,
   ShieldAlert,
+  HardHat,
+  History,
+  Loader2,
 } from 'lucide-react';
 import {
   formatChamadoWhatsAppText,
-  shareViaWhatsApp,
+  formatarOSParaCoordenador,
+  abrirWhatsAppPara,
   copyToClipboard,
 } from '@/lib/whatsapp-share';
 
 interface AdminModalEditChamadoProps {
   chamado: Chamado | null;
   open: boolean;
+  /** Coordenadores ativos que podem receber a O.S. */
+  coordenadores: Profile[];
+  /** Só o administrador exclui O.S. (os demais cancelam com motivo). */
+  podeExcluir: boolean;
   onClose: () => void;
-  onSave: (chamado: Chamado) => void;
+  /** Grava. Devolve null se deu certo ou a mensagem de erro. */
+  onSave: (chamado: Chamado, motivo?: string) => Promise<string | null>;
   onDelete: (id: string) => void;
+}
+
+interface ItemHistorico {
+  id: string | number;
+  created_at: string;
+  status_anterior?: string | null;
+  status_novo?: string | null;
+  coordenador_nome?: string | null;
+  detalhe?: string | null;
+  autor_nome?: string | null;
+}
+
+/** Sem banco (modo demonstração): monta a linha do tempo pelas datas da O.S. */
+function historicoPelasDatas(c: Chamado): ItemHistorico[] {
+  const itens: ItemHistorico[] = [
+    { id: 'aberto', created_at: c.created_at, status_novo: 'Pendente', detalhe: 'Chamado aberto', autor_nome: c.cidadao_nome },
+  ];
+  const etapas: [string | null | undefined, StatusOS][] = [
+    [c.encaminhado_em, 'Encaminhada'],
+    [c.iniciado_em, 'Em Andamento'],
+    [c.executado_em, 'Aguardando Confirmação'],
+    [c.concluido_em, 'Concluído'],
+  ];
+  etapas.forEach(([data, st]) => data && itens.push({ id: st, created_at: data, status_novo: st }));
+  return itens.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 }
 
 export default function AdminModalEditChamado({
   chamado,
   open,
+  coordenadores,
+  podeExcluir,
   onClose,
   onSave,
   onDelete,
 }: AdminModalEditChamadoProps) {
   const [categoria, setCategoria] = useState<ChamadoCategoria>('ILUMINACAO');
   const [secretaria, setSecretaria] = useState<ChamadoSecretaria | 'NONE'>('NONE');
-  const [status, setStatus] = useState<ChamadoStatus>('ABERTO');
+  const [status, setStatus] = useState<StatusOS>('Pendente');
+  const [coordenadorId, setCoordenadorId] = useState<string>('NONE');
+  const [motivo, setMotivo] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [historico, setHistorico] = useState<ItemHistorico[] | null>(null);
   const [prioridade, setPrioridade] = useState<'BAIXA' | 'MEDIA' | 'ALTA' | 'URGENTE'>('MEDIA');
   const [enderecoTexto, setEnderecoTexto] = useState('');
   const [descricao, setDescricao] = useState('');
@@ -84,7 +126,11 @@ export default function AdminModalEditChamado({
     if (chamado) {
       setCategoria(normalizeCategoria(chamado.categoria));
       setSecretaria(chamado.secretaria || 'NONE');
-      setStatus(chamado.status);
+      setStatus(normalizarStatusOS(chamado.status));
+      setCoordenadorId(chamado.coordenador_id || 'NONE');
+      setMotivo('');
+      setErro(null);
+      setSalvando(false);
       setPrioridade(chamado.prioridade || 'MEDIA');
       setEnderecoTexto(chamado.endereco_texto || '');
       setDescricao(chamado.descricao || '');
@@ -97,16 +143,60 @@ export default function AdminModalEditChamado({
     }
   }, [chamado]);
 
+  // Histórico: quem fez o quê e quando
+  useEffect(() => {
+    if (!chamado || !open) return;
+    if (!isSupabaseConfigured) {
+      setHistorico(historicoPelasDatas(chamado));
+      return;
+    }
+    let cancelado = false;
+    setHistorico(null);
+    (supabase.from('chamado_historico') as any)
+      .select('id, created_at, status_anterior, status_novo, coordenador_nome, detalhe, autor_nome')
+      .eq('chamado_id', chamado.id)
+      .order('created_at', { ascending: true })
+      .then(({ data, error }: { data: ItemHistorico[] | null; error: any }) => {
+        if (cancelado) return;
+        if (error) console.error('Erro ao carregar histórico da O.S.:', error);
+        setHistorico(error ? historicoPelasDatas(chamado) : data || []);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [chamado, open]);
+
   if (!chamado) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const statusOriginal = normalizarStatusOS(chamado.status);
+  const coordenadorOriginal = chamado.coordenador_id || 'NONE';
+  const mudouEtapa = status !== statusOriginal || coordenadorId !== coordenadorOriginal;
+  const coordenadorEscolhido = coordenadores.find((p) => p.id === coordenadorId);
+  // Coordenador que já está na O.S. mas não está mais ativo continua aparecendo
+  const opcoesCoordenador =
+    chamado.coordenador_id && !coordenadores.some((p) => p.id === chamado.coordenador_id)
+      ? [{ id: chamado.coordenador_id, nome: 'Coordenador atual (inativo)' } as Profile, ...coordenadores]
+      : coordenadores;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErro(null);
+
+    if (STATUS_COM_COORDENADOR.includes(status) && coordenadorId === 'NONE') {
+      setErro(`Para "${STATUS_OS_INFO[status].label}" a O.S. precisa de um coordenador.`);
+      return;
+    }
+    if (status === 'Cancelado' && statusOriginal !== 'Cancelado' && !motivo.trim()) {
+      setErro('Informe o motivo do cancelamento.');
+      return;
+    }
 
     const updatedChamado: Chamado = {
       ...chamado,
       categoria,
       secretaria: secretaria === 'NONE' ? null : secretaria,
-      status,
+      status: status as ChamadoStatus,
+      coordenador_id: coordenadorId === 'NONE' ? null : coordenadorId,
       prioridade,
       endereco_texto: enderecoTexto.trim(),
       descricao: descricao.trim(),
@@ -118,11 +208,14 @@ export default function AdminModalEditChamado({
       updated_at: new Date().toISOString(),
     };
 
-    onSave(updatedChamado);
-    onClose();
+    setSalvando(true);
+    const falha = await onSave(updatedChamado, motivo.trim() || undefined);
+    setSalvando(false);
+    if (falha) setErro(falha);
+    else onClose();
   };
 
-  const statusInfo = getStatusInfo(status);
+  const statusInfo = STATUS_OS_INFO[status];
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
@@ -140,7 +233,7 @@ export default function AdminModalEditChamado({
                 <p className="text-xs text-gray-500 font-mono">Protocolo: {chamado.protocolo}</p>
               </div>
             </div>
-            <Badge variant="outline" className={`${statusInfo.bgColor} ${statusInfo.textColor} ${statusInfo.borderColor} text-xs font-semibold px-2.5 py-0.5`}>
+            <Badge variant="outline" className={`${statusInfo.badge} text-xs font-semibold px-2.5 py-0.5`}>
               {statusInfo.label}
             </Badge>
           </div>
@@ -150,23 +243,17 @@ export default function AdminModalEditChamado({
           {/* Informações Básicas do Chamado */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <Label className="text-xs font-semibold text-gray-700">Status Operacional *</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+              <Label className="text-xs font-semibold text-gray-700">Etapa da O.S. *</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as StatusOS)}>
                 <SelectTrigger className="h-9 text-xs mt-1 bg-white font-medium">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Em Análise">Em análise</SelectItem>
-                  <SelectItem value="Em Andamento">Em andamento</SelectItem>
-                  <SelectItem value="Concluído">Concluído</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
-                  <SelectItem value="ABERTO">Aberto (Pendente)</SelectItem>
-                  <SelectItem value="TRIADO">Triado (Encaminhado)</SelectItem>
-                  <SelectItem value="EM_ANDAMENTO">Em Andamento (Equipe em Campo)</SelectItem>
-                  <SelectItem value="RESOLVIDO">Resolvido (Concluído)</SelectItem>
-                  <SelectItem value="AVALIADO">Avaliado pelo Cidadão</SelectItem>
-                  <SelectItem value="REJEITADO">Cancelado / Rejeitado</SelectItem>
+                  {STATUS_OS.map((st) => (
+                    <SelectItem key={st} value={st}>
+                      {STATUS_OS_INFO[st].label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -202,6 +289,48 @@ export default function AdminModalEditChamado({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                <HardHat className="w-3.5 h-3.5 text-orange-600" />
+                Coordenador responsável
+              </Label>
+              <Select value={coordenadorId} onValueChange={setCoordenadorId}>
+                <SelectTrigger className="h-9 text-xs mt-1 bg-white font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">Nenhum (ainda não encaminhada)</SelectItem>
+                  {opcoesCoordenador.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nome}
+                      {p.servicos?.includes(categoria) ? ' ★' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-gray-400 mt-0.5">★ atende este tipo de serviço</p>
+            </div>
+
+            {mudouEtapa ? (
+              <div>
+                <Label className="text-xs font-semibold text-gray-700">
+                  {status === 'Cancelado' ? 'Motivo do cancelamento *' : 'Observação desta alteração'}
+                </Label>
+                <Textarea
+                  rows={2}
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  maxLength={500}
+                  placeholder={status === 'Cancelado' ? 'Ex.: chamado duplicado do TRIN-2026-XXXX' : 'Vai para o histórico da O.S.'}
+                  className="text-xs mt-1 bg-white"
+                />
+              </div>
+            ) : (
+              <div className="hidden sm:block" />
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -340,34 +469,105 @@ export default function AdminModalEditChamado({
             </div>
           )}
 
-          {/* Botões de Ação Rápida WhatsApp e Copiar */}
+          {/* Histórico da O.S. */}
+          <div className="rounded-lg border border-gray-200 p-3">
+            <Label className="text-xs font-bold text-gray-800 flex items-center gap-1 mb-2">
+              <History className="w-3.5 h-3.5 text-[#006653]" />
+              Histórico da O.S.
+            </Label>
+            {historico === null ? (
+              <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Carregando...
+              </p>
+            ) : historico.length === 0 ? (
+              <p className="text-xs text-gray-500">Sem registros.</p>
+            ) : (
+              <ol className="relative border-l border-gray-200 ml-1.5 space-y-2.5">
+                {historico.map((h) => {
+                  const st = h.status_novo ? STATUS_OS_INFO[normalizarStatusOS(h.status_novo)] : null;
+                  return (
+                    <li key={h.id} className="ml-3 text-xs">
+                      <span className={`absolute -left-[5px] mt-1 h-2.5 w-2.5 rounded-full ring-2 ring-white ${st?.dot || 'bg-gray-400'}`} />
+                      <p className="text-[10px] text-gray-500">{formatData(h.created_at)}</p>
+                      <p className="text-gray-800">
+                        {st && h.detalhe !== 'Chamado aberto' && <strong>{st.label}</strong>}
+                        {h.detalhe === 'Chamado aberto' && <strong>Chamado aberto</strong>}
+                        {h.coordenador_nome && (
+                          <span>
+                            {st ? ' · ' : ''}coordenador: <strong>{h.coordenador_nome}</strong>
+                          </span>
+                        )}
+                        {!st && !h.coordenador_nome && h.detalhe && <strong>Observação</strong>}
+                        {h.autor_nome && <span className="text-gray-500"> — por {h.autor_nome}</span>}
+                      </p>
+                      {h.detalhe && h.detalhe !== 'Chamado aberto' && (
+                        <p className="text-gray-600 italic">&ldquo;{h.detalhe}&rdquo;</p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+
+          {/* WhatsApp: coordenador e cidadão */}
           <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs text-gray-600">
-              <span className="font-semibold text-emerald-900">Comunicação Direta:</span> Envie despacho ao cidadão ou à equipe de campo.
+              <span className="font-semibold text-emerald-900">WhatsApp:</span> abre a conversa já com a mensagem pronta.
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {coordenadorEscolhido && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() =>
+                    abrirWhatsAppPara(
+                      coordenadorEscolhido.telefone,
+                      formatarOSParaCoordenador({
+                        protocolo: chamado.protocolo,
+                        categoria,
+                        coordenadorNome: coordenadorEscolhido.nome,
+                        prioridade,
+                        sla_limite: slaLimite ? new Date(slaLimite).toISOString() : null,
+                        endereco: enderecoTexto,
+                        descricao,
+                        cidadao_nome: cidadaoNome,
+                        cidadao_telefone: cidadaoTelefone,
+                        latitude: chamado.latitude,
+                        longitude: chamado.longitude,
+                      })
+                    )
+                  }
+                  className="bg-[#25D366] hover:bg-[#1ebe5b] text-white text-xs h-8 px-3 flex items-center gap-1.5 shadow-sm"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                  <span>Coordenador</span>
+                </Button>
+              )}
               <Button
                 type="button"
                 size="sm"
-                onClick={() => {
-                  const text = formatChamadoWhatsAppText({
-                    protocolo: chamado.protocolo,
-                    categoria,
-                    status,
-                    secretariaNome: secretaria !== 'NONE' ? SECRETARIAS[secretaria] : undefined,
-                    endereco: enderecoTexto,
-                    descricao,
-                    created_at: chamado.created_at,
-                    resposta_cidadao: respostaCidadao,
-                  });
-                  shareViaWhatsApp(text);
-                }}
-                className="bg-[#25D366] hover:bg-[#1ebe5b] text-white text-xs h-8 px-3 flex items-center gap-1.5 shadow-sm"
+                variant="outline"
+                onClick={() =>
+                  abrirWhatsAppPara(
+                    cidadaoTelefone,
+                    formatChamadoWhatsAppText({
+                      protocolo: chamado.protocolo,
+                      categoria,
+                      status,
+                      secretariaNome: secretaria !== 'NONE' ? SECRETARIAS[secretaria] : undefined,
+                      endereco: enderecoTexto,
+                      descricao,
+                      created_at: chamado.created_at,
+                      resposta_cidadao: respostaCidadao,
+                    })
+                  )
+                }
+                className="text-xs h-8 px-3 border-[#25D366] text-[#128C7E] bg-white flex items-center gap-1.5"
               >
-                <MessageCircle className="w-3.5 h-3.5 fill-current" />
-                <span>WhatsApp</span>
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>Cidadão</span>
               </Button>
-
               <Button
                 type="button"
                 variant="outline"
@@ -392,13 +592,22 @@ export default function AdminModalEditChamado({
                 className="text-xs h-8 px-3 border-gray-200 bg-white"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-gray-500" />}
-                <span>{copied ? 'Copiado!' : 'Copiar Texto'}</span>
+                <span>{copied ? 'Copiado!' : 'Copiar texto'}</span>
               </Button>
             </div>
           </div>
 
+          {erro && (
+            <p className="flex items-start gap-1.5 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+              {erro}
+            </p>
+          )}
+
           <DialogFooter className="pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            {!confirmDelete ? (
+            {!podeExcluir ? (
+              <span className="text-[11px] text-gray-400">Para encerrar sem executar, use a etapa &ldquo;Cancelada&rdquo;.</span>
+            ) : !confirmDelete ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -446,9 +655,10 @@ export default function AdminModalEditChamado({
               </Button>
               <Button
                 type="submit"
+                disabled={salvando}
                 className="bg-[#006653] hover:bg-[#004d3e] text-white text-xs h-9 font-semibold px-4"
               >
-                <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                {salvando ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1.5" />}
                 Salvar Alterações
               </Button>
             </div>

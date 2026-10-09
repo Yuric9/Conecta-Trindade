@@ -49,7 +49,16 @@ function normalizeStatus(status: string | undefined | null): NormalizedStatus {
   if (!status) return 'Pendente';
   const s = status.toUpperCase().trim();
   if (s === 'ABERTO' || s === 'TRIADO' || s === 'PENDENTE') return 'Pendente';
-  if (s === 'EM_ANDAMENTO' || s === 'EM ANDAMENTO' || s === 'ANDAMENTO') return 'Em Andamento';
+  // Encaminhada e aguardando confirmação: para o cidadão, ainda em andamento
+  if (
+    s === 'EM_ANDAMENTO' ||
+    s === 'EM ANDAMENTO' ||
+    s === 'ANDAMENTO' ||
+    s === 'ENCAMINHADA' ||
+    s === 'AGUARDANDO CONFIRMAÇÃO'
+  ) {
+    return 'Em Andamento';
+  }
   if (s === 'RESOLVIDO' || s === 'CONCLUÍDO' || s === 'CONCLUIDO' || s === 'AVALIADO') return 'Concluído';
   if (s === 'REJEITADO' || s === 'CANCELADO') return 'Cancelado';
   return 'Pendente';

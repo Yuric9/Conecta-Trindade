@@ -1,3 +1,5 @@
+import { STATUS_OS, STATUS_OS_INFO, type StatusOS } from './os-status';
+
 export type ChamadoStatus =
   | 'ABERTO'
   | 'TRIADO'
@@ -7,8 +9,12 @@ export type ChamadoStatus =
   | 'REJEITADO'
   | 'AVALIADO'
   | 'Pendente'
+  | 'Em Análise'
+  | 'Encaminhada'
   | 'Em Andamento'
-  | 'Concluído';
+  | 'Aguardando Confirmação'
+  | 'Concluído'
+  | 'Cancelado';
 
 export type ChamadoCategoria =
   | 'ILUMINACAO'
@@ -20,6 +26,7 @@ export type ChamadoCategoria =
   | 'OUTROS';
 
 export type ChamadoSecretaria =
+  | 'INFRAESTRUTURA'
   | 'OBRAS'
   | 'SERVICOS_PUBLICOS'
   | 'MEIO_AMBIENTE'
@@ -28,7 +35,7 @@ export type ChamadoSecretaria =
   | 'EDUCACAO'
   | 'SEGURANCA';
 
-export type UserRole = 'admin' | 'gestor' | 'fiscal' | 'atendente' | 'cidadao';
+export type UserRole = 'admin' | 'gestor' | 'fiscal' | 'atendente' | 'coordenador' | 'cidadao';
 
 export interface Chamado {
   id: string;
@@ -50,6 +57,12 @@ export interface Chamado {
   sla_limite?: string;
   observacoes_internas?: string;
   resposta_cidadao?: string;
+  /** Coordenador responsável pela execução (profiles.id) */
+  coordenador_id?: string | null;
+  encaminhado_em?: string | null;
+  iniciado_em?: string | null;
+  executado_em?: string | null;
+  concluido_em?: string | null;
 }
 
 export interface Profile {
@@ -61,6 +74,8 @@ export interface Profile {
   role: UserRole;
   secretaria?: ChamadoSecretaria | 'TODAS' | null;
   cargo?: string;
+  /** Serviços (categorias) que o coordenador atende */
+  servicos?: ChamadoCategoria[];
   status?: 'ativo' | 'inativo' | 'bloqueado';
   created_at: string;
   updated_at?: string;
@@ -84,7 +99,7 @@ export const CATEGORIAS: CategoriaItem[] = [
     emoji: '💡',
     cor: '#eab308',
     slaHoras: 48,
-    secretaria: 'OBRAS',
+    secretaria: 'INFRAESTRUTURA',
   },
   {
     id: 'BURACO',
@@ -93,7 +108,7 @@ export const CATEGORIAS: CategoriaItem[] = [
     emoji: '🕳️',
     cor: '#f97316',
     slaHoras: 120,
-    secretaria: 'OBRAS',
+    secretaria: 'INFRAESTRUTURA',
   },
   {
     id: 'LIXO',
@@ -102,7 +117,7 @@ export const CATEGORIAS: CategoriaItem[] = [
     emoji: '🗑️',
     cor: '#ef4444',
     slaHoras: 72,
-    secretaria: 'SERVICOS_PUBLICOS',
+    secretaria: 'INFRAESTRUTURA',
   },
   {
     id: 'VAZAMENTO',
@@ -111,7 +126,7 @@ export const CATEGORIAS: CategoriaItem[] = [
     emoji: '💧',
     cor: '#0ea5e9',
     slaHoras: 24,
-    secretaria: 'SERVICOS_PUBLICOS',
+    secretaria: 'INFRAESTRUTURA',
   },
   {
     id: 'PODA',
@@ -120,7 +135,7 @@ export const CATEGORIAS: CategoriaItem[] = [
     emoji: '🌳',
     cor: '#10b981',
     slaHoras: 168,
-    secretaria: 'MEIO_AMBIENTE',
+    secretaria: 'INFRAESTRUTURA',
   },
   {
     id: 'ROCAGEM',
@@ -129,7 +144,7 @@ export const CATEGORIAS: CategoriaItem[] = [
     emoji: '🌾',
     cor: '#84cc16',
     slaHoras: 120,
-    secretaria: 'SERVICOS_PUBLICOS',
+    secretaria: 'INFRAESTRUTURA',
   },
   {
     id: 'OUTROS',
@@ -138,11 +153,14 @@ export const CATEGORIAS: CategoriaItem[] = [
     emoji: '⚠️',
     cor: '#8b5cf6',
     slaHoras: 120,
-    secretaria: 'OBRAS',
+    secretaria: 'INFRAESTRUTURA',
   },
 ];
 
+// Em Trindade todos os serviços do portal são da Infraestrutura; as outras
+// secretarias ficam disponíveis caso algum serviço mude de responsável.
 export const SECRETARIAS: Record<ChamadoSecretaria, string> = {
+  INFRAESTRUTURA: 'Secretaria de Infraestrutura',
   OBRAS: 'Secretaria de Obras e Serviços Urbanos',
   SERVICOS_PUBLICOS: 'Secretaria de Serviços Públicos',
   MEIO_AMBIENTE: 'Secretaria de Meio Ambiente',
@@ -172,7 +190,31 @@ export interface StatusInfo {
   progress: number;
 }
 
+const PROGRESSO_STATUS_OS: Record<StatusOS, number> = {
+  Pendente: 15,
+  Encaminhada: 35,
+  'Em Andamento': 60,
+  'Aguardando Confirmação': 85,
+  'Concluído': 100,
+  Cancelado: 100,
+};
+
 export function getStatusInfo(status: ChamadoStatus): StatusInfo {
+  // Nomes do banco (Pendente, Encaminhada...): vêm do módulo de status da O.S.
+  if ((STATUS_OS as string[]).includes(status)) {
+    const info = STATUS_OS_INFO[status as StatusOS];
+    const [bgColor, textColor, borderColor] = info.badge.split(' ');
+    return {
+      label: info.label,
+      cor: info.cor,
+      bgColor,
+      borderColor,
+      textColor,
+      badgeClass: info.badge,
+      progress: PROGRESSO_STATUS_OS[status as StatusOS],
+    };
+  }
+
   switch (status) {
     case 'ABERTO':
       return {
@@ -339,7 +381,7 @@ export function getCategoriaInfo(categoria: ChamadoCategoria | string): Categori
     emoji: '⚠️',
     cor: '#8b5cf6',
     slaHoras: 120,
-    secretaria: 'OBRAS',
+    secretaria: 'INFRAESTRUTURA',
   };
 }
 
