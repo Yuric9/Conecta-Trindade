@@ -70,6 +70,11 @@ export interface Chamado {
   visualizado_em?: string | null;
   /** Foto do serviço executado, enviada pelo coordenador */
   foto_execucao_url?: string | null;
+  /** Quando a central respondeu ao cidadão */
+  respondido_em?: string | null;
+  /** Última cobrança registrada pela central e quantas foram */
+  cobrado_em?: string | null;
+  cobrancas?: number;
 }
 
 export interface Profile {
