@@ -94,6 +94,20 @@ Para a central, a Secretaria e o admin (migration `20261009000008`):
   (tabela `cobrancas_coordenador`, sem acesso direto) e põe "Coordenador
   cobrado pelo WhatsApp" no histórico de cada O.S. aberta.
 
+## O que o cidadão vê (migration `20261010000001`)
+
+"Meus Chamados" (`meus_chamados_v2()`, só os pedidos da própria conta) e
+"Acompanhar" (`consultar_chamados_publico_v3()`, por protocolo ou CPF
+completo, só o primeiro nome) mostram:
+
+- a situação resumida: Recebido, Em andamento, Concluído ou Cancelado;
+- a linha do tempo: Recebido → Na Secretaria → Equipe em campo → Concluído,
+  com as datas;
+- a resposta da central e, depois de concluída, a foto do serviço feito.
+
+Nunca mostram coordenador, observações internas, motivos da equipe, CPF ou
+telefone. O site usa as versões antigas se as novas ainda não existirem.
+
 ## Aplicar as migrations
 
 No Supabase, rode os arquivos de `supabase/migrations/` em ordem (pelo

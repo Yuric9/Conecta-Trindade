@@ -1,37 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CategoriaIcone } from '@/components/categoria-icone';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth-context';
-import {
-  type Chamado,
-  type ChamadoStatus,
-  getStatusInfo,
-  getCategoriaInfo,
-  formatData,
-  tempoRelativo,
-  SECRETARIAS,
-} from '@/lib/types';
+import { getCategoriaInfo, normalizeCategoria, formatData, tempoRelativo } from '@/lib/types';
+import { statusParaCidadao } from '@/lib/os-status';
+import { ROTULO_CIDADAO, COR_CIDADAO, type StatusCidadao } from '@/lib/etapas-cidadao';
+import { formatChamadoWhatsAppText, shareViaWhatsApp, copyToClipboard } from '@/lib/whatsapp-share';
+import { CategoriaIcone } from '@/components/categoria-icone';
+import { LinhaTempoCidadao } from '@/components/linha-tempo-cidadao';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Plus,
   FileText,
   MapPin,
   Clock,
-  AlertCircle,
-  CheckCircle2,
   Loader2,
   Image as ImageIcon,
   MessageCircle,
@@ -39,108 +26,108 @@ import {
   Check,
   ChevronRight,
   Building2,
-  Calendar,
+  CheckCircle2,
 } from 'lucide-react';
-import {
-  formatChamadoWhatsAppText,
-  shareViaWhatsApp,
-  copyToClipboard,
-} from '@/lib/whatsapp-share';
 
-// Esta tela usa os códigos de status antigos (ABERTO, TRIADO...) para cores
-// e filtros; o banco usa os nomes novos. Converte na leitura.
-const STATUS_DA_TELA: Record<string, ChamadoStatus> = {
-  Pendente: 'ABERTO',
-  'Em Análise': 'TRIADO',
-  // Para o cidadão, a O.S. está em andamento desde que foi encaminhada
-  // até a prefeitura confirmar a conclusão.
-  'Na Secretaria': 'EM_ANDAMENTO',
-  Encaminhada: 'EM_ANDAMENTO',
-  'Em Andamento': 'EM_ANDAMENTO',
-  'Aguardando Confirmação': 'EM_ANDAMENTO',
-  'Concluído': 'RESOLVIDO',
-  Cancelado: 'CANCELADO' as ChamadoStatus,
+/** O pedido como o cidadão vê (sem nada interno da equipe) */
+interface PedidoCidadao {
+  id: string;
+  protocolo: string;
+  categoria: string;
+  descricao: string;
+  endereco: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  foto: string | null;
+  status: string;
+  resposta_cidadao: string | null;
+  na_secretaria_em: string | null;
+  encaminhado_em: string | null;
+  concluido_em: string | null;
+  foto_execucao_url: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+/** Linha do banco (meus_chamados_v2) ou do modo demonstração → pedido */
+function paraPedido(r: any): PedidoCidadao {
+  const concluido = statusParaCidadao(r.status) === 'Concluído';
+  return {
+    id: r.id,
+    protocolo: r.protocolo,
+    categoria: r.categoria_servico ?? r.categoria,
+    descricao: r.descricao || '',
+    endereco: r.endereco ?? r.endereco_texto ?? null,
+    latitude: r.latitude ?? null,
+    longitude: r.longitude ?? null,
+    foto: r.foto_url ?? r.fotos?.[0] ?? null,
+    status: r.status,
+    resposta_cidadao: r.resposta_cidadao ?? null,
+    na_secretaria_em: r.na_secretaria_em ?? null,
+    encaminhado_em: r.encaminhado_em ?? null,
+    concluido_em: r.concluido_em ?? null,
+    // A foto do serviço feito só aparece depois de concluída
+    foto_execucao_url: concluido ? r.foto_execucao_url ?? null : null,
+    created_at: r.created_at,
+    updated_at: r.updated_at ?? null,
+  };
+}
+
+const fotoSegura = (url: string | null) => (url && /^(https:\/\/|data:image\/)/.test(url) ? url : null);
+/** Foto que não abre (link quebrado): some, em vez de mostrar o ícone quebrado */
+const esconderSeFalhar = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  e.currentTarget.style.display = 'none';
 };
 
-function paraChamadoDaTela(row: any): Chamado {
-  return {
-    id: row.id,
-    protocolo: row.protocolo,
-    cidadao_id: '',
-    categoria: row.categoria_servico,
-    descricao: row.descricao,
-    endereco_texto: row.endereco,
-    latitude: row.latitude,
-    longitude: row.longitude,
-    fotos: row.foto_url ? [row.foto_url] : [],
-    status: STATUS_DA_TELA[row.status] || ('ABERTO' as ChamadoStatus),
-    secretaria: row.secretaria,
-    sla_limite: row.sla_limite || undefined,
-    resposta_cidadao: row.resposta_cidadao || undefined,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  } as Chamado;
-}
+const FILTROS: ('TODOS' | StatusCidadao)[] = ['TODOS', 'Pendente', 'Em Andamento', 'Concluído', 'Cancelado'];
 
 export default function MeusChamadosPage() {
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
-  const [chamados, setChamados] = useState<Chamado[]>([]);
+  const [pedidos, setPedidos] = useState<PedidoCidadao[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<ChamadoStatus | 'TODOS'>('TODOS');
-  const [selectedChamado, setSelectedChamado] = useState<Chamado | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<'TODOS' | StatusCidadao>('TODOS');
+  const [aberto, setAberto] = useState<PedidoCidadao | null>(null);
+  const [copiado, setCopiado] = useState<string | null>(null);
 
-  const handleShareWhatsApp = (chamado: Chamado) => {
-    const text = formatChamadoWhatsAppText({
-      protocolo: chamado.protocolo,
-      categoria: chamado.categoria,
-      status: chamado.status,
-      secretariaNome: chamado.secretaria ? SECRETARIAS[chamado.secretaria] : undefined,
-      endereco: chamado.endereco_texto,
-      descricao: chamado.descricao,
-      created_at: chamado.created_at,
-      resposta_cidadao: chamado.resposta_cidadao,
+  const textoComprovante = (p: PedidoCidadao) =>
+    formatChamadoWhatsAppText({
+      protocolo: p.protocolo,
+      categoria: p.categoria,
+      status: p.status,
+      endereco: p.endereco || undefined,
+      descricao: p.descricao,
+      created_at: p.created_at,
+      resposta_cidadao: p.resposta_cidadao || undefined,
     });
-    shareViaWhatsApp(text);
-  };
 
-  const handleCopyReceipt = async (chamado: Chamado) => {
-    const text = formatChamadoWhatsAppText({
-      protocolo: chamado.protocolo,
-      categoria: chamado.categoria,
-      status: chamado.status,
-      secretariaNome: chamado.secretaria ? SECRETARIAS[chamado.secretaria] : undefined,
-      endereco: chamado.endereco_texto,
-      descricao: chamado.descricao,
-      created_at: chamado.created_at,
-      resposta_cidadao: chamado.resposta_cidadao,
-    });
-    const ok = await copyToClipboard(text);
-    if (ok) {
-      setCopiedId(chamado.id);
-      setTimeout(() => setCopiedId(null), 3000);
+  const copiarComprovante = async (p: PedidoCidadao) => {
+    if (await copyToClipboard(textoComprovante(p))) {
+      setCopiado(p.id);
+      setTimeout(() => setCopiado(null), 3000);
     }
   };
 
   useEffect(() => {
-    if (!authLoading && !session) {
-      router.push('/login');
-    }
+    if (!authLoading && !session) router.push('/login');
   }, [authLoading, session, router]);
 
   useEffect(() => {
     if (!session) return;
-
     (async () => {
       if (isSupabaseConfigured) {
-        // Função do banco que devolve só os chamados da própria conta
-        // (sem as observações internas da equipe).
-        const { data, error } = await (supabase as any).rpc('meus_chamados');
+        // Função do banco: só os pedidos da própria conta, sem nada interno da equipe
+        let { data, error } = await (supabase as any).rpc('meus_chamados_v2');
+        if (error) {
+          // Banco ainda sem a versão nova: usa a anterior (sem as datas das etapas)
+          ({ data, error } = await (supabase as any).rpc('meus_chamados'));
+        }
         if (error) {
           console.error('Erro ao carregar meus chamados:', error);
+          setErro('Não foi possível carregar seus pedidos. Tente de novo em instantes.');
         } else {
-          setChamados(((data as any[]) || []).map(paraChamadoDaTela));
+          setPedidos(((data as any[]) || []).map(paraPedido));
         }
       } else {
         // Modo demonstração: dados guardados no navegador
@@ -149,18 +136,21 @@ export default function MeusChamadosPage() {
           .select('*')
           .eq('cidadao_id', session.user.id)
           .order('created_at', { ascending: false });
-        setChamados((data as Chamado[]) || []);
+        setPedidos(((data as any[]) || []).map(paraPedido));
       }
       setLoading(false);
     })();
   }, [session]);
 
-  const filteredChamados = filter === 'TODOS' ? chamados : chamados.filter((c) => c.status === filter);
-
-  const statusCounts = chamados.reduce((acc, c) => {
-    acc[c.status] = (acc[c.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const contagem = pedidos.reduce(
+    (acc, p) => {
+      const s = statusParaCidadao(p.status);
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    },
+    {} as Partial<Record<StatusCidadao, number>>
+  );
+  const visiveis = filtro === 'TODOS' ? pedidos : pedidos.filter((p) => statusParaCidadao(p.status) === filtro);
 
   if (authLoading || (loading && session)) {
     return (
@@ -169,16 +159,16 @@ export default function MeusChamadosPage() {
       </div>
     );
   }
-
   if (!session) return null;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold font-heading text-[#005242]">Meus Chamados</h1>
-          <p className="text-gray-500 text-sm mt-1">{chamados.length} solicitação(ões) registrada(s)</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {pedidos.length === 1 ? '1 pedido registrado' : `${pedidos.length} pedidos registrados`}
+          </p>
         </div>
         <Link href="/solicitar">
           <Button className="bg-[#006653] hover:bg-[#005242] text-white font-semibold h-11">
@@ -188,35 +178,35 @@ export default function MeusChamadosPage() {
         </Link>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-        {(['TODOS', 'ABERTO', 'EM_ANDAMENTO', 'RESOLVIDO', 'REJEITADO'] as const).map((f) => (
+        {FILTROS.map((f) => (
           <button
             key={f}
-            onClick={() => setFilter(f)}
+            type="button"
+            onClick={() => setFiltro(f)}
+            aria-pressed={filtro === f}
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-              filter === f
-                ? 'bg-[#006653] text-white shadow-md'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              filtro === f ? 'bg-[#006653] text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
-            {f === 'TODOS' ? 'Todos' : getStatusInfo(f as ChamadoStatus).label}
-            {f !== 'TODOS' && statusCounts[f] ? (
-              <span className="ml-1.5 text-xs opacity-70">({statusCounts[f]})</span>
-            ) : null}
+            {f === 'TODOS' ? 'Todos' : ROTULO_CIDADAO[f]}
+            {f !== 'TODOS' && contagem[f] ? <span className="ml-1.5 text-xs opacity-70">({contagem[f]})</span> : null}
           </button>
         ))}
       </div>
 
-      {/* Empty state */}
-      {filteredChamados.length === 0 ? (
+      {erro && <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2.5 text-sm text-red-900">{erro}</div>}
+
+      {visiveis.length === 0 ? (
         <Card className="border-gray-200">
           <CardContent className="p-12 text-center">
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
               <FileText className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className="font-semibold text-gray-700 mb-1">Nenhuma solicitação encontrada</h3>
-            <p className="text-sm text-gray-500 mb-6">Registre seu primeiro chamado de zelo urbano</p>
+            <h3 className="font-semibold text-gray-700 mb-1">
+              {pedidos.length === 0 ? 'Você ainda não fez nenhum pedido' : 'Nenhum pedido nesta situação'}
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">Viu um problema na rua? Registre aqui e acompanhe cada etapa.</p>
             <Link href="/solicitar">
               <Button className="bg-[#006653] hover:bg-[#005242] text-white font-semibold h-11 px-6">
                 <Plus className="w-4 h-4 mr-2" />
@@ -227,93 +217,89 @@ export default function MeusChamadosPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {filteredChamados.map((chamado) => {
-            const statusInfo = getStatusInfo(chamado.status);
-            const catInfo = getCategoriaInfo(chamado.categoria);
-            const slaExpired = chamado.sla_limite && new Date(chamado.sla_limite) < new Date() && chamado.status !== 'RESOLVIDO' && chamado.status !== 'REJEITADO';
-
+          {visiveis.map((p) => {
+            const s = statusParaCidadao(p.status);
+            const cat = getCategoriaInfo(normalizeCategoria(p.categoria));
+            const foto = fotoSegura(p.foto_execucao_url) || fotoSegura(p.foto);
             return (
               <Card
-                key={chamado.id}
+                key={p.id}
                 className="border-gray-200 hover:shadow-md transition-all overflow-hidden cursor-pointer hover:border-emerald-300"
-                onClick={() => setSelectedChamado(chamado)}
+                onClick={() => setAberto(p)}
               >
                 <CardContent className="p-0">
                   <div className="flex flex-col sm:flex-row">
-                    {/* Photo */}
                     <div className="w-full sm:w-36 h-36 sm:h-auto bg-gray-100 flex-shrink-0 relative">
-                      {chamado.fotos && chamado.fotos.length > 0 ? (
-                        <img src={chamado.fotos[0]} alt="Foto do chamado" className="w-full h-full object-cover" />
+                      {foto ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={foto} alt="Foto do pedido" onError={esconderSeFalhar} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center min-h-[100px]">
                           <ImageIcon className="w-8 h-8 text-gray-300" />
                         </div>
                       )}
-                      {chamado.fotos && chamado.fotos.length > 1 && (
-                        <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
-                          +{chamado.fotos.length - 1} foto(s)
+                      {fotoSegura(p.foto_execucao_url) && (
+                        <span className="absolute bottom-2 left-2 bg-[#006653] text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                          Serviço feito
                         </span>
                       )}
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 p-4 flex flex-col justify-between">
                       <div>
                         <div className="flex items-start justify-between mb-2 gap-2">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <CategoriaIcone categoria={catInfo.id} className="w-6 h-6" />
-                              <span className="font-semibold text-gray-800">{catInfo?.label}</span>
+                              <CategoriaIcone categoria={cat.id} className="w-6 h-6" />
+                              <span className="font-semibold text-gray-800">{cat.label}</span>
                             </div>
-                            <p className="text-xs text-gray-500 font-mono font-medium">{chamado.protocolo}</p>
+                            <p className="text-xs text-gray-500 font-mono font-medium">{p.protocolo}</p>
                           </div>
-                          <Badge className={`${statusInfo.bgColor} ${statusInfo.borderColor} ${statusInfo.textColor} border shrink-0`}>
-                            {statusInfo.label}
-                          </Badge>
+                          <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${COR_CIDADAO[s]}`}>
+                            {ROTULO_CIDADAO[s]}
+                          </span>
                         </div>
 
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{chamado.descricao}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{p.descricao}</p>
 
-                        {/* Progress bar */}
-                        <div className="space-y-1 mb-3">
-                          <Progress value={statusInfo.progress} className="h-1.5" />
-                        </div>
+                        {p.resposta_cidadao && (
+                          <p className="mb-3 flex items-start gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs text-emerald-900">
+                            <Building2 className="w-3.5 h-3.5 shrink-0 mt-px" />
+                            <span className="line-clamp-2">
+                              <strong>Resposta da Prefeitura:</strong> {p.resposta_cidadao}
+                            </span>
+                          </p>
+                        )}
 
-                        {/* Meta */}
                         <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mb-3">
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3 text-gray-400" />
-                            {chamado.endereco_texto
-                              ? chamado.endereco_texto.split(',').slice(0, 2).join(',')
-                              : `${chamado.latitude.toFixed(4)}, ${chamado.longitude.toFixed(4)}`}
+                            {p.endereco
+                              ? p.endereco.split(',').slice(0, 2).join(',')
+                              : p.latitude !== null && p.longitude !== null
+                                ? `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
+                                : 'Sem endereço'}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-gray-400" />
-                            {tempoRelativo(chamado.created_at)}
+                            {tempoRelativo(p.created_at)}
                           </span>
-                          {slaExpired && (
-                            <span className="flex items-center gap-1 text-red-600 font-medium">
-                              <AlertCircle className="w-3 h-3" />
-                              SLA vencido
-                            </span>
-                          )}
-                          {chamado.status === 'RESOLVIDO' && (
-                            <span className="flex items-center gap-1 text-green-600 font-medium">
+                          {s === 'Concluído' && p.concluido_em && (
+                            <span className="flex items-center gap-1 text-emerald-700 font-medium">
                               <CheckCircle2 className="w-3 h-3" />
-                              Resolvido
+                              Concluído em {formatData(p.concluido_em).slice(0, 10)}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Quick Action Footer */}
                       <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleShareWhatsApp(chamado);
+                              shareViaWhatsApp(textoComprovante(p));
                             }}
                             className="bg-[#25D366] hover:bg-[#1ebe5b] text-white text-xs h-8 px-3 rounded-md flex items-center gap-1.5 shadow-sm font-medium"
                           >
@@ -325,20 +311,16 @@ export default function MeusChamadosPage() {
                             variant="outline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleCopyReceipt(chamado);
+                              copiarComprovante(p);
                             }}
                             className="text-xs h-8 px-2.5 rounded-md flex items-center gap-1 border-gray-200 hover:bg-gray-50 text-gray-700"
                           >
-                            {copiedId === chamado.id ? (
-                              <Check className="w-3.5 h-3.5 text-green-600" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5 text-gray-400" />
-                            )}
-                            <span>{copiedId === chamado.id ? 'Copiado!' : 'Comprovante'}</span>
+                            {copiado === p.id ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-gray-400" />}
+                            <span>{copiado === p.id ? 'Copiado!' : 'Comprovante'}</span>
                           </Button>
                         </div>
-                        <span className="text-xs text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-0.5">
-                          Ver detalhes <ChevronRight className="w-3.5 h-3.5" />
+                        <span className="text-xs text-emerald-700 font-medium flex items-center gap-0.5">
+                          Ver andamento <ChevronRight className="w-3.5 h-3.5" />
                         </span>
                       </div>
                     </div>
@@ -350,148 +332,102 @@ export default function MeusChamadosPage() {
         </div>
       )}
 
-      {/* Details Dialog Modal with WhatsApp & Comprovante */}
-      {selectedChamado && (
-        <Dialog open={!!selectedChamado} onOpenChange={(open) => !open && setSelectedChamado(null)}>
+      {aberto && (
+        <Dialog open onOpenChange={(v) => !v && setAberto(null)}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6">
             <DialogHeader className="text-left pb-3 border-b border-gray-100">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <CategoriaIcone categoria={selectedChamado.categoria} className="w-6 h-6" />
+                    <CategoriaIcone categoria={normalizeCategoria(aberto.categoria)} className="w-6 h-6" />
                     <DialogTitle className="text-lg font-bold text-gray-900">
-                      {getCategoriaInfo(selectedChamado.categoria)?.label}
+                      {getCategoriaInfo(normalizeCategoria(aberto.categoria)).label}
                     </DialogTitle>
                   </div>
-                  <p className="text-xs font-mono font-bold text-emerald-700">
-                    O.S. {selectedChamado.protocolo}
-                  </p>
+                  <p className="text-xs font-mono font-bold text-emerald-700">Protocolo {aberto.protocolo}</p>
                 </div>
-                <Badge
-                  className={`${getStatusInfo(selectedChamado.status).bgColor} ${
-                    getStatusInfo(selectedChamado.status).borderColor
-                  } ${getStatusInfo(selectedChamado.status).textColor} border shrink-0`}
+                <span
+                  className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${COR_CIDADAO[statusParaCidadao(aberto.status)]}`}
                 >
-                  {getStatusInfo(selectedChamado.status).label}
-                </Badge>
+                  {ROTULO_CIDADAO[statusParaCidadao(aberto.status)]}
+                </span>
               </div>
             </DialogHeader>
 
-            <div className="space-y-4 py-2">
-              {/* Timeline status bar */}
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                <div className="flex justify-between text-xs font-medium text-gray-500 mb-1.5">
-                  <span>Progresso do Atendimento</span>
-                  <span>{getStatusInfo(selectedChamado.status).progress}%</span>
-                </div>
-                <Progress value={getStatusInfo(selectedChamado.status).progress} className="h-2" />
-              </div>
+            <div className="space-y-5 py-2">
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Andamento</h3>
+                <LinhaTempoCidadao pedido={aberto} />
+              </section>
 
-              {/* Photos */}
-              {selectedChamado.fotos && selectedChamado.fotos.length > 0 && (
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">
-                    Fotos Anexadas ({selectedChamado.fotos.length})
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {selectedChamado.fotos.map((foto, idx) => (
-                      <a
-                        key={idx}
-                        href={foto}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block aspect-square rounded-md overflow-hidden bg-gray-100 border border-gray-200 hover:opacity-90 transition-opacity"
-                      >
-                        <img src={foto} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
-                  Descrição do Cidadão
-                </label>
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap">
-                  {selectedChamado.descricao || 'Nenhuma descrição fornecida.'}
-                </div>
-              </div>
-
-              {/* Official response from prefeitura if present */}
-              {selectedChamado.resposta_cidadao && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3.5">
-                  <div className="flex items-center gap-1.5 text-emerald-950 font-semibold text-xs uppercase tracking-wide mb-1">
+              {aberto.resposta_cidadao && (
+                <section className="bg-emerald-50 border border-emerald-200 rounded-lg p-3.5">
+                  <p className="flex items-center gap-1.5 text-emerald-950 font-semibold text-xs uppercase tracking-wide mb-1">
                     <Building2 className="w-4 h-4 text-emerald-700" />
-                    Resposta da equipe
-                  </div>
-                  <p className="text-sm text-emerald-950 leading-relaxed">
-                    {selectedChamado.resposta_cidadao}
+                    Resposta da Prefeitura
                   </p>
-                </div>
+                  <p className="text-sm text-emerald-950 leading-relaxed whitespace-pre-line">{aberto.resposta_cidadao}</p>
+                </section>
               )}
 
-              {/* Metadata details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-gray-600 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                {selectedChamado.secretaria && (
-                  <div className="flex items-start gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-                    <div>
-                      <span className="text-gray-400 block">Secretaria:</span>
-                      <span className="font-semibold text-gray-800">
-                        {SECRETARIAS[selectedChamado.secretaria] || selectedChamado.secretaria}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-start gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-                  <div>
-                    <span className="text-gray-400 block">Data de Abertura:</span>
-                    <span className="font-medium text-gray-800">
-                      {formatData(selectedChamado.created_at)}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-1.5 sm:col-span-2">
-                  <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-                  <div>
-                    <span className="text-gray-400 block">Localização:</span>
-                    <span className="font-medium text-gray-800">
-                      {selectedChamado.endereco_texto || `${selectedChamado.latitude.toFixed(5)}, ${selectedChamado.longitude.toFixed(5)}`}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {fotoSegura(aberto.foto_execucao_url) && (
+                <section>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Foto do serviço feito</h3>
+                  <a href={aberto.foto_execucao_url!} target="_blank" rel="noreferrer" className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={aberto.foto_execucao_url!}
+                      alt="Foto do serviço executado"
+                      onError={esconderSeFalhar}
+                      className="w-full max-h-64 object-cover rounded-lg border border-gray-200"
+                    />
+                  </a>
+                </section>
+              )}
 
-              {/* WhatsApp Share & Copy Comprovante in Modal */}
-              <div className="pt-2 border-t border-gray-200">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">
-                  Compartilhar O.S.
+              {fotoSegura(aberto.foto) && (
+                <section>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sua foto</h3>
+                  <a href={aberto.foto!} target="_blank" rel="noreferrer" className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={aberto.foto!} alt="Foto enviada" onError={esconderSeFalhar} className="w-full max-h-56 object-cover rounded-lg border border-gray-200" />
+                  </a>
+                </section>
+              )}
+
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">O que você pediu</h3>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap">
+                  {aberto.descricao || 'Sem descrição.'}
+                </div>
+                <p className="mt-2 flex items-start gap-1.5 text-xs text-gray-600">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                  {aberto.endereco ||
+                    (aberto.latitude !== null && aberto.longitude !== null
+                      ? `${aberto.latitude.toFixed(5)}, ${aberto.longitude.toFixed(5)}`
+                      : 'Sem endereço')}
                 </p>
+              </section>
+
+              <section className="pt-2 border-t border-gray-200">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <Button
-                    onClick={() => handleShareWhatsApp(selectedChamado)}
+                    onClick={() => shareViaWhatsApp(textoComprovante(aberto))}
                     className="w-full bg-[#25D366] hover:bg-[#1ebe5b] text-white font-semibold flex items-center justify-center gap-2 h-10 shadow-sm"
                   >
                     <MessageCircle className="w-4 h-4 fill-current" />
-                    <span>Enviar no WhatsApp</span>
+                    Enviar no WhatsApp
                   </Button>
                   <Button
-                    onClick={() => handleCopyReceipt(selectedChamado)}
+                    onClick={() => copiarComprovante(aberto)}
                     variant="outline"
                     className="w-full border-gray-300 hover:bg-gray-50 text-gray-700 font-medium flex items-center justify-center gap-2 h-10"
                   >
-                    {copiedId === selectedChamado.id ? (
-                      <Check className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <Copy className="w-4 h-4 text-gray-500" />
-                    )}
-                    <span>{copiedId === selectedChamado.id ? 'Comprovante Copiado!' : 'Copiar Comprovante'}</span>
+                    {copiado === aberto.id ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-500" />}
+                    {copiado === aberto.id ? 'Comprovante copiado!' : 'Copiar comprovante'}
                   </Button>
                 </div>
-              </div>
+              </section>
             </div>
           </DialogContent>
         </Dialog>

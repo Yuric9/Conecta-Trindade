@@ -36,34 +36,20 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getStoredChamadosList } from '@/lib/supabase/client';
+import { getStoredChamadosList, isSupabaseConfigured } from '@/lib/supabase/client';
+import { statusParaCidadao } from '@/lib/os-status';
+import { ROTULO_CIDADAO, type StatusCidadao } from '@/lib/etapas-cidadao';
+import { LinhaTempoCidadao } from '@/components/linha-tempo-cidadao';
 import { formatData, tempoRelativo, getCategoriaInfo, SECRETARIAS, type ChamadoCategoria } from '@/lib/types';
 
 // =====================================================================
 // Tipos e Normalização de Status
 // =====================================================================
 
-type NormalizedStatus = 'Pendente' | 'Em Andamento' | 'Concluído' | 'Cancelado';
+type NormalizedStatus = StatusCidadao;
 
-function normalizeStatus(status: string | undefined | null): NormalizedStatus {
-  if (!status) return 'Pendente';
-  const s = status.toUpperCase().trim();
-  if (s === 'ABERTO' || s === 'TRIADO' || s === 'PENDENTE') return 'Pendente';
-  // Encaminhada e aguardando confirmação: para o cidadão, ainda em andamento
-  if (
-    s === 'EM_ANDAMENTO' ||
-    s === 'EM ANDAMENTO' ||
-    s === 'ANDAMENTO' ||
-    s === 'NA SECRETARIA' ||
-    s === 'ENCAMINHADA' ||
-    s === 'AGUARDANDO CONFIRMAÇÃO'
-  ) {
-    return 'Em Andamento';
-  }
-  if (s === 'RESOLVIDO' || s === 'CONCLUÍDO' || s === 'CONCLUIDO' || s === 'AVALIADO') return 'Concluído';
-  if (s === 'REJEITADO' || s === 'CANCELADO') return 'Cancelado';
-  return 'Pendente';
-}
+/** Para o cidadão: Recebido, Em andamento, Concluído ou Cancelado */
+const normalizeStatus = (status: string | undefined | null): NormalizedStatus => statusParaCidadao(status);
 
 interface ChamadoDetalhe {
   id: string;
@@ -84,6 +70,11 @@ interface ChamadoDetalhe {
   secretaria?: string | null;
   observacoes_internas?: string | null;
   resposta_cidadao?: string | null;
+  na_secretaria_em?: string | null;
+  encaminhado_em?: string | null;
+  concluido_em?: string | null;
+  /** Foto do serviço feito (só vem depois de concluída) */
+  foto_execucao_url?: string | null;
   created_at: string;
   updated_at?: string;
   sla_limite?: string;
@@ -141,8 +132,9 @@ function AcompanharContent() {
         return;
       }
 
-      // 2. Se a rota dinâmica retornar 404, tentar buscar no storage local do navegador
-      const storedLocal = getStoredChamadosList();
+      // 2. Modo demonstração: procura também nos dados guardados no navegador
+      // (com o banco ligado, o navegador só tem dados de exemplo)
+      const storedLocal = isSupabaseConfigured ? [] : getStoredChamadosList();
       const cleanDigits = termo.replace(/\D/g, '');
       const localMatches = storedLocal.filter((c) => {
         const protoMatch = c.protocolo?.toLowerCase().includes(termo.toLowerCase());
@@ -166,6 +158,10 @@ function AcompanharContent() {
           status: item.status,
           secretaria: item.secretaria,
           resposta_cidadao: (item as any).resposta_cidadao,
+          na_secretaria_em: (item as any).na_secretaria_em,
+          encaminhado_em: (item as any).encaminhado_em,
+          concluido_em: (item as any).concluido_em,
+          foto_execucao_url: statusParaCidadao(item.status) === 'Concluído' ? (item as any).foto_execucao_url : null,
           created_at: item.created_at,
           updated_at: item.updated_at,
           sla_limite: item.sla_limite,
@@ -225,7 +221,7 @@ function AcompanharContent() {
 
   const handleCompartilharWhatsApp = (chamado: ChamadoDetalhe) => {
     const statusAtual = normalizeStatus(chamado.status);
-    const texto = `Olá! Acompanhe o andamento da minha solicitação de zelo urbano em Trindade-GO:\n\n*Protocolo:* ${chamado.protocolo}\n*Serviço:* ${chamado.categoria_servico || chamado.categoria || 'Demanda Municipal'}\n*Status Atual:* ${statusAtual}\n*Endereço:* ${chamado.endereco || chamado.endereco_texto || 'Trindade - GO'}\n\nConsulte o andamento no Conecta Trindade: ${window.location.origin}/acompanhar?protocolo=${encodeURIComponent(chamado.protocolo)}`;
+    const texto = `Olá! Acompanhe o andamento da minha solicitação de zelo urbano em Trindade-GO:\n\n*Protocolo:* ${chamado.protocolo}\n*Serviço:* ${chamado.categoria_servico || chamado.categoria || 'Demanda Municipal'}\n*Situação:* ${ROTULO_CIDADAO[statusAtual]}\n*Endereço:* ${chamado.endereco || chamado.endereco_texto || 'Trindade - GO'}\n\nConsulte o andamento no Conecta Trindade: ${window.location.origin}/acompanhar?protocolo=${encodeURIComponent(chamado.protocolo)}`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank');
   };
@@ -460,10 +456,7 @@ function AcompanharContent() {
                 </div>
               </div>
 
-              {/* ========================================================= */}
-              {/* LINHA DO TEMPO OFICIAL DE STATUS                         */}
-              {/* Requisito 3: (Pendente -> Em Andamento -> Concluído)      */}
-              {/* ========================================================= */}
+              {/* Linha do tempo: Recebido → Na Secretaria → Equipe em campo → Concluído */}
               <div className="p-5 md:p-8 bg-white border-b border-gray-100">
                 <div className="mb-6">
                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
@@ -475,80 +468,18 @@ function AcompanharContent() {
                   </p>
                 </div>
 
-                {/* Caso Especial: Cancelado / Rejeitado */}
-                {statusNorm === 'Cancelado' ? (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-4 text-left">
-                    <div className="flex items-center gap-2.5 text-gray-800 font-bold text-sm mb-1">
-                      <AlertTriangle className="w-4 h-4 text-red-600" />
-                      <span>Solicitação Cancelada / Indeferida</span>
-                    </div>
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      Esta ordem de serviço foi cancelada ou julgada inviável durante a triagem técnica.
-                      {chamadoSelecionado.resposta_cidadao && (
-                        <span className="block mt-2 font-medium text-gray-800 bg-white p-2.5 rounded border border-gray-200">
-                          <strong>Resposta da equipe:</strong> {chamadoSelecionado.resposta_cidadao}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                ) : (
-                  /* Linha do Tempo Progressiva Oficial */
-                  <div className="relative mt-2">
-                    {/* Barra de Conexão entre os Marcos */}
-                    <div className="hidden md:block absolute top-6 left-12 right-12 h-1.5 bg-gray-200 rounded-full z-0">
-                      <div
-                        className="h-full bg-[#006653] rounded-full transition-all duration-700 ease-in-out"
-                        style={{
-                          width:
-                            statusNorm === 'Concluído'
-                              ? '100%'
-                              : statusNorm === 'Em Andamento'
-                              ? '50%'
-                              : '0%',
-                        }}
-                      />
-                    </div>
-
-                    {/* Grade dos 3 Marcos Obrigatórios */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                      {/* Marco 1: Pendente */}
-                      <TimelineStep
-                        numero="1"
-                        titulo="Pendente"
-                        subtitulo="Solicitação Registrada"
-                        descricao="Demanda protocolada no sistema Conecta-Trindade e aguardando triagem da secretaria competente."
-                        ativo={statusNorm === 'Pendente'}
-                        concluido={statusNorm === 'Em Andamento' || statusNorm === 'Concluído'}
-                        corAtiva="yellow"
-                        dataRef={chamadoSelecionado.created_at}
-                      />
-
-                      {/* Marco 2: Em Andamento */}
-                      <TimelineStep
-                        numero="2"
-                        titulo="Em Andamento"
-                        subtitulo="Equipe em Campo"
-                        descricao="Demanda despachada para a secretaria responsável. Equipe técnica operacional designada para o local."
-                        ativo={statusNorm === 'Em Andamento'}
-                        concluido={statusNorm === 'Concluído'}
-                        corAtiva="blue"
-                        dataRef={statusNorm === 'Em Andamento' ? chamadoSelecionado.updated_at : undefined}
-                      />
-
-                      {/* Marco 3: Concluído */}
-                      <TimelineStep
-                        numero="3"
-                        titulo="Concluído"
-                        subtitulo="Demanda Finalizada"
-                        descricao="Serviço executado com sucesso e vistoriado pela fiscalização de zelo urbano de Trindade."
-                        ativo={statusNorm === 'Concluído'}
-                        concluido={statusNorm === 'Concluído'}
-                        corAtiva="emerald"
-                        dataRef={statusNorm === 'Concluído' ? chamadoSelecionado.updated_at : undefined}
-                      />
-                    </div>
-                  </div>
-                )}
+                <div className="max-w-md">
+                  <LinhaTempoCidadao
+                    pedido={{
+                      status: chamadoSelecionado.status,
+                      created_at: chamadoSelecionado.created_at,
+                      na_secretaria_em: chamadoSelecionado.na_secretaria_em,
+                      encaminhado_em: chamadoSelecionado.encaminhado_em,
+                      concluido_em: chamadoSelecionado.concluido_em,
+                      updated_at: chamadoSelecionado.updated_at,
+                    }}
+                  />
+                </div>
               </div>
 
               {/* Detalhes Completos da Solicitação */}
@@ -670,12 +601,35 @@ function AcompanharContent() {
                     {/* Resposta da equipe ao cidadão (observações internas nunca aparecem aqui) */}
                     {chamadoSelecionado.resposta_cidadao && (
                       <div className="bg-emerald-50/80 p-3.5 rounded-lg border border-emerald-200">
-                        <span className="text-[#006653] block text-sm font-semibold mb-1">Resposta da equipe</span>
-                        <p className="text-emerald-950 leading-relaxed">{chamadoSelecionado.resposta_cidadao}</p>
+                        <span className="text-[#006653] block text-sm font-semibold mb-1">Resposta da Prefeitura</span>
+                        <p className="text-emerald-950 leading-relaxed whitespace-pre-line">{chamadoSelecionado.resposta_cidadao}</p>
                       </div>
                     )}
                   </div>
                 </div>
+
+                {/* Foto do serviço feito (depois de concluída) */}
+                {chamadoSelecionado.foto_execucao_url &&
+                  /^(https:\/\/|data:image\/)/.test(chamadoSelecionado.foto_execucao_url) && (
+                    <div className="mt-6 pt-6 border-t border-gray-100">
+                      <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-[#006653]" />
+                        Foto do serviço feito
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setFotoModalUrl(chamadoSelecionado.foto_execucao_url!)}
+                        className="block w-full max-w-md rounded-xl overflow-hidden border border-emerald-300 bg-gray-100 hover:border-[#006653]"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={chamadoSelecionado.foto_execucao_url}
+                          alt="Foto do serviço executado"
+                          className="w-full max-h-72 object-cover"
+                        />
+                      </button>
+                    </div>
+                  )}
 
                 {/* Fotos Anexadas */}
                 {fotosExibicao.length > 0 && (
@@ -748,13 +702,13 @@ function AcompanharContent() {
         {/* Estado inicial: explica o significado de cada status */}
         {!buscaRealizada && !chamadoSelecionado && (
           <div className="mt-8 bg-white border border-gray-200 rounded-lg p-5 md:p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">O que significa cada status</h2>
+            <h2 className="text-base font-semibold text-gray-900 mb-4">O que significa cada situação</h2>
             <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
               {[
-                { cor: 'bg-amber-400', nome: 'Pendente', texto: 'Solicitação recebida, aguardando análise.' },
-                { cor: 'bg-orange-500', nome: 'Em análise', texto: 'A equipe está avaliando o local e o tipo de serviço.' },
-                { cor: 'bg-blue-600', nome: 'Em andamento', texto: 'O serviço foi encaminhado para execução.' },
-                { cor: 'bg-emerald-600', nome: 'Concluído', texto: 'O serviço foi finalizado.' },
+                { cor: 'bg-amber-400', nome: 'Recebido', texto: 'Seu pedido chegou à Central de Atendimento e está sendo analisado.' },
+                { cor: 'bg-blue-600', nome: 'Em andamento', texto: 'Está com a Secretaria de Infraestrutura ou com a equipe em campo.' },
+                { cor: 'bg-emerald-600', nome: 'Concluído', texto: 'O serviço foi feito e conferido pela Secretaria.' },
+                { cor: 'bg-gray-400', nome: 'Cancelado', texto: 'Não será executado. A resposta da Prefeitura explica o motivo.' },
               ].map((st) => (
                 <div key={st.nome}>
                   <dt className="flex items-center gap-2 font-medium text-gray-900">
@@ -813,92 +767,6 @@ export default function AcompanharPage() {
 // Componentes Auxiliares da Linha do Tempo e Badges
 // =====================================================================
 
-interface TimelineStepProps {
-  numero: string;
-  titulo: string;
-  subtitulo: string;
-  descricao: string;
-  ativo: boolean;
-  concluido: boolean;
-  corAtiva: 'yellow' | 'blue' | 'emerald';
-  dataRef?: string;
-}
-
-function TimelineStep({
-  numero,
-  titulo,
-  subtitulo,
-  descricao,
-  ativo,
-  concluido,
-  corAtiva,
-  dataRef,
-}: TimelineStepProps) {
-  return (
-    <div
-      className={`rounded-2xl p-4 border transition-all relative ${
-        concluido
-          ? 'bg-emerald-50/70 border-emerald-300 shadow-2xs'
-          : ativo
-          ? corAtiva === 'yellow'
-            ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400/40 shadow-sm'
-            : corAtiva === 'blue'
-            ? 'bg-blue-50/80 border-blue-300 ring-2 ring-blue-400/40 shadow-sm'
-            : 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-400/40 shadow-sm'
-          : 'bg-gray-50/50 border-gray-200 opacity-60'
-      }`}
-    >
-      <div className="flex items-center gap-3 mb-2.5">
-        <div
-          className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-xs transition-colors ${
-            concluido
-              ? 'bg-[#006653] text-white'
-              : ativo
-              ? corAtiva === 'yellow'
-                ? 'bg-amber-500 text-white animate-pulse'
-                : corAtiva === 'blue'
-                ? 'bg-blue-600 text-white animate-pulse'
-                : 'bg-[#006653] text-white'
-              : 'bg-gray-200 text-gray-600'
-          }`}
-        >
-          {concluido ? <Check className="w-5 h-5 stroke-[2.5]" /> : numero}
-        </div>
-        <div>
-          <span className="text-[11px] uppercase tracking-wider font-bold block text-gray-500">
-            Etapa {numero}
-          </span>
-          <h4
-            className={`font-heading font-bold text-sm ${
-              concluido
-                ? 'text-emerald-900'
-                : ativo
-                ? corAtiva === 'yellow'
-                  ? 'text-amber-950'
-                  : corAtiva === 'blue'
-                  ? 'text-blue-950'
-                  : 'text-emerald-950'
-                : 'text-gray-600'
-            }`}
-          >
-            {titulo}
-          </h4>
-        </div>
-      </div>
-
-      <p className="text-xs font-semibold text-gray-800 mb-1">{subtitulo}</p>
-      <p className="text-[11.5px] text-gray-600 leading-relaxed">{descricao}</p>
-
-      {dataRef && (
-        <div className="mt-3 pt-2 border-t border-gray-200/60 text-[10.5px] text-gray-500 flex items-center gap-1 font-medium">
-          <Clock className="w-3 h-3 text-gray-400" />
-          <span>{formatData(dataRef)}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function StatusBadgeItem({
   status,
   size = 'md',
@@ -920,7 +788,7 @@ function StatusBadgeItem({
           className={`bg-yellow-50 text-yellow-800 border-yellow-300 hover:bg-yellow-100 ${sizeClasses} gap-1.5 shadow-2xs`}
         >
           <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-          <span>Pendente</span>
+          <span>{ROTULO_CIDADAO.Pendente}</span>
         </Badge>
       );
     case 'Em Andamento':
@@ -929,7 +797,7 @@ function StatusBadgeItem({
           className={`bg-blue-50 text-blue-800 border-blue-300 hover:bg-blue-100 ${sizeClasses} gap-1.5 shadow-2xs`}
         >
           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          <span>Em Andamento</span>
+          <span>{ROTULO_CIDADAO['Em Andamento']}</span>
         </Badge>
       );
     case 'Concluído':
