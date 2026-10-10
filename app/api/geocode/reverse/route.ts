@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isWithinTrindade } from '@/lib/geo';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -14,6 +15,12 @@ export async function GET(request: NextRequest) {
 
   if (isNaN(latitude) || isNaN(longitude)) {
     return NextResponse.json({ error: 'Coordenadas inválidas.' }, { status: 400 });
+  }
+
+  // Só pontos de Trindade: evita que usem o nosso servidor como busca de
+  // endereços do mundo todo (o serviço de mapas bloquearia o site).
+  if (!isWithinTrindade(latitude, longitude)) {
+    return NextResponse.json({ error: 'Ponto fora de Trindade.' }, { status: 400 });
   }
 
   try {

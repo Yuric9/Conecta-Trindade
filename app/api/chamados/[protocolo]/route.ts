@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizarTermoBusca, buscarChamadosPublico } from '@/lib/chamados-publico';
+import { normalizarTermoBusca, buscarChamadosPublico, pareceCpf, MSG_SO_PROTOCOLO } from '@/lib/chamados-publico';
 
 /**
  * GET /api/chamados/[protocolo]
- * Consulta pública de uma solicitação por número de protocolo ou CPF completo.
+ * Consulta pública de uma solicitação pelo número do protocolo (não aceita CPF).
  * Devolve apenas dados não sensíveis (sem CPF, telefone ou nome completo).
  */
 export async function GET(
@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error: 'Informe um protocolo válido (ex.: TRIN-2026-7B4K) ou um CPF completo com 11 dígitos.',
+          error: pareceCpf(termo) ? MSG_SO_PROTOCOLO : 'Informe um protocolo válido (ex.: TRIN-2026-7B4K9X).',
         },
         { status: 400 }
       );
@@ -31,7 +31,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error: 'Nenhuma solicitação encontrada. Verifique se o protocolo ou CPF foi digitado corretamente.',
+          error: 'Nenhuma solicitação encontrada. Confira se o número do protocolo foi digitado corretamente.',
         },
         { status: 404 }
       );

@@ -12,7 +12,6 @@ import {
   FileText,
   MapPin,
   Calendar,
-  Phone,
   User,
   Copy,
   Check,
@@ -102,7 +101,19 @@ function AcompanharContent() {
   const executarBusca = useCallback(async (termoOriginal: string) => {
     const termo = termoOriginal.trim();
     if (!termo) {
-      setErrorMsg('Por favor, digite o número do protocolo ou CPF para realizar a consulta.');
+      setErrorMsg('Digite o número do protocolo para consultar.');
+      return;
+    }
+
+    // Por segurança a consulta não aceita CPF (quem soubesse o CPF de alguém
+    // veria os pedidos e o endereço da pessoa)
+    if (/^[\d.\-\s]+$/.test(termo) && termo.replace(/\D/g, '').length === 11) {
+      setListaResultados([]);
+      setChamadoSelecionado(null);
+      setBuscaRealizada(true);
+      setErrorMsg(
+        'Por segurança, a consulta é só pelo número do protocolo. Perdeu o protocolo? Entre na sua conta em "Meus Chamados" ou ligue para a Central: (62) 3506-7000.'
+      );
       return;
     }
 
@@ -135,21 +146,14 @@ function AcompanharContent() {
       // 2. Modo demonstração: procura também nos dados guardados no navegador
       // (com o banco ligado, o navegador só tem dados de exemplo)
       const storedLocal = isSupabaseConfigured ? [] : getStoredChamadosList();
-      const cleanDigits = termo.replace(/\D/g, '');
-      const localMatches = storedLocal.filter((c) => {
-        const protoMatch = c.protocolo?.toLowerCase().includes(termo.toLowerCase());
-        const idMatch = c.id?.toLowerCase().includes(termo.toLowerCase());
-        const cpfMatch = cleanDigits.length >= 8 && ((c as any).cpf_cidadao || '').replace(/\D/g, '').includes(cleanDigits);
-        return protoMatch || idMatch || cpfMatch;
-      });
+      const localMatches = storedLocal.filter((c) => c.protocolo?.toUpperCase() === termo.toUpperCase());
 
       if (localMatches.length > 0) {
         const converted: ChamadoDetalhe[] = localMatches.map((item) => ({
           id: item.id,
           protocolo: item.protocolo,
-          nome_cidadao: item.cidadao_nome || (item as any).nome_cidadao || 'Munícipe',
-          cpf_cidadao: (item as any).cpf_cidadao,
-          telefone_cidadao: item.cidadao_telefone || (item as any).telefone_cidadao,
+          // Página pública: só o primeiro nome, nunca CPF ou telefone
+          nome_cidadao: (item.cidadao_nome || (item as any).nome_cidadao || 'Munícipe').split(' ')[0],
           categoria_servico: item.categoria,
           descricao: item.descricao,
           endereco: item.endereco_texto,
@@ -178,7 +182,7 @@ function AcompanharContent() {
       setChamadoSelecionado(null);
       setErrorMsg(
         data?.error ||
-          `Nenhuma solicitação encontrada para "${termo}". Verifique se os números do protocolo ou CPF estão corretos.`
+          `Nenhuma solicitação encontrada para "${termo}". Confira se o número do protocolo está correto.`
       );
     } catch (err: any) {
       console.error('Erro ao consultar chamado:', err);
@@ -193,7 +197,6 @@ function AcompanharContent() {
     const protoUrl =
       searchParams.get('protocolo') ||
       searchParams.get('p') ||
-      searchParams.get('cpf') ||
       searchParams.get('busca');
 
     if (protoUrl) {
@@ -243,7 +246,7 @@ function AcompanharContent() {
             Acompanhar solicitação
           </h1>
           <p className="text-emerald-50 text-sm md:text-base max-w-2xl leading-relaxed">
-            Informe o número do protocolo ou o CPF usado na abertura da solicitação.
+            Informe o número do protocolo que você recebeu ao abrir a solicitação.
           </p>
         </div>
       </section>
@@ -259,7 +262,7 @@ function AcompanharContent() {
                   type="text"
                   value={termoBusca}
                   onChange={(e) => setTermoBusca(e.target.value)}
-                  placeholder="Protocolo (ex.: TRIN-2026-7B4K9X) ou CPF"
+                  placeholder="Protocolo (ex.: TRIN-2026-7B4K9X)"
                   className="pl-11 pr-10 h-12 text-sm border-gray-300 focus-visible:ring-[#006653] focus-visible:border-[#006653] rounded-md"
                   autoFocus
                 />
@@ -312,17 +315,20 @@ function AcompanharContent() {
                 <h3 className="text-sm font-bold text-red-900">Solicitação não localizada</h3>
                 <p className="text-xs text-red-700 mt-1 leading-relaxed">{errorMsg}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setTermoBusca('TRIN-2026-1001');
-                      executarBusca('TRIN-2026-1001');
-                    }}
-                    className="bg-white border-red-200 text-red-800 hover:bg-red-50 text-xs h-8"
-                  >
-                    Testar com protocolo TRIN-2026-1001
-                  </Button>
+                  {/* Atalho só do modo demonstração (no site real esse protocolo não existe) */}
+                  {!isSupabaseConfigured && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setTermoBusca('TRIN-2026-1001');
+                        executarBusca('TRIN-2026-1001');
+                      }}
+                      className="bg-white border-red-200 text-red-800 hover:bg-red-50 text-xs h-8"
+                    >
+                      Testar com protocolo TRIN-2026-1001
+                    </Button>
+                  )}
                   <Link href="/solicitar">
                     <Button size="sm" className="bg-[#006653] hover:bg-[#005242] text-white text-xs h-8 gap-1">
                       <PlusCircle className="w-3.5 h-3.5" />
@@ -335,12 +341,12 @@ function AcompanharContent() {
           </Card>
         )}
 
-        {/* Lista seletora caso a busca por CPF retorne múltiplos chamados */}
+        {/* Lista seletora caso a busca retorne mais de um chamado */}
         {listaResultados.length > 1 && (
           <Card className="border-gray-200 shadow-sm bg-white mb-6 rounded-2xl overflow-hidden">
             <CardHeader className="bg-gray-50/80 border-b border-gray-100 py-3.5 px-5">
               <CardTitle className="text-sm font-bold text-gray-800 flex items-center justify-between">
-                <span>Solicitações encontradas para este CPF ({listaResultados.length})</span>
+                <span>Solicitações encontradas ({listaResultados.length})</span>
                 <span className="text-xs font-normal text-gray-500">
                   Selecione uma para visualizar a linha do tempo
                 </span>
@@ -571,21 +577,6 @@ function AcompanharContent() {
                             chamadoSelecionado.cidadao_nome ||
                             'Cidadão Trindadense'}
                         </span>
-                      </div>
-                      <div className="mt-1 flex items-center gap-3 text-gray-500 text-[11px]">
-                        {chamadoSelecionado.cpf_cidadao && (
-                          <span>
-                            CPF: {mascararCpf(chamadoSelecionado.cpf_cidadao)}
-                          </span>
-                        )}
-                        {(chamadoSelecionado.telefone_cidadao ||
-                          chamadoSelecionado.cidadao_telefone) && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-gray-400" />
-                            {chamadoSelecionado.telefone_cidadao ||
-                              chamadoSelecionado.cidadao_telefone}
-                          </span>
-                        )}
                       </div>
                     </div>
 
@@ -819,12 +810,4 @@ function StatusBadgeItem({
         </Badge>
       );
   }
-}
-
-function mascararCpf(cpf: string): string {
-  const clean = cpf.replace(/\D/g, '');
-  if (clean.length === 11) {
-    return `${clean.slice(0, 3)}.***.***-${clean.slice(9, 11)}`;
-  }
-  return cpf;
 }

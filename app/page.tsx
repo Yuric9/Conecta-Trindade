@@ -18,7 +18,7 @@ const CATEGORIAS = [
 const PASSOS = [
   { titulo: 'Registre o problema', texto: 'Escolha a categoria, descreva o que aconteceu e informe o endereço. Se puder, envie uma foto.' },
   { titulo: 'Guarde o protocolo', texto: 'Ao enviar, você recebe um número de protocolo da sua solicitação.' },
-  { titulo: 'Acompanhe', texto: 'Consulte o andamento pelo protocolo ou pelo seu CPF sempre que quiser.' },
+  { titulo: 'Acompanhe', texto: 'Consulte o andamento pelo número do protocolo ou em "Meus Chamados" sempre que quiser.' },
 ];
 
 export default function HomePage() {

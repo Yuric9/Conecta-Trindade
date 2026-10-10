@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID, randomInt } from 'crypto';
 import { supabase, isSupabaseConfigured, type ChamadoRow, type StatusChamado } from '@/lib/supabase';
 import { getSharedChamadosMemory, addSharedChamado, updateSharedChamadoStatus } from '@/lib/chamados-memory';
-import { normalizarTermoBusca, buscarChamadosPublico } from '@/lib/chamados-publico';
+import { normalizarTermoBusca, buscarChamadosPublico, pareceCpf, MSG_SO_PROTOCOLO } from '@/lib/chamados-publico';
 import { requireStaff, usuarioOpcional } from '@/lib/supabase/server-auth';
 import { isWithinTrindade } from '@/lib/geo';
 
@@ -135,6 +135,21 @@ export async function POST(req: NextRequest) {
       errosValidacao.push('Endereço ou localização do problema é obrigatório (campo: endereco)');
     }
 
+    // Os mesmos limites do banco (migration 20261010000002), com mensagem clara
+    if (nome.length > 150) errosValidacao.push('O nome pode ter no máximo 150 caracteres');
+    if (telefone.length > 40) errosValidacao.push('Telefone inválido');
+    if (endereco.length > 500) errosValidacao.push('O endereço pode ter no máximo 500 caracteres');
+    if (descricao.length > 3000) errosValidacao.push('A descrição pode ter no máximo 3.000 caracteres');
+    if (foto_url !== null && foto_url !== undefined && foto_url !== '') {
+      if (
+        typeof foto_url !== 'string' ||
+        !/^(data:image\/(jpeg|png|webp);base64,|https:\/\/)/.test(foto_url) ||
+        foto_url.length > 3000000
+      ) {
+        errosValidacao.push('Foto inválida ou grande demais. Envie uma foto JPG ou PNG.');
+      }
+    }
+
     // Se houver erros de validação, retorna status 400
     if (errosValidacao.length > 0) {
       return NextResponse.json(
@@ -202,6 +217,10 @@ export async function POST(req: NextRequest) {
           updated_at: novoChamado.updated_at,
         });
 
+        // Trava contra enxurrada de pedidos (gatilho do banco)
+        if (dbError && (dbError as any).code === 'P0001') {
+          return NextResponse.json({ success: false, error: dbError.message }, { status: 429 });
+        }
         if (dbError) {
           console.error('[API Chamados] Erro ao inserir no Supabase:', dbError);
           return NextResponse.json(
@@ -260,7 +279,6 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         error: 'Erro interno no servidor ao processar a solicitação.',
-        detalhes: globalError?.message || 'Erro desconhecido',
       },
       { status: 500 }
     );
@@ -269,7 +287,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * GET /api/chamados
- *  - ?protocolo=... ou ?cpf=...  → consulta pública (dados não sensíveis)
+ *  - ?protocolo=...               → consulta pública (dados não sensíveis; CPF não é aceito)
  *  - sem filtros                  → listagem completa, só para servidores logados
  */
 export async function GET(req: NextRequest) {
@@ -282,7 +300,7 @@ export async function GET(req: NextRequest) {
       const busca = normalizarTermoBusca(termoPublico);
       if (!busca) {
         return NextResponse.json(
-          { success: false, error: 'Informe um protocolo válido ou um CPF completo com 11 dígitos.' },
+          { success: false, error: pareceCpf(termoPublico) ? MSG_SO_PROTOCOLO : 'Informe um protocolo válido.' },
           { status: 400 }
         );
       }

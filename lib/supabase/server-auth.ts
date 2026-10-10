@@ -63,11 +63,14 @@ export async function requireStaff(
 
   const { data: profile } = await client
     .from('profiles')
-    .select('role')
+    .select('role, status')
     .eq('id', userData.user.id)
     .maybeSingle();
 
-  const role = (profile as { role?: string } | null)?.role ?? null;
+  const perfil = profile as { role?: string; status?: string | null } | null;
+  // Usuário desativado pelo admin não usa as rotas da equipe
+  const ativo = (perfil?.status ?? 'ativo') === 'ativo';
+  const role = ativo ? perfil?.role ?? null : null;
   const permitido = adminOnly ? role === 'admin' : role !== null && STAFF_ROLES.includes(role);
 
   if (!permitido) {
