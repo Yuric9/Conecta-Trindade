@@ -215,7 +215,8 @@ export function CityFooter() {
           </div>
         </div>
         <div className="border-t border-white/20 mt-8 pt-4 text-xs text-emerald-50/70 text-center">
-          Conecta Trindade é um projeto independente e não substitui os canais oficiais da Prefeitura.
+          © {new Date().getFullYear()} Conecta Trindade · Desenvolvido por{' '}
+          <span className="font-semibold text-emerald-50">YC Soluções &amp; Tecnologia</span>
         </div>
       </div>
     </footer>
