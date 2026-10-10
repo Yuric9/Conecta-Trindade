@@ -108,6 +108,14 @@ só o primeiro nome; migration `20261010000003`) mostram:
 Nunca mostram coordenador, observações internas, motivos da equipe, CPF ou
 telefone. O site usa as versões antigas se as novas ainda não existirem.
 
+## Relatórios (aba Relatórios; migration `20261010000004`)
+
+`relatorio_os_dados(inicio, fim)` entrega à equipe ativa as O.S. abertas no
+período, sem dados pessoais (sem nome, CPF, telefone ou descrição). A tela
+calcula: recebidos, concluídos, em aberto, % dentro do prazo, tempo médio;
+e os números por mês, por serviço, por coordenador e as ruas com mais
+pedidos. Botão "Imprimir / PDF" gera a folha para levar à gestão.
+
 ## Aplicar as migrations
 
 No Supabase, rode os arquivos de `supabase/migrations/` em ordem (pelo
