@@ -1,4 +1,5 @@
-import { getCategoriaInfo, getStatusInfo, formatData } from './types';
+import { getCategoriaInfo, formatData } from './types';
+import { rotuloStatusCidadao } from './etapas-cidadao';
 import type { ChamadoCategoria, ChamadoStatus } from './types';
 
 export interface WhatsAppChamadoData {
@@ -14,11 +15,14 @@ export interface WhatsAppChamadoData {
 
 export function formatChamadoWhatsAppText(data: WhatsAppChamadoData): string {
   const catInfo = getCategoriaInfo(data.categoria);
-  const statusInfo = data.status ? getStatusInfo(data.status as ChamadoStatus) : null;
+  // Mensagem para o cidadão: status resumido (sem as etapas internas da equipe)
+  const statusCidadao = data.status ? rotuloStatusCidadao(data.status) : null;
   const dataFormatada = data.created_at ? formatData(data.created_at) : formatData(new Date().toISOString());
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const acompanhamentoUrl = origin ? `${origin}/meus-chamados` : 'Portal Zelo Urbano Trindade';
+  const acompanhamentoUrl = origin
+    ? `${origin}/acompanhar?protocolo=${encodeURIComponent(data.protocolo)}`
+    : 'Portal Zelo Urbano Trindade';
 
   const lines = [
     `🏛️ *PREFEITURA MUNICIPAL DE TRINDADE*`,
@@ -26,7 +30,7 @@ export function formatChamadoWhatsAppText(data: WhatsAppChamadoData): string {
     `━━━━━━━━━━━━━━━━━━━━━━━━`,
     `📄 *O.S. (Ordem de Serviço):* ${data.protocolo}`,
     `📌 *Categoria:* ${catInfo.emoji} ${catInfo.label}`,
-    statusInfo ? `📊 *Status Atual:* ${statusInfo.label}` : '',
+    statusCidadao ? `📊 *Situação:* ${statusCidadao}` : '',
     data.secretariaNome ? `🏢 *Secretaria Responsável:* ${data.secretariaNome}` : '',
     data.endereco ? `📍 *Endereço:* ${data.endereco}` : '',
     data.descricao ? `📝 *Descrição:* ${data.descricao}` : '',

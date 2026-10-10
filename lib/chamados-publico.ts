@@ -21,6 +21,12 @@ export interface ChamadoPublico {
   status: string;
   /** Resposta da equipe para o cidadão (nunca as observações internas). */
   resposta_cidadao: string | null;
+  /** Datas das etapas, para a linha do tempo do cidadão */
+  na_secretaria_em: string | null;
+  encaminhado_em: string | null;
+  concluido_em: string | null;
+  /** Foto do serviço feito (só depois de concluída) */
+  foto_execucao_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +63,10 @@ function paraVisaoPublica(c: ChamadoRow): ChamadoPublico {
     foto_url: c.foto_url,
     status: c.status,
     resposta_cidadao: (c as any).resposta_cidadao ?? null,
+    na_secretaria_em: (c as any).na_secretaria_em ?? null,
+    encaminhado_em: (c as any).encaminhado_em ?? null,
+    concluido_em: (c as any).concluido_em ?? null,
+    foto_execucao_url: c.status === 'Concluído' ? (c as any).foto_execucao_url ?? null : null,
     created_at: c.created_at,
     updated_at: c.updated_at,
   };
@@ -64,8 +74,12 @@ function paraVisaoPublica(c: ChamadoRow): ChamadoPublico {
 
 export async function buscarChamadosPublico(busca: TermoBusca): Promise<ChamadoPublico[]> {
   if (isSupabaseConfigured) {
-    // Função SECURITY DEFINER criada na migration 20261002000001_campos_gestao_localizacao.sql
-    const { data, error } = await (supabase as any).rpc('consultar_chamados_publico_v2', { termo: busca.valor });
+    // Funções SECURITY DEFINER: v3 (migration 20261010000001, com as datas das
+    // etapas); se o banco ainda não tiver a v3, usa a v2.
+    let { data, error } = await (supabase as any).rpc('consultar_chamados_publico_v3', { termo: busca.valor });
+    if (error) {
+      ({ data, error } = await (supabase as any).rpc('consultar_chamados_publico_v2', { termo: busca.valor }));
+    }
     if (error) throw error;
     return ((data as any[]) || []).map((row) => ({
       id: row.id,
@@ -77,6 +91,10 @@ export async function buscarChamadosPublico(busca: TermoBusca): Promise<ChamadoP
       foto_url: row.foto_url,
       status: row.status,
       resposta_cidadao: row.resposta_cidadao ?? null,
+      na_secretaria_em: row.na_secretaria_em ?? null,
+      encaminhado_em: row.encaminhado_em ?? null,
+      concluido_em: row.concluido_em ?? null,
+      foto_execucao_url: row.foto_execucao_url ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     }));
