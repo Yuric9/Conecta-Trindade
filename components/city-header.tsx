@@ -216,7 +216,7 @@ export function CityFooter() {
         </div>
         <div className="border-t border-white/20 mt-8 pt-4 text-xs text-emerald-50/70 text-center">
           © {new Date().getFullYear()} Conecta Trindade · Desenvolvido por{' '}
-          <span className="font-semibold text-emerald-50">YC Soluções Tecnologia</span>
+          <span className="font-semibold text-emerald-50">YC Soluções &amp; Tecnologia</span>
         </div>
       </div>
     </footer>
