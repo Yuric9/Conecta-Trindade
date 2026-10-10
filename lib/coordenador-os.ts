@@ -14,6 +14,8 @@ import {
   saveStoredChamadoItem,
 } from '@/lib/supabase/client';
 import { normalizarStatusOS, type StatusOS } from '@/lib/os-status';
+import { authHeaders } from '@/lib/auth-headers';
+import { assinarFotosDaLista } from '@/lib/fotos-os';
 
 export const COORDENADOR_DEMO_ID = 'demo-coord-001';
 
@@ -87,7 +89,8 @@ export async function carregarMinhasOS(): Promise<MinhaOS[]> {
   if (isSupabaseConfigured) {
     const { data, error } = await (supabase as any).rpc('minhas_os');
     if (error) throw new Error(error.message || 'Não foi possível carregar suas O.S.');
-    return ((data as any[]) || []).map(daLinhaDoBanco);
+    // Fotos do Storage: links temporários (o banco confere que a O.S. é dele)
+    return assinarFotosDaLista(supabase as any, ((data as any[]) || []).map(daLinhaDoBanco), ['foto_url', 'foto_execucao_url']);
   }
   const trintaDias = Date.now() - 30 * 86400000;
   return getStoredChamadosList()
@@ -108,6 +111,22 @@ export async function acaoCoordenador(
   foto?: string | null
 ): Promise<string | null> {
   if (isSupabaseConfigured) {
+    // Foto do serviço: vai para o Storage pelo servidor; o banco guarda só o endereço
+    if (foto && foto.startsWith('data:image/')) {
+      try {
+        const resp = await fetch('/api/os/foto', {
+          method: 'POST',
+          headers: await authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ chamado_id: os.id, foto }),
+        });
+        const json = await resp.json().catch(() => ({}));
+        if (resp.ok && json.endereco) foto = json.endereco;
+        else if (resp.status !== 503) return json.error || 'Não foi possível enviar a foto.';
+        // 503: Storage não configurado no servidor → grava a foto como antes
+      } catch {
+        return 'Sem conexão para enviar a foto. Tente de novo.';
+      }
+    }
     const { error } = await (supabase as any).rpc('coordenador_atualizar_os', {
       p_chamado: os.id,
       p_acao: acao,

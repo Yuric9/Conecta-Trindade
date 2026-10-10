@@ -116,6 +116,20 @@ calcula: recebidos, concluídos, em aberto, % dentro do prazo, tempo médio;
 e os números por mês, por serviço, por coordenador e as ruas com mais
 pedidos. Botão "Imprimir / PDF" gera a folha para levar à gestão.
 
+## Fotos no Storage (migration `20261010000005`)
+
+As fotos ficam no bucket **privado** `fotos-os` (só JPG/PNG/WebP, até 3 MB),
+não mais dentro da tabela. Na tabela fica só o endereço.
+
+- **Quem envia:** só o servidor do site, com a `SUPABASE_SERVICE_ROLE_KEY`
+  (foto do pedido em `POST /api/chamados`; foto do serviço em
+  `POST /api/os/foto`, que confere se a O.S. é do coordenador).
+- **Quem vê:** link temporário (6 h). Regra `pode_ver_foto_os()`: equipe
+  ativa; coordenador da O.S.; cidadão dono do pedido (a foto do serviço só
+  depois de concluída). Na consulta pública, o servidor gera o link.
+- Sem a chave secreta na Vercel, as fotos continuam sendo gravadas na
+  tabela, como antes. Fotos antigas na tabela continuam aparecendo.
+
 ## Aplicar as migrations
 
 No Supabase, rode os arquivos de `supabase/migrations/` em ordem (pelo

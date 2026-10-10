@@ -9,6 +9,7 @@ import { getCategoriaInfo, normalizeCategoria, formatData, tempoRelativo } from 
 import { statusParaCidadao } from '@/lib/os-status';
 import { ROTULO_CIDADAO, COR_CIDADAO, type StatusCidadao } from '@/lib/etapas-cidadao';
 import { formatChamadoWhatsAppText, shareViaWhatsApp, copyToClipboard } from '@/lib/whatsapp-share';
+import { assinarFotosDaLista } from '@/lib/fotos-os';
 import { CategoriaIcone } from '@/components/categoria-icone';
 import { LinhaTempoCidadao } from '@/components/linha-tempo-cidadao';
 import { Button } from '@/components/ui/button';
@@ -127,7 +128,8 @@ export default function MeusChamadosPage() {
           console.error('Erro ao carregar meus chamados:', error);
           setErro('Não foi possível carregar seus pedidos. Tente de novo em instantes.');
         } else {
-          setPedidos(((data as any[]) || []).map(paraPedido));
+          // Fotos do Storage: links temporários (o banco confere que o pedido é seu)
+          setPedidos(await assinarFotosDaLista(supabase as any, ((data as any[]) || []).map(paraPedido), ['foto', 'foto_execucao_url']));
         }
       } else {
         // Modo demonstração: dados guardados no navegador
