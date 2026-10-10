@@ -139,6 +139,7 @@ import { authHeaders } from '@/lib/auth-headers';
 import { AdminMobileNav, type AbaAdmin } from '@/components/admin-mobile-nav';
 import AdminCoordenadoresTab from '@/components/admin-coordenadores-tab';
 import AdminFilaTrabalho from '@/components/admin-fila-trabalho';
+import AdminRelatoriosTab from '@/components/admin-relatorios-tab';
 import AdminModalEncaminhar, { type DadosEncaminhamento } from '@/components/admin-modal-encaminhar';
 import {
   STATUS_OS,
@@ -643,6 +644,12 @@ export default function AdminPage() {
     if (id === 'mapa') setView('mapa');
     if (id === 'chamados' && view === 'mapa') setView('os');
   };
+
+  // Nome do coordenador para os relatórios (estável: não recalcula à toa)
+  const nomeCoordenadorRelatorio = useCallback(
+    (id: string) => profiles.find((p) => p.id === id)?.nome || 'Coordenador removido',
+    [profiles]
+  );
 
   // Coordenadores ativos (quem pode receber O.S.)
   const coordenadores = useMemo(
@@ -1254,7 +1261,7 @@ export default function AdminPage() {
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Números: clicar filtra a lista de O.S. (a fila tem os números dela) */}
-        <div className={adminTab === 'fila' ? 'hidden' : undefined}>
+        <div className={adminTab === 'fila' || adminTab === 'relatorios' ? 'hidden' : undefined}>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {[
             { label: 'Novas (central)', value: stats.pendentes, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', status: 'Pendente', atrasado: false },
@@ -1294,6 +1301,16 @@ export default function AdminPage() {
         </div>
 
         </div>
+
+        {/* Relatórios para a gestão */}
+        {adminTab === 'relatorios' && (
+          <div className="mb-6">
+            <AdminRelatoriosTab
+              nomeCoordenador={nomeCoordenadorRelatorio}
+              chamadosDemo={isSupabaseConfigured ? undefined : chamados}
+            />
+          </div>
+        )}
 
         {/* Minha fila: o painel de trabalho da central ou da Secretaria */}
         {adminTab === 'fila' && (
