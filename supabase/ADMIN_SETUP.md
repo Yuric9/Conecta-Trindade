@@ -97,8 +97,8 @@ Para a central, a Secretaria e o admin (migration `20261009000008`):
 ## O que o cidadão vê (migration `20261010000001`)
 
 "Meus Chamados" (`meus_chamados_v2()`, só os pedidos da própria conta) e
-"Acompanhar" (`consultar_chamados_publico_v3()`, por protocolo ou CPF
-completo, só o primeiro nome) mostram:
+"Acompanhar" (`consultar_chamados_publico_v3()`, **só pelo protocolo**,
+só o primeiro nome; migration `20261010000003`) mostram:
 
 - a situação resumida: Recebido, Em andamento, Concluído ou Cancelado;
 - a linha do tempo: Recebido → Na Secretaria → Equipe em campo → Concluído,

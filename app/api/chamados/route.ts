@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID, randomInt } from 'crypto';
 import { supabase, isSupabaseConfigured, type ChamadoRow, type StatusChamado } from '@/lib/supabase';
 import { getSharedChamadosMemory, addSharedChamado, updateSharedChamadoStatus } from '@/lib/chamados-memory';
-import { normalizarTermoBusca, buscarChamadosPublico } from '@/lib/chamados-publico';
+import { normalizarTermoBusca, buscarChamadosPublico, pareceCpf, MSG_SO_PROTOCOLO } from '@/lib/chamados-publico';
 import { requireStaff, usuarioOpcional } from '@/lib/supabase/server-auth';
 import { isWithinTrindade } from '@/lib/geo';
 
@@ -287,7 +287,7 @@ export async function POST(req: NextRequest) {
 
 /**
  * GET /api/chamados
- *  - ?protocolo=... ou ?cpf=...  → consulta pública (dados não sensíveis)
+ *  - ?protocolo=...               → consulta pública (dados não sensíveis; CPF não é aceito)
  *  - sem filtros                  → listagem completa, só para servidores logados
  */
 export async function GET(req: NextRequest) {
@@ -300,7 +300,7 @@ export async function GET(req: NextRequest) {
       const busca = normalizarTermoBusca(termoPublico);
       if (!busca) {
         return NextResponse.json(
-          { success: false, error: 'Informe um protocolo válido ou um CPF completo com 11 dígitos.' },
+          { success: false, error: pareceCpf(termoPublico) ? MSG_SO_PROTOCOLO : 'Informe um protocolo válido.' },
           { status: 400 }
         );
       }
