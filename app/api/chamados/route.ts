@@ -4,6 +4,8 @@ import { supabase, isSupabaseConfigured, type ChamadoRow, type StatusChamado } f
 import { getSharedChamadosMemory, addSharedChamado, updateSharedChamadoStatus } from '@/lib/chamados-memory';
 import { normalizarTermoBusca, buscarChamadosPublico, pareceCpf, MSG_SO_PROTOCOLO } from '@/lib/chamados-publico';
 import { requireStaff, usuarioOpcional } from '@/lib/supabase/server-auth';
+import { clienteAdminSupabase } from '@/lib/supabase/server-admin';
+import { enviarFoto, assinarFotosDaLista, caminhoDaFoto, BUCKET_FOTOS } from '@/lib/fotos-os';
 import { isWithinTrindade } from '@/lib/geo';
 
 // "Em Análise" saiu do fluxo da O.S. (ver lib/os-status.ts)
@@ -199,6 +201,22 @@ export async function POST(req: NextRequest) {
         // (o banco confere que cidadao_id é a própria pessoa).
         const usuario = await usuarioOpcional(req);
         const cliente = usuario?.client ?? supabase;
+
+        // Foto vai para o Storage (fora do banco); na tabela fica só o endereço.
+        // Sem a chave secreta configurada, grava como antes (dentro da tabela).
+        const admin = clienteAdminSupabase();
+        if (admin && novoChamado.foto_url?.startsWith('data:image/')) {
+          try {
+            novoChamado.foto_url = await enviarFoto(admin, novoChamado.id, 'cidadao', novoChamado.foto_url);
+          } catch (erroFoto) {
+            console.error('[API Chamados] Falha ao enviar foto ao Storage (grava no banco):', erroFoto);
+          }
+        }
+        const apagarFotoEnviada = async () => {
+          const caminho = caminhoDaFoto(novoChamado.foto_url);
+          if (admin && caminho) await admin.storage.from(BUCKET_FOTOS).remove([caminho]);
+        };
+
         const { error: dbError } = await (cliente.from('chamados') as any).insert({
           cidadao_id: usuario?.userId ?? null,
           id: novoChamado.id,
@@ -216,6 +234,9 @@ export async function POST(req: NextRequest) {
           created_at: novoChamado.created_at,
           updated_at: novoChamado.updated_at,
         });
+
+        // Pedido não gravado: a foto enviada não fica órfã no Storage
+        if (dbError) await apagarFotoEnviada();
 
         // Trava contra enxurrada de pedidos (gatilho do banco)
         if (dbError && (dbError as any).code === 'P0001') {
@@ -326,10 +347,9 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao listar chamados.' }, { status: 500 });
       }
 
-      return NextResponse.json(
-        { success: true, total: (data || []).length, chamados: data || [] },
-        { status: 200 }
-      );
+      // Fotos do Storage: links temporários (a equipe tem permissão de ver)
+      const chamados = await assinarFotosDaLista(auth.client, (data as any[]) || [], ['foto_url', 'foto_execucao_url']);
+      return NextResponse.json({ success: true, total: chamados.length, chamados }, { status: 200 });
     }
 
     const store = getSharedChamadosMemory();
@@ -457,7 +477,8 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Chamado não encontrado.' }, { status: 404 });
       }
 
-      return NextResponse.json({ success: true, message: 'Chamado atualizado.', chamado: data }, { status: 200 });
+      const [assinado] = await assinarFotosDaLista(auth.client, [data as any], ['foto_url', 'foto_execucao_url']);
+      return NextResponse.json({ success: true, message: 'Chamado atualizado.', chamado: assinado }, { status: 200 });
     }
 
     // Modo demonstração (memória do servidor)

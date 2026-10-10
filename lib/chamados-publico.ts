@@ -11,6 +11,8 @@
 
 import { supabase, isSupabaseConfigured, type ChamadoRow } from '@/lib/supabase';
 import { getSharedChamadosMemory } from '@/lib/chamados-memory';
+import { clienteAdminSupabase } from '@/lib/supabase/server-admin';
+import { assinarFotosDaLista } from '@/lib/fotos-os';
 
 export interface ChamadoPublico {
   id: string;
@@ -85,7 +87,7 @@ export async function buscarChamadosPublico(busca: TermoBusca): Promise<ChamadoP
     // só pelo protocolo, com as datas das etapas
     const { data, error } = await (supabase as any).rpc('consultar_chamados_publico_v3', { termo: busca.valor });
     if (error) throw error;
-    return ((data as any[]) || []).map((row) => ({
+    const lista: ChamadoPublico[] = ((data as any[]) || []).map((row) => ({
       id: row.id,
       protocolo: row.protocolo,
       nome_cidadao: row.primeiro_nome || 'Munícipe',
@@ -102,6 +104,9 @@ export async function buscarChamadosPublico(busca: TermoBusca): Promise<ChamadoP
       created_at: row.created_at,
       updated_at: row.updated_at,
     }));
+    // Fotos do Storage: o servidor gera o link temporário (o visitante não tem login)
+    const admin = clienteAdminSupabase();
+    return admin ? assinarFotosDaLista(admin, lista, ['foto_url', 'foto_execucao_url']) : lista;
   }
 
   // Modo demonstração
