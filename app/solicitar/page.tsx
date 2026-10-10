@@ -328,7 +328,8 @@ export default function SolicitarPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        const msg = data.error || (data.detalhes ? data.detalhes.join('; ') : 'Erro ao registrar solicitação.');
+        // Mostra o motivo exato (ex.: "A descrição pode ter no máximo 3.000 caracteres")
+        const msg = (data.detalhes ? data.detalhes.join('; ') : data.error) || 'Erro ao registrar solicitação.';
         setApiError(msg);
         return;
       }
