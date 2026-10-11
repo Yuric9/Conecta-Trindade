@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizarTermoBusca, buscarChamadosPublico, pareceCpf, MSG_SO_PROTOCOLO } from '@/lib/chamados-publico';
 
+// Sempre consulta o banco na hora (o status muda a cada etapa)
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/chamados/[protocolo]
  * Consulta pública de uma solicitação pelo número do protocolo (não aceita CPF).

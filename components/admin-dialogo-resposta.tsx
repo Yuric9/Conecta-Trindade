@@ -64,7 +64,7 @@ export default function AdminDialogoResposta({ chamado, onFechar, onSalvar }: Pr
     const origem = typeof window !== 'undefined' ? window.location.origin : '';
     abrirWhatsAppPara(
       chamado.cidadao_telefone,
-      `${texto.trim()}\n\n🔍 Acompanhe pelo protocolo ${chamado.protocolo}: ${origem}/acompanhar\n\n_Prefeitura de Trindade – Central de Atendimento_`
+      `${texto.trim()}\n\n🔍 Acompanhe pelo protocolo ${chamado.protocolo}: ${origem}/acompanhar?protocolo=${encodeURIComponent(chamado.protocolo)}\n\n_Prefeitura de Trindade – Central de Atendimento_`
     );
   };
 

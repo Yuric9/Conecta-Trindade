@@ -124,7 +124,8 @@ function AcompanharContent() {
     try {
       // 1. Chamar a rota de API GET /api/chamados/[protocolo]
       const url = `/api/chamados/${encodeURIComponent(termo)}`;
-      const response = await fetch(url);
+      // no-store: o status muda a cada etapa, nunca usar resposta guardada
+      const response = await fetch(url, { cache: 'no-store' });
       const data = await response.json();
 
       if (response.ok && data.success) {
@@ -204,6 +205,47 @@ function AcompanharContent() {
       executarBusca(protoUrl);
     }
   }, [searchParams, executarBusca]);
+
+  // Atualiza o pedido aberto sem piscar a tela (a Prefeitura pode mudar a
+  // etapa enquanto o cidadão está com a página aberta)
+  const [atualizando, setAtualizando] = useState(false);
+  const protocoloAberto = chamadoSelecionado?.protocolo;
+  const pedidoEncerrado = ['Concluído', 'Cancelado'].includes(normalizeStatus(chamadoSelecionado?.status));
+
+  const atualizarPedido = useCallback(async () => {
+    if (!protocoloAberto) return;
+    setAtualizando(true);
+    try {
+      const response = await fetch(`/api/chamados/${encodeURIComponent(protocoloAberto)}`, { cache: 'no-store' });
+      const data = await response.json();
+      const novo: ChamadoDetalhe | undefined = data?.success ? data.chamado : undefined;
+      if (!novo || novo.protocolo !== protocoloAberto) return;
+      setChamadoSelecionado((atual) => (atual?.protocolo === novo.protocolo ? novo : atual));
+      setListaResultados((lista) => lista.map((c) => (c.protocolo === novo.protocolo ? novo : c)));
+    } catch {
+      // Sem internet: tenta de novo na próxima vez
+    } finally {
+      setAtualizando(false);
+    }
+  }, [protocoloAberto]);
+
+  // Enquanto não terminou: confere a cada 30 s e quando a aba volta a ficar visível
+  useEffect(() => {
+    if (!protocoloAberto || pedidoEncerrado) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') atualizarPedido();
+    }, 30000);
+    const aoVoltar = () => {
+      if (document.visibilityState === 'visible') atualizarPedido();
+    };
+    document.addEventListener('visibilitychange', aoVoltar);
+    window.addEventListener('focus', aoVoltar);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', aoVoltar);
+      window.removeEventListener('focus', aoVoltar);
+    };
+  }, [protocoloAberto, pedidoEncerrado, atualizarPedido]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,6 +482,17 @@ function AcompanharContent() {
 
                 <div className="flex items-center gap-2 flex-wrap">
                   <StatusBadgeItem status={statusNorm} size="lg" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={atualizarPedido}
+                    disabled={atualizando}
+                    className="h-9 text-xs border-gray-300 text-gray-700 hover:bg-gray-100 gap-1.5 rounded-lg"
+                    title="Buscar a situação mais recente"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${atualizando ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">Atualizar</span>
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
