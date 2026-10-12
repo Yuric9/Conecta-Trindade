@@ -5,7 +5,7 @@
 -- idx_chamados_coordenador repete idx_chamados_coordenador_id. Índice
 -- repetido só gasta espaço e deixa a gravação mais lenta.
 --
--- PENDENTE em produção: rodar no SQL Editor do Supabase (a ferramenta
+-- Aplicada em produção pelo SQL Editor do Supabase (a ferramenta
 -- automática pede uma confirmação para DROP que não aparece).
 -- =====================================================================
 
