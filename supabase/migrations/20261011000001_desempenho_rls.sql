@@ -1,13 +1,9 @@
 -- =====================================================================
--- Ajustes de desempenho apontados pelo Supabase (Performance Advisor)
+-- Regras de acesso (RLS) mais rápidas (Performance Advisor do Supabase)
 --
--- 1) Regras de acesso (RLS): auth.uid() escrito direto é calculado de
---    novo para CADA linha. Com (select auth.uid()) o banco calcula uma
---    vez só por consulta. O resultado (quem pode o quê) não muda.
--- 2) Índices repetidos: idx_chamados_protocolo repete o índice único da
---    coluna protocolo, e idx_chamados_coordenador repete
---    idx_chamados_coordenador_id. Índice repetido só gasta espaço e
---    deixa a gravação mais lenta.
+-- auth.uid() escrito direto é calculado de novo para CADA linha. Com
+-- (select auth.uid()) o banco calcula uma vez só por consulta. O
+-- resultado (quem pode o quê) não muda.
 -- =====================================================================
 
 ALTER POLICY profiles_select ON public.profiles
@@ -42,13 +38,3 @@ ALTER POLICY chamados_insert_publico ON public.chamados
     AND cobrancas = 0
     AND (cidadao_id IS NULL OR cidadao_id = (select auth.uid()))
   );
-
-DO $$
-BEGIN
-  IF to_regclass('public.idx_chamados_protocolo') IS NOT NULL THEN
-    EXECUTE 'DROP INDEX public.idx_chamados_protocolo';
-  END IF;
-  IF to_regclass('public.idx_chamados_coordenador') IS NOT NULL THEN
-    EXECUTE 'DROP INDEX public.idx_chamados_coordenador';
-  END IF;
-END $$;
