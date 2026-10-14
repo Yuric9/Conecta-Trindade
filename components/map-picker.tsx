@@ -9,7 +9,9 @@ import {
   clampToTrindade,
 } from '@/lib/geo';
 import { TRINDADE_GEOJSON } from '@/lib/trindade-geojson';
-import { ORGAOS_PUBLICOS_TRINDADE, OrgaoPublico } from '@/lib/public-places';
+import type { OrgaoPublico } from '@/lib/public-places';
+import { carregarOrgaos } from '@/lib/orgaos-api';
+import { escapeHtml as esc } from '@/lib/utils';
 import { Building2, MapPin, Navigation } from 'lucide-react';
 import { pinoHtml, pontoHtml, iconeOrgao, iconeInlineHtml, TAMANHO_PINO, ANCORA_PINO, TAMANHO_PONTO, ANCORA_PONTO } from '@/lib/map-icons';
 
@@ -150,8 +152,9 @@ export default function MapPicker({
       const orgaosLayer = L.layerGroup().addTo(map);
       orgaosLayerRef.current = orgaosLayer;
 
-      // Adicionar prédios públicos como referência visual
-      ORGAOS_PUBLICOS_TRINDADE.forEach((orgao: OrgaoPublico) => {
+      // Prédios públicos como referência visual (lista do banco; textos
+      // escapados porque são escritos no painel)
+      const adicionarOrgao = (orgao: OrgaoPublico) => {
         const orgaoIcon = L.divIcon({
           className: 'ct-marcador',
           html: pontoHtml(iconeOrgao(orgao.tipo), orgao.cor),
@@ -164,7 +167,7 @@ export default function MapPicker({
         });
 
         oMarker.bindTooltip(
-          `<strong>${orgao.nome}</strong><br/><span style="font-size:11px;opacity:0.9;">${orgao.tipoLabel}</span>`,
+          `<strong>${esc(orgao.nome)}</strong><br/><span style="font-size:11px;opacity:0.9;">${esc(orgao.tipoLabel)}</span>`,
           { className: 'orgao-tooltip', direction: 'top', offset: [0, -16] }
         );
 
@@ -172,11 +175,11 @@ export default function MapPicker({
         const popupContent = `
           <div style="font-family: sans-serif; padding: 10px; width: 230px;">
             <div style="margin-bottom: 4px;">${iconeInlineHtml(iconeOrgao(orgao.tipo), orgao.cor, 18)}</div>
-            <strong style="font-size: 13px; color: #173b32; display: block; line-height: 1.2;">${orgao.nome}</strong>
-            <span style="font-size: 10.5px; color: #64748b; display: block; margin: 3px 0 6px;">${orgao.tipoLabel} - ${orgao.bairro}</span>
-            <p style="font-size: 11px; color: #475569; margin: 0 0 8px;">${orgao.endereco}</p>
+            <strong style="font-size: 13px; color: #173b32; display: block; line-height: 1.2;">${esc(orgao.nome)}</strong>
+            <span style="font-size: 10.5px; color: #64748b; display: block; margin: 3px 0 6px;">${esc(orgao.tipoLabel)} - ${esc(orgao.bairro)}</span>
+            <p style="font-size: 11px; color: #475569; margin: 0 0 8px;">${esc(orgao.endereco)}</p>
             <button
-              id="btn-pick-${orgao.id}"
+              id="btn-pick-${esc(orgao.id)}"
               style="
                 width: 100%;
                 background: #006653;
@@ -207,6 +210,10 @@ export default function MapPicker({
         });
 
         orgaosLayer.addLayer(oMarker);
+      };
+
+      carregarOrgaos().then((lista) => {
+        if (!destroyed) lista.forEach(adicionarOrgao);
       });
 
       // Tenta geolocalização se não houver coordenadas definidas

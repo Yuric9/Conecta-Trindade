@@ -16,16 +16,12 @@ import {
   saveStoredChamadoItem,
   deleteStoredChamadoItem,
 } from '@/lib/supabase/client';
+import type { OrgaoPublico } from '@/lib/public-places';
+import { carregarOrgaos, salvarOrgao, apagarOrgao, restaurarOrgaos } from '@/lib/orgaos-api';
 import {
-  getStoredOrgaos,
-  saveOrgao,
-  deleteOrgao,
-  resetOrgaosToDefault,
-  type OrgaoPublico,
-} from '@/lib/public-places';
-import {
-  getCityConfig,
-  saveCityConfig,
+  DEFAULT_CITY_CONFIG,
+  carregarCityConfig,
+  salvarCityConfig,
   type CityConfig,
 } from '@/lib/city-config';
 import { useAuth } from '@/lib/auth-context';
@@ -446,7 +442,7 @@ export default function AdminPage() {
   const [chamados, setChamados] = useState<Chamado[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [orgaos, setOrgaos] = useState<OrgaoPublico[]>([]);
-  const [cityConfig, setCityConfig] = useState<CityConfig>(getCityConfig);
+  const [cityConfig, setCityConfig] = useState<CityConfig>(DEFAULT_CITY_CONFIG);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -631,11 +627,8 @@ export default function AdminPage() {
 
     if (!isSupabaseConfigured) setProfiles(getStoredProfiles());
 
-    const loadedOrgaos = getStoredOrgaos();
-    setOrgaos(loadedOrgaos);
-
-    const loadedConfig = getCityConfig();
-    setCityConfig(loadedConfig);
+    carregarOrgaos().then(setOrgaos);
+    carregarCityConfig().then(setCityConfig);
     getPortalConfig().then((config) => setMenuContextoAtivo(config.menu_contexto_cards_ativo));
   }, [fetchChamadosFromDatabase]);
 
@@ -1131,27 +1124,41 @@ export default function AdminPage() {
     setProfiles((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleSaveOrgao = (updated: OrgaoPublico) => {
-    saveOrgao(updated);
-    setOrgaos((prev) => {
-      const idx = prev.findIndex((o) => o.id === updated.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = updated;
-        return next;
-      }
-      return [updated, ...prev];
-    });
+  const handleSaveOrgao = async (orgao: OrgaoPublico) => {
+    try {
+      const updated = await salvarOrgao(orgao);
+      setOrgaos((prev) => {
+        const idx = prev.findIndex((o) => o.id === updated.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        }
+        return [updated, ...prev];
+      });
+      avisoTemporario('success', 'Prédio salvo.');
+    } catch (e: any) {
+      avisoTemporario('error', e?.message || 'Não foi possível salvar o prédio.');
+    }
   };
 
-  const handleDeleteOrgao = (id: string) => {
-    deleteOrgao(id);
-    setOrgaos((prev) => prev.filter((o) => o.id !== id));
+  const handleDeleteOrgao = async (id: string) => {
+    try {
+      await apagarOrgao(id);
+      setOrgaos((prev) => prev.filter((o) => o.id !== id));
+      avisoTemporario('success', 'Prédio apagado.');
+    } catch (e: any) {
+      avisoTemporario('error', e?.message || 'Não foi possível apagar o prédio.');
+    }
   };
 
-  const handleResetOrgaos = () => {
-    const baseline = resetOrgaosToDefault();
-    setOrgaos(baseline);
+  const handleResetOrgaos = async () => {
+    try {
+      setOrgaos(await restaurarOrgaos());
+      avisoTemporario('success', 'Lista original de prédios restaurada.');
+    } catch (e: any) {
+      avisoTemporario('error', e?.message || 'Não foi possível restaurar a lista original.');
+    }
   };
 
   const handleViewOrgaoOnMap = (_orgao: OrgaoPublico) => {
@@ -1160,8 +1167,12 @@ export default function AdminPage() {
   };
 
   const handleSaveCityConfig = (nextConfig: CityConfig) => {
-    saveCityConfig(nextConfig);
-    setCityConfig(nextConfig);
+    salvarCityConfig(nextConfig)
+      .then((salva) => {
+        setCityConfig(salva);
+        avisoTemporario('success', 'Configurações salvas para toda a equipe.');
+      })
+      .catch((e: any) => avisoTemporario('error', e?.message || 'Não foi possível salvar as configurações.'));
   };
 
   const handleToggleContextMenu = async () => {
@@ -1552,6 +1563,8 @@ export default function AdminPage() {
         {adminTab === 'configuracoes' && (
           <div className="mb-6">
             <AdminConfigTab
+              // Recria o formulário quando as configurações chegam do banco
+              key={JSON.stringify(cityConfig)}
               config={cityConfig}
               onSaveConfig={handleSaveCityConfig}
             />
