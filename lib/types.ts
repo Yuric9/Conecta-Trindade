@@ -70,6 +70,10 @@ export interface Chamado {
   visualizado_em?: string | null;
   /** Foto do serviço executado, enviada pelo coordenador */
   foto_execucao_url?: string | null;
+  /** Arquivada pela rotina diária (concluída há mais de 30 dias) */
+  arquivado_em?: string | null;
+  /** Quando as fotos foram apagadas pela rotina diária */
+  fotos_expiradas_em?: string | null;
   /** Quando a central respondeu ao cidadão */
   respondido_em?: string | null;
   /** Última cobrança registrada pela central e quantas foram */
