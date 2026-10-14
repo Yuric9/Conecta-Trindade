@@ -527,6 +527,13 @@ export default function AdminModalEditChamado({
             </div>
           )}
 
+          {chamado.fotos_expiradas_em && (
+            <p className="text-xs text-gray-500 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+              As fotos desta O.S. foram apagadas em {new Date(chamado.fotos_expiradas_em).toLocaleDateString('pt-BR')},
+              30 dias depois da conclusão, para liberar espaço.
+            </p>
+          )}
+
           {/* Histórico da O.S. */}
           <div className="rounded-lg border border-gray-200 p-3">
             <Label className="text-xs font-bold text-gray-800 flex items-center gap-1 mb-2">

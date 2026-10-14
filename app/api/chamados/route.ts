@@ -27,7 +27,7 @@ const COLUNAS_PAINEL = [
   'observacoes_internas', 'resposta_cidadao', 'latitude', 'longitude', 'cidadao_id',
   'coordenador_id', 'na_secretaria_em', 'encaminhado_em', 'iniciado_em', 'executado_em',
   'concluido_em', 'visualizado_em', 'foto_execucao_url', 'respondido_em', 'cobrado_em', 'cobrancas',
-  'created_at', 'updated_at',
+  'arquivado_em', 'fotos_expiradas_em', 'created_at', 'updated_at',
 ].join(',');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -310,12 +310,15 @@ export async function POST(req: NextRequest) {
  * GET /api/chamados
  *  - ?protocolo=...               → consulta pública (dados não sensíveis; CPF não é aceito)
  *  - sem filtros                  → listagem completa, só para servidores logados
+ *  - ?arquivados=1                → só as O.S. arquivadas (concluídas há mais de 30 dias);
+ *                                   sem ele, a lista principal não mostra as arquivadas
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const termoPublico = searchParams.get('protocolo') || searchParams.get('cpf');
     const limit = Math.min(Number(searchParams.get('limit')) || 20, 100);
+    const arquivados = searchParams.get('arquivados') === '1';
 
     if (termoPublico) {
       const busca = normalizarTermoBusca(termoPublico);
@@ -337,8 +340,8 @@ export async function GET(req: NextRequest) {
     if ('response' in auth) return auth.response;
 
     if (auth.client) {
-      const { data, error } = await (auth.client.from('chamados') as any)
-        .select(COLUNAS_PAINEL)
+      const consulta = (auth.client.from('chamados') as any).select(COLUNAS_PAINEL);
+      const { data, error } = await (arquivados ? consulta.not('arquivado_em', 'is', null) : consulta.is('arquivado_em', null))
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -352,7 +355,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, total: chamados.length, chamados }, { status: 200 });
     }
 
-    const store = getSharedChamadosMemory();
+    const store = getSharedChamadosMemory().filter((c: any) => Boolean(c.arquivado_em) === arquivados);
     return NextResponse.json({ success: true, total: store.length, chamados: store }, { status: 200 });
   } catch (err: any) {
     console.error('[API Chamados] Erro ao buscar chamados:', err);

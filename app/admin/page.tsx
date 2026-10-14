@@ -89,6 +89,7 @@ import {
   Calendar,
   TrendingUp,
   AlertTriangle,
+  Archive,
   BarChart3,
   Users,
   Timer,
@@ -461,6 +462,8 @@ export default function AdminPage() {
   const [filterCoordenador, setFilterCoordenador] = useState<string>('TODOS');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAtrasado, setFilterAtrasado] = useState(false);
+  // O.S. concluídas há mais de 30 dias ficam arquivadas (fora da lista principal)
+  const [verArquivados, setVerArquivados] = useState(false);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [selectedChamado, setSelectedChamado] = useState<Chamado | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -547,7 +550,7 @@ export default function AdminPage() {
       // 1. Tentar buscar da API /api/chamados
       let apiChamados: any[] = [];
       try {
-        const res = await fetch('/api/chamados?limit=100', { cache: 'no-store', headers: await authHeaders() });
+        const res = await fetch(`/api/chamados?limit=100${verArquivados ? '&arquivados=1' : ''}`, { cache: 'no-store', headers: await authHeaders() });
         if (res.ok) {
           const data = await res.json();
           if (data.success && Array.isArray(data.chamados)) {
@@ -560,7 +563,7 @@ export default function AdminPage() {
 
       // 2. Dados locais do navegador só existem no modo demonstração.
       //    Com o banco configurado, o painel mostra apenas chamados reais.
-      const localChamados = isSupabaseConfigured ? [] : getStoredChamadosList();
+      const localChamados = isSupabaseConfigured || verArquivados ? [] : getStoredChamadosList();
 
       // 3. Mesclar registros garantindo exibição de novos chamados
       const map = new Map<string, Chamado>();
@@ -600,6 +603,8 @@ export default function AdminPage() {
           concluido_em: c.concluido_em ?? existing?.concluido_em ?? null,
           visualizado_em: c.visualizado_em ?? existing?.visualizado_em ?? null,
           foto_execucao_url: c.foto_execucao_url ?? existing?.foto_execucao_url ?? null,
+          arquivado_em: c.arquivado_em ?? null,
+          fotos_expiradas_em: c.fotos_expiradas_em ?? null,
           respondido_em: c.respondido_em ?? existing?.respondido_em ?? null,
           cobrado_em: c.cobrado_em ?? existing?.cobrado_em ?? null,
           cobrancas: c.cobrancas ?? existing?.cobrancas ?? 0,
@@ -620,7 +625,7 @@ export default function AdminPage() {
       setRefreshing(false);
       setLoading(false);
     }
-  }, []);
+  }, [verArquivados]);
 
   useEffect(() => {
     fetchChamadosFromDatabase();
@@ -1818,6 +1823,20 @@ export default function AdminPage() {
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
                 Prazo vencido
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setVerArquivados(!verArquivados)}
+                title="O.S. concluídas há mais de 30 dias"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                  verArquivados
+                    ? 'bg-slate-700 border-slate-700 text-white'
+                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Archive className="w-3.5 h-3.5" />
+                {verArquivados ? 'Vendo arquivadas' : 'Arquivadas'}
               </button>
 
               <button type="button" onClick={handleToggleContextMenu} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700"><span className={`relative h-4 w-7 rounded-full ${menuContextoAtivo ? 'bg-[#006653]' : 'bg-gray-300'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${menuContextoAtivo ? 'translate-x-3.5' : 'translate-x-0.5'}`}/></span>Menu rápido</button>
